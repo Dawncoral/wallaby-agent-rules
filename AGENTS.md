@@ -34,6 +34,25 @@ Maintenance rules:
   MEMORY.md.
 - Conflict order: this file > MEMORY.md > your own recollection.
 
+## Stakeholder check (before writing about any person or org)
+
+1. Look the name up in the register below; apply its perspective rule —
+   do NOT improvise a framing.
+2. If the name is NOT in the register, treat it as EXTERNAL: no internal
+   numbers, no strategy, and flag the mention to the owner.
+3. Wrong-tier framing is a defect. A partner analyzed like a sales lead,
+   or a vendor briefed like an insider, is a failed task — even if the
+   prose reads well.
+
+| Party | Tier | Perspective rule | Share ceiling |
+|---|---|---|---|
+| `<co-founder>` | inner | their question = an alignment signal, never a sales objection | everything |
+| `<upstream vendor>` | upstream | give data, never give strategy | reports only |
+| `<directory/channel>` | external | public positioning only | public docs |
+
+(Pattern borrowed from PMP's stakeholder register, PMBOK 13.1 — see
+README section 4.)
+
 ## Scope
 
 - Start in the directory named by the task: `<main dirs and what lives

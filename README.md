@@ -54,6 +54,18 @@ Heavier alternatives (vector stores, background consolidation) work, but for a s
 
 Every task ends with: what changed vs. what was planned, one line per drift. Borrowed from spec-driven development's analyze step — intent and outcome drift apart silently unless you check.
 
+### 4. A stakeholder register (the layer memory standards don't have)
+
+AGENTS.md and CLAUDE.md teach agents how to work with code. Neither says anything about how to talk *about people* — and that failure is silent and expensive. We know, because we shipped it: a co-founder asked "what is this product for and who buys it?", and the agent answered with discount sales copy, as if he were a sales lead. The right frame was internal alignment: equip the partner so he can represent the product upstream. One register row would have prevented it.
+
+The fix is borrowed from PMP's stakeholder register (PMBOK 13.1) and its power/interest grid — the parts of project-management canon that map cleanly onto agent instructions:
+
+- **One row per named party**: role, tier (inner / upstream / external), a *perspective rule*, and a share ceiling (what this party may see).
+- **Trigger → action, not prose**: "before writing about any person or org, look the name up; if absent, treat as external and flag." Models follow lookup tables reliably; they do not reliably act on descriptive paragraphs.
+- **Manage closely vs. keep informed**: high-power/high-interest parties get decision syncs in the always-loaded tier; keep-informed parties get the filtered partner view only. The visibility tag on every memory entry (`core` / `ally`) is the communication-management plan, enforced at render time.
+
+Cost: ~15 lines in AGENTS.md, loaded every session. Benefit: an entire failure class — right words, wrong audience — becomes structurally impossible instead of merely discouraged.
+
 ## A real bill (and an honest caveat)
 
 We have not run the undisciplined control arm, so we will not claim a measured "savings %". What we can show is the itemized bill for a real task run under this discipline — one prompt, a complete landing page, kimi-k3 reasoning model, [Codex CLI setup per this guide](https://www.wallabytoken.com/blog/p/kimi-k3-in-codex):
@@ -76,6 +88,7 @@ From running this daily with Codex CLI and Cline on a third-party endpoint:
 - **A dropped stream is not a lost session.** Type `continue`; the agent picks up mid-task. Know this before you re-prompt from scratch and pay the full framework prompt twice.
 - **Never chat casually with a coding agent.** A bare "say ok" through Codex CLI costs 9,481 tokens before the model starts answering — the framework prompt rides on every turn. Give agents tasks, not small talk.
 - **A log entry is a claim, not a fact.** We once had a hardening item that every record treated as done — until a live check showed the config was never set. Now nothing closes without fresh evidence from the system itself, and a standing baseline means reviews cost minutes, not days.
+- **Right words, wrong audience.** A co-founder asked what our product does and who it is for, and the agent answered with discount sales copy — partner treated as lead. Framing errors pass every spell-check; only a register lookup catches them. See section 4.
 
 ## FAQ
 

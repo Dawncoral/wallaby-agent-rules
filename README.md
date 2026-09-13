@@ -5,16 +5,18 @@
 
 **AGENTS.md is not documentation — it is a budget.** A starter template that treats your agent-instruction file as a cost-control surface: positive rules, a forbidden list, and a three-tier memory convention that ages on purpose.
 
-Every practice here runs daily in a one-person-plus-agents production project. Every number is measured, with the bill to prove it.
+Every practice here runs daily in a one-person-plus-agents production project. The bills shown are real; where the argument is mechanistic rather than measured, we say so.
 
 ## Quick start
 
 ```bash
-cp AGENTS.template.md /your-repo/AGENTS.md
-cp MEMORY.template.md /your-repo/MEMORY.md
+cp AGENTS.md /your-repo/AGENTS.md
+cp MEMORY.md /your-repo/MEMORY.md
 # Edit the <angle bracket> placeholders. Keep the Forbidden section
 # verbatim for one week before tuning.
 ```
+
+Yes — the template files double as this repo's own `AGENTS.md` and `MEMORY.md`. We dogfood the standard.
 
 Works with any tool that reads `AGENTS.md` — Codex, Cline, Cursor, Copilot, Gemini CLI, Aider, and 25+ others.
 
@@ -51,15 +53,15 @@ Heavier alternatives (vector stores, background consolidation) work, but for a s
 
 Every task ends with: what changed vs. what was planned, one line per drift. Borrowed from spec-driven development's analyze step — intent and outcome drift apart silently unless you check.
 
-## Measured results
+## A real bill (and an honest caveat)
 
-Same-class task (agent builds a complete landing page from one prompt), kimi-k3 reasoning model, [Codex CLI setup per this guide](https://www.wallabytoken.com/blog/p/kimi-k3-in-codex):
+We have not run the undisciplined control arm, so we will not claim a measured "savings %". What we can show is the itemized bill for a real task run under this discipline — one prompt, a complete landing page, kimi-k3 reasoning model, [Codex CLI setup per this guide](https://www.wallabytoken.com/blog/p/kimi-k3-in-codex):
 
 | Task | Requests | Input tokens | Cached input | Output | Total cost |
 |---|---|---|---|---|---|
 | Bookstore landing page (300+ lines, incl. self-recovery from a tool error) | 5 | 91,155 | 85,115 (93%) | 5,987 | **$0.16** |
 
-Note the cache column: a disciplined setup makes the agent's repeated framework prompt hit cache at one-tenth price, so the bill goes to actual work instead of overhead. Undisciplined loops (UI unit tests + browser-automation acceptance) multiply request counts several times over on the same task.
+The case for the forbidden list is mechanistic, not an A/B measurement: every banned behavior is an extra request loop, and every extra request resends the agent's framework prompt. Ban the loops and the bill lands on actual work — note the cache column, where 93% of repeated input was served at one-tenth price.
 
 ## Example
 

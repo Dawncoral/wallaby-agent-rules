@@ -1,5 +1,5 @@
 # MEMORY.md — three-tier memory template
-# Companion to AGENTS.template.md. Source: Wallaby Token engineering practice.
+# Companion to AGENTS.md in this repo. Source: Wallaby Token engineering practice.
 # https://www.wallabytoken.com/blog/p/agents-md-token-budget
 # License: MIT
 

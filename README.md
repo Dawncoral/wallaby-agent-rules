@@ -93,6 +93,19 @@ Every rule ends with the same escape hatch: "without explicit human approval." Y
 
 [AGENTS.md as a token budget: positive rules are not enough — you need a forbidden list](https://www.wallabytoken.com/blog/p/agents-md-token-budget)
 
+## Why we built this
+
+Wallaby Token is a one-person-plus-agents operation running an API
+gateway for open-weight models. These rules are not advice we sell —
+they are what keeps our own token bill survivable while agents do the
+daily coding, deploys, and writing.
+
+We think the interesting question of this decade is how much real
+infrastructure one person and a few agents can run. This repo is part
+of our answer, in public.
+
+[wallabytoken.com](https://www.wallabytoken.com)
+
 ## License
 
 MIT — adapt freely, attribution appreciated.

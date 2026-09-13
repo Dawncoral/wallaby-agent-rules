@@ -46,6 +46,7 @@ Two disciplines keep it cheap:
 
 - **Process notes are deleted at closeout.** Git history and the decision log already hold what matters; blow-by-blow scratch is the biggest token garbage source in any memory system.
 - **Entries idle for 30 days drop a tier automatically.** The per-session load stays bounded instead of growing forever.
+- **Audit by delta, close by evidence.** Pick a dated baseline ("audited up to here"). Each review only scans what changed since the baseline — plus every open item, which stays open until someone checks the live system: the file, the server, the bill. A note saying "done" is a claim, not a fact. Every few weeks, re-audit in full; deltas alone let old entries rot quietly.
 
 Heavier alternatives (vector stores, background consolidation) work, but for a solo dev they are opaque infrastructure you cannot `git diff`. Plain files win.
 
@@ -74,6 +75,7 @@ From running this daily with Codex CLI and Cline on a third-party endpoint:
 - **Tool-call shape errors self-heal — let them.** A reasoning model occasionally calls the editor's file tool with mis-shaped arguments. The harness feeds the error back, the model retries differently, and it lands. Don't add prompt rules for this; retries are cheaper than rules loaded forever.
 - **A dropped stream is not a lost session.** Type `continue`; the agent picks up mid-task. Know this before you re-prompt from scratch and pay the full framework prompt twice.
 - **Never chat casually with a coding agent.** A bare "say ok" through Codex CLI costs 9,481 tokens before the model starts answering — the framework prompt rides on every turn. Give agents tasks, not small talk.
+- **A log entry is a claim, not a fact.** We once had a hardening item that every record treated as done — until a live check showed the config was never set. Now nothing closes without fresh evidence from the system itself, and a standing baseline means reviews cost minutes, not days.
 
 ## FAQ
 

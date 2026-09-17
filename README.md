@@ -80,6 +80,10 @@ The case for the forbidden list is mechanistic, not an A/B measurement: every ba
 
 [`examples/MEMORY.example.md`](examples/MEMORY.example.md) shows the three tiers filled in, eight weeks after adoption — two lines in Active, pointers everywhere else, dates making the 30-day downgrade rule executable. Read it before writing your own; the tier boundaries matter more than tidy lines.
 
+## Cold-start prompt
+
+[`COLD_START.md`](COLD_START.md) is a paste-in first message that bootstraps this whole convention in a blank project: the agent does recon, builds the governance files (three-tier memory, capability registry, decision log, doc index), adopts the standing rules, picks a reconciliation mode that matches its platform (cron / weekly self-check / trigger words), and reports back with a to-confirm list — guesses it almost wrote as facts, isolated for your sign-off. That last step is the anti-hallucination gate; do not skip it.
+
 ## Field notes (failure modes we actually hit)
 
 From running this daily with Codex CLI and Cline on a third-party endpoint:

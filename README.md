@@ -12,7 +12,7 @@ Give your project's AI a long-term memory — and give yourself a map of the pro
 
 | Before | After |
 |---|---|
-| Every new chat starts from zero — you re-explain the project, the decisions, the rules. | The AI opens each session by reading `MEMORY.md` + `NOW.md`. It already knows. |
+| Fifty messages in, the AI's memory starts to rot — settled decisions get relitigated, file names get invented, and you stop trusting it. | `MEMORY.md`: one dated, sourced line per fact. On any conflict the file wins — flagged to you, never silently resolved. |
 | "Where was that file?" — two weeks later, nobody knows. | `INDEX.md`: one line per file, always current. A lookup, not a search. |
 | The project root slowly fills with scratch and build leftovers. | `python3 scripts/health_check.py` flags the clutter in seconds, weekly. |
 

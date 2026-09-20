@@ -68,11 +68,11 @@ One line: more governance components (deeper weekly checks, closeout triage, arc
 
 - [`templates/`](templates/) — NOW / INDEX / LOG templates + the health check script, ready to copy.
 - [`AGENTS.md`](AGENTS.md) / [`MEMORY.md`](MEMORY.md) — the v1 starter templates (token-budget discipline, three-tier memory, stakeholder register), still valid and still dogfooded by this repo itself.
-- [`examples/MEMORY.example.md`](examples/MEMORY.example.md) — what a filled-in memory file looks like eight weeks in.
+- [`examples/MEMORY.example.md`](examples/MEMORY.example.md) — what a filled-in memory file looks like in real use.
 
 ## Who built this
 
-Wallaby Token is a one-person-plus-agents operation running an API gateway for open-weight models. This system is what runs our own project daily — not advice we sell, but infrastructure we depend on. Full write-up: [wallabytoken.com](https://www.wallabytoken.com).
+Wallaby Token (WALLABY DATA PTY LTD, ABN 90 701 729 964) provides inference-as-a-service for open-weight large language models. This memory system runs our own project daily — not advice we sell, but infrastructure we depend on. Full write-up: [wallabytoken.com](https://www.wallabytoken.com).
 
 ## License
 

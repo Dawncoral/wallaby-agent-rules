@@ -1,3 +1,4 @@
+<!-- wallaby-agent-rules v2 -->
 # MEMORY.md — three-tier memory template
 # Companion to AGENTS.md in this repo. Source: Wallaby Token engineering practice.
 # https://www.wallabytoken.com/blog/p/agents-md-token-budget

@@ -3,7 +3,7 @@
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
 
-## v2 — 2026-09-20
+## v2 — 2026-09-21
 
 Theme: **AI remembers, you find.** The repo grows from a template pack into a two-prompt onboarding system.
 

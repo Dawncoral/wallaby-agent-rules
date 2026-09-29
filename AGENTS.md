@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules v2 -->
+<!-- wallaby-agent-rules v3 -->
 # AGENTS.md — token-budget starter template
 # Source: Wallaby Token engineering practice — https://www.wallabytoken.com/blog/p/agents-md-token-budget
 # License: MIT — adapt freely, attribution appreciated.
@@ -94,3 +94,14 @@ allowed the moment a human asks for it.
 3. **Delete process notes.** Git history and the decision log already hold
    what matters; blow-by-blow scratch is the biggest token garbage source
    in any memory system.
+
+## Ritual words
+
+- "wrap up" (and variants like "that's it for today") → run the closeout
+  above: triage, drift check, report.
+- "note this" → append the current conclusion, dated, to the log.
+- "that's wrong" → record what happened and what should have happened, so
+  the same miss gets caught next time.
+
+These are placeholders. The point is that the system learns YOUR words —
+replace them with what you actually say when you're done.

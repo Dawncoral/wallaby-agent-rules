@@ -1,7 +1,36 @@
-<!-- wallaby-agent-rules v2 -->
+<!-- wallaby-agent-rules v3 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## v3 — 2026-09-29
+
+Theme: **It remembers because you close.** v2 installed the system; v3 keeps it alive day to day.
+
+**Added**
+
+- `PROMPT.md` — a fourth paste-in prompt: **L3 — Closeout ritual** (four-question triage, drift check, report). The interview becomes the **7-question** interview: the new question installs your own ritual words.
+- `## Ritual words` section in the entry-file spec (L0/L1): say "wrap up" and the AI runs the closeout; "note this" logs a conclusion; "that's wrong" records a failure. Defaults included — the point is to use *your* words.
+- `templates/health_check.py` — four new scans: NOW.md entries idle past 30 days; INDEX.md registrations pointing at missing files; entry files past the size wall — bytes, lines, or estimated tokens, whichever bursts first (CJK text fills byte budgets ~3x faster, so the script counts all three); MEMORY.md bullets with no date. Same zero dependencies, same exit codes.
+- `examples/NOW.example.md`, `examples/INDEX.example.md` — what "good" looks like two weeks in, not just on day one.
+
+**Changed**
+
+- Version markers move to `<!-- wallaby-agent-rules v3 -->`.
+- README roadmap updated: the closeout ritual and the deeper health check shipped here; deeper governance (architecture review, managed oversight) is planned as a hosted offering rather than an open drop.
+
+**Unchanged**
+
+- The upgrade rules: add, never overwrite; your content is sacred; you approve item by item.
+
+## Migrating from v2
+
+The v1→v2 rules still apply — add, never overwrite; your content is sacred; you confirm before anything moves — with one explicit exception: **`health_check.py` is scaffolding.** It contains none of your content, so the upgrade offers to replace it outright.
+
+1. Paste the **L2 — Upgrade check** prompt from `PROMPT.md`; approve item by item.
+2. Replace `scripts/health_check.py` with the v3 version (seven scans).
+3. Add the `## Ritual words` section to your entry file — the defaults, or your own words.
+4. Try the closeout once via **L3**; then hang it on your word.
 
 ## v2 — 2026-09-21
 

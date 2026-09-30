@@ -50,6 +50,15 @@ The moment installation finishes, you watch the AI scan your project and hand yo
 
 New in v3: the **closeout ritual**. Say "wrap up" and the AI triages everything the session produced — into long-term memory, the dated log, current state, or the bin — then checks what drifted from the plan. Memory stays true because someone closes. See the **L3** prompt in [PROMPT.md](PROMPT.md).
 
+## Using with Claude Code
+
+The system drops straight into Claude Code's own conventions:
+
+- **Entry file**: answer "Claude Code" in the setup interview and everything anchors to `CLAUDE.md` — the file Claude Code reads at every session start. `/memory` opens it for quick edits.
+- **Install**: paste either prompt from [PROMPT.md](PROMPT.md) into a Claude Code session in your project root. With web access on, Claude Code can also fetch the prompt URL itself.
+- **Health check**: `python3 scripts/health_check.py` runs as a plain shell command — no MCP server, no plugin, nothing to install.
+- **Closeout ritual**: say "wrap up" (or your own ritual words) before closing a session, and Claude Code triages what the session produced into memory, the dated log, or the bin.
+
 ## How it works (three sentences)
 
 1. The entry file makes the AI read `MEMORY.md` + `NOW.md` before every session — memory is a habit, not a feature.

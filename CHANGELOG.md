@@ -1,7 +1,30 @@
-<!-- wallaby-agent-rules v3 -->
+<!-- wallaby-agent-rules v3.1 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## v3.1 — 2026-10-01
+
+Theme: **Memory is not written, it is audited.** v3 kept the system alive day to day; v3.1 catches the days you skipped.
+
+**Added**
+
+- `templates/reconcile.py` — zero-dependency weekly audit, two scans: closure contradictions (LOG.md claims something is done while NOW.md still lists it in flight) and evidence-free closures (a "done" with no path, ticket, or link to verify against). Same zero dependencies, same exit-code contract as `health_check.py`.
+- The L0/L1 installs now build `scripts/reconcile.py` alongside the health check; the L2 upgrade check detects v3.1 by its presence.
+
+**Changed**
+
+- Version markers move to `<!-- wallaby-agent-rules v3.1 -->` on the files that changed (README, PROMPT, this changelog).
+
+**Unchanged**
+
+- The upgrade rules: add, never overwrite. Like `health_check.py`, `reconcile.py` is scaffolding — the upgrade may offer to replace it outright.
+
+## Migrating from v3
+
+1. Copy `templates/reconcile.py` into your project as `scripts/reconcile.py`.
+2. Run it next to the health check, weekly: `python3 scripts/reconcile.py`.
+3. Optionally paste the **L2 — Upgrade check** prompt to refresh the version marker in your entry file.
 
 ## v3 — 2026-09-29
 

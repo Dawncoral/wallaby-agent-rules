@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules v3 -->
+<!-- wallaby-agent-rules v3.1 -->
 # PROMPT.md — paste-in prompts for your AI
 
 Four self-contained prompts. Pick one, copy the whole fenced block, and paste it to the AI that works in your project (Kimi Code, Claude Code, Cursor, Codex, or any agent that can read and write files). No install, no dependencies — the AI builds everything itself.
@@ -33,7 +33,7 @@ Build with the default profile (no questions — just build):
 - Weekly health check: ON
 - Ritual words: defaults — "wrap up" / "note this" / "that's wrong"
 
-## What you build (5 files)
+## What you build (6 files)
 
 1. **Entry file: `AGENTS.md`** at the project root (if one exists, merge — never overwrite what is already there). Contents, in order:
    - One paragraph of project orientation: what this project is, what "done" looks like. Facts only.
@@ -59,12 +59,14 @@ Build with the default profile (no questions — just build):
 
 5. **`scripts/health_check.py`** — a zero-dependency Python 3 script that runs seven scans: (a) stray files in the project root beyond a whitelist, (b) generated artifacts (.zip/.tmp/.pyc/.log) sitting at the top level of subdirectories, (c) .md files not registered in INDEX.md, (d) NOW.md entries idle past 30 days, (e) INDEX.md registrations pointing at files that no longer exist, (f) entry files past the size wall — ~32 KiB bytes, ~500 lines, or ~8k estimated tokens, whichever bursts first (CJK text fills byte budgets ~3x faster per character), (g) MEMORY.md bullet lines with no date. Exit code 0 when clean, 1 when findings. If you can fetch `templates/health_check.py` from the wallaby-agent-rules repo, use it verbatim; otherwise write it to that spec.
 
+6. **`scripts/reconcile.py`** — a zero-dependency Python 3 script that runs two scans: (a) closure contradictions — LOG.md entries that claim something is done (shipped / fixed / merged / published / ...) while the same topic still sits in NOW.md's "In flight" section; (b) evidence-free closures — "done" entries with no path, ticket, link, or backtick reference to verify against. Same exit-code contract as the health check. If you can fetch `templates/reconcile.py` from the wallaby-agent-rules repo, use it verbatim; otherwise write it to that spec.
+
 ## How you build it
 
 1. **Recon first — no writing before this.** Scan the project as it exists: directory tree, README, existing docs, the last 20 git log entries, config files. Answer three questions: what is this project, where is it now, what rules must never be broken.
-2. **Build the 5 files above**, inferring content from recon. Guesses go on the to-confirm list, never into the files as facts.
+2. **Build the 6 files above**, inferring content from recon. Guesses go on the to-confirm list, never into the files as facts.
 3. **Report back in ≤15 lines**: which files you built (one line each), your understanding of the project, and a numbered **to-confirm list** of facts you were unsure about. I confirm or correct item by item; you write the results back. Only then is the build complete.
-4. **Finish with a 5-line "how to use this from now on"** for me: what happens at every new chat (you read MEMORY + NOW automatically), how I find files (INDEX.md), when to run the health check (weekly: `python3 scripts/health_check.py`), how I close a session (say "wrap up"), and how I change the rules (edit MEMORY.md directly).
+4. **Finish with a 5-line "how to use this from now on"** for me: what happens at every new chat (you read MEMORY + NOW automatically), how I find files (INDEX.md), when to run the weekly checks (`python3 scripts/health_check.py` and `python3 scripts/reconcile.py`), how I close a session (say "wrap up"), and how I change the rules (edit MEMORY.md directly).
 ````
 
 ---
@@ -87,7 +89,7 @@ I want a long-term memory system for this project — so that you remember acros
 5. **Detailed records or lean ones?**
    → Decides entry length and summary depth. Detailed also adds a `LOG.md` — a dated, append-only log, newest entry on top.
 6. **Should the AI periodically check for file clutter and remind you to tidy up?** (yes, default / no)
-   → Installs `scripts/health_check.py` and a weekly-run reminder in the entry file, or skips both.
+   → Installs `scripts/health_check.py` and `scripts/reconcile.py` plus a weekly-run reminder in the entry file, or skips all three.
 7. **What words do you actually say when you're done, or when something must be remembered?** (defaults: "wrap up" / "note this" / "that's wrong")
    → Installs a `## Ritual words` section in the entry file: when you say one of these words, the AI runs the matching ritual — closeout triage, log the conclusion, or record a failure. The system adapts to your language, not the other way around.
 
@@ -95,21 +97,22 @@ After my last answer, tell me in 3 lines which profile you derived, then build i
 
 ## What you build
 
-The same 5 files as the one-click install, parameterized by my answers:
+The same files as the one-click install, parameterized by my answers:
 
 1. **Entry file** (per Q1) at the project root — merge, never overwrite, if one exists. Contents: one paragraph of project orientation; a `## Memory protocol` section (read MEMORY.md + NOW.md at every session start; check INDEX.md before searching for files; conflict order: files > your memory > your inference — on conflict follow the file and flag it; at every task end update NOW.md, register new files in INDEX.md, delete process scratch); a `## Ritual words` section (per Q7 — each word mapped to its ritual: "wrap up" → closeout triage + drift check, "note this" → dated log entry, "that's wrong" → record the failure and the expected behavior); a `## Red lines` section (credentials: never read/print/commit; destructive or live-service actions: list the blast radius and wait for approval; you draft, I release); plus the Q3/Q6 additions if applicable.
 2. **`MEMORY.md`** — long-term memory: permanent facts, key decisions with reasons, iron rules. One dated line per fact with a source. Never write guesses as facts — unsure items go on the to-confirm list. Nothing here ages out.
 3. **`NOW.md`** — current state: work in flight (dated lines with pointers) on top, recently-touched pointers below; entries idle 30 days are pruned at the next update. Caps per Q4/Q5.
 4. **`INDEX.md`** — one line per file (`path | what it is`), granularity per Q2. **Build the first version now by actually scanning the project** — never hand me an empty template. New files get registered on creation from now on.
 5. **`scripts/health_check.py`** (if Q6 = yes) — zero-dependency Python 3, seven scans: stray root files beyond a whitelist; generated artifacts (.zip/.tmp/.pyc/.log) at subdirectories' top level; .md files missing from INDEX.md; NOW.md entries idle past 30 days; INDEX.md registrations pointing at missing files; entry files past the size wall — ~32 KiB bytes, ~500 lines, or ~8k estimated tokens, whichever bursts first (CJK text fills byte budgets ~3x faster per character); MEMORY.md bullets with no date. Exit 0 clean / 1 findings. Use `templates/health_check.py` from the wallaby-agent-rules repo verbatim if you can fetch it.
-6. **`LOG.md`** (if Q5 = detailed) — dated, append-only, newest on top.
+6. **`scripts/reconcile.py`** (if Q6 = yes) — zero-dependency Python 3, two scans: closure contradictions (LOG.md claims done while NOW.md still lists the topic in flight) and evidence-free closures ("done" with no path, ticket, link, or backtick reference). Same exit-code contract. Use `templates/reconcile.py` from the wallaby-agent-rules repo verbatim if you can fetch it.
+7. **`LOG.md`** (if Q5 = detailed) — dated, append-only, newest on top.
 
 ## How you build it
 
 1. **Recon first** — directory tree, README, existing docs, last 20 git log entries, config files. No writing before this.
 2. **Build the files**, inferring content from recon; guesses go to the to-confirm list.
 3. **Report in ≤15 lines**: files built, your understanding of the project, numbered to-confirm list. I confirm or correct item by item; you write the results back.
-4. **Finish with a 5-line "how to use this from now on"**: new chats auto-read MEMORY + NOW; find files via INDEX.md; run the health check weekly (`python3 scripts/health_check.py`); close sessions with your ritual word; change rules by editing MEMORY.md directly.
+4. **Finish with a 5-line "how to use this from now on"**: new chats auto-read MEMORY + NOW; find files via INDEX.md; run the weekly checks (`python3 scripts/health_check.py` and `python3 scripts/reconcile.py`); close sessions with your ritual word; change rules by editing MEMORY.md directly.
 ````
 
 ---
@@ -123,11 +126,11 @@ This project already has memory/instruction files. I want to upgrade them to the
 
 ## Three iron rules (these override everything below)
 
-1. **Add, never overwrite.** New files (NOW.md, INDEX.md, scripts/health_check.py, LOG.md) are simply created. Changes to files that already exist are only ever *proposed as diffs*.
+1. **Add, never overwrite.** New files (NOW.md, INDEX.md, scripts/health_check.py, scripts/reconcile.py, LOG.md) are simply created. Changes to files that already exist are only ever *proposed as diffs*.
 2. **My content is sacred.** Every line I wrote in existing files stays untouched. You may only add empty sections, new slots, or structural markers — and only after I approve.
 3. **Nothing changes without my confirmation.** You produce a checklist; I approve item by item; you execute only what I approved.
 
-One explicit exception: `scripts/health_check.py` is scaffolding — it contains none of my content, so when a newer version exists you may offer to replace it outright (show me the diff summary first).
+One explicit exception: `scripts/health_check.py` and `scripts/reconcile.py` are scaffolding — they contain none of my content, so when a newer version exists you may offer to replace them outright (show me the diff summary first).
 
 ## Step 1: Scan and identify the version
 
@@ -135,17 +138,19 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, .curso
 
 - A first-line comment `<!-- wallaby-agent-rules vX -->` states the version directly.
 - No marker → infer from fingerprints:
+  - **v3.1**: as v3, plus `scripts/reconcile.py` exists (two scans).
+  - **v3**: a `## Ritual words` section in the entry file; health_check.py (if present) runs seven scans; no `scripts/reconcile.py`.
   - **v2**: NOW.md and INDEX.md exist; no `## Ritual words` section in the entry file; health_check.py (if present) runs three scans.
   - **v1**: an AGENTS.md built around a forbidden list, a MEMORY.md with Active/Standby/Dormant tiers, no NOW.md or INDEX.md.
 - Tell me which version you detected and the evidence, before proposing anything.
 
 ## Step 2: Propose an incremental upgrade list
 
-Compare what exists against the v3 layout (entry file with Memory protocol + Ritual words + Red lines; MEMORY.md long-term facts; NOW.md current state; INDEX.md project map; scripts/health_check.py with seven scans; optional LOG.md). Output a numbered checklist:
+Compare what exists against the v3.1 layout (entry file with Memory protocol + Ritual words + Red lines; MEMORY.md long-term facts; NOW.md current state; INDEX.md project map; scripts/health_check.py with seven scans; scripts/reconcile.py with two scans; optional LOG.md). Output a numbered checklist:
 
 - **Add** — files that do not exist yet. For INDEX.md, scan the project and show me the first full version you would write.
-- **Suggest change** — for each existing file, show a diff: what you would add (the `## Ritual words` section, the v3 version marker) and, if anything looks redundant under v3, what you *recommend* moving — clearly marked as optional, never executed without my explicit yes per item.
-- **Replace (scaffolding only)** — if scripts/health_check.py exists and is older than seven scans, offer to swap in the current version from the wallaby-agent-rules repo. This is the only file you may replace outright.
+- **Suggest change** — for each existing file, show a diff: what you would add (the `## Ritual words` section, the v3.1 version marker) and, if anything looks redundant under v3.1, what you *recommend* moving — clearly marked as optional, never executed without my explicit yes per item.
+- **Replace (scaffolding only)** — if scripts/health_check.py exists and is older than seven scans, or scripts/reconcile.py exists and is older than two scans, offer to swap in the current version from the wallaby-agent-rules repo. These are the only files you may replace outright.
 
 ## Step 3: Execute only what I approve
 

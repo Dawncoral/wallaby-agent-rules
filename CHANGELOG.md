@@ -1,7 +1,25 @@
-<!-- wallaby-agent-rules v4.0.1 -->
+<!-- wallaby-agent-rules v4.1 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## v4.1 — 2026-10-04
+
+Theme: **Memory covers versions too — and it speaks Chinese.** Two additions, one structural, one linguistic.
+
+**Added**
+
+- **Code & releases memory module** (conditional): a `## Code & releases` section in the entry file for projects that involve code — the current released/deployed version becomes a dated memory fact updated the moment it changes; every release, migration, or rollback gets a dated log line with the commit or tag; deploys require a committed tree (local repo = source of truth). The L1 interview mounts it via a new question 2 ("Does this project involve writing or maintaining code?") and skips it entirely for non-code projects; L0 assumes code. L3's closeout triage gains a version-state question.
+- **Chinese edition**: `README.zh-CN.md` + `PROMPT.zh-CN.md` — the full system in Chinese, same prompts, same logic.
+
+**Changed**
+
+- L1 is now a 9-question interview (the code-or-not gate joins).
+- Version markers move to `<!-- wallaby-agent-rules v4.1 -->` on changed files.
+
+## Migrating from v4 / v4.0.1
+
+Nothing breaks. Code projects: paste L2 and it will offer the `## Code & releases` section as an optional addition. Non-code projects: nothing to do.
 
 ## v4.0.1 — 2026-10-04
 

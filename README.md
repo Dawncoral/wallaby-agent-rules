@@ -1,15 +1,15 @@
-<!-- wallaby-agent-rules v4.0.1 -->
+<!-- wallaby-agent-rules v4.1 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v4-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v4.1-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
 
 **AI remembers, you find.**
 
-Give your project's AI a long-term memory — and give yourself a map of the project. Two paste-in prompts, five plain files, zero dependencies. Works with any AI coding tool.
+Give your project's AI a long-term memory — and give yourself a map of the project. Two paste-in prompts, five plain files, zero dependencies. Works with any AI coding tool. 中文版：[README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md)。
 
 We run this system on our own business. As of October 2026 it has caught 40 logged memory failures — each dated, sourced, and turned into a rule or a scan you can see in this repo.
 
@@ -20,23 +20,24 @@ We run this system on our own business. As of October 2026 it has caught 40 logg
 | Fifty messages in, the AI's memory starts to rot — settled decisions get relitigated, file names get invented, and you stop trusting it. | `MEMORY.md`: one dated, sourced line per fact. On any conflict the file wins — flagged to you, never silently resolved. |
 | "Where was that file?" — two weeks later, nobody knows. | `INDEX.md`: one line per file, always current. A lookup, not a search. |
 | The project root slowly fills with scratch and build leftovers. | `python3 scripts/health_check.py` flags the clutter in seconds, weekly. |
+| "Which version is live right now?" — the answer lives in someone's head. | `## Code & releases` section: the current version is a dated memory fact; releases and rollbacks get logged with commit references. |
 
 ## Get started — pick a path
 
 Both paths are one prompt you paste to the AI working in your project. Full text lives in [PROMPT.md](PROMPT.md).
 
-**🚀 One-click, ~30 seconds** — all defaults (solo developer, trust-building mode on), zero questions:
+**🚀 One-click, ~30 seconds** — all defaults (solo developer, code project, trust-building mode on), zero questions:
 
 ```
 Fetch https://raw.githubusercontent.com/Dawncoral/wallaby-agent-rules/main/PROMPT.md
 and follow its "L0 — One-click install" section in this project.
 ```
 
-**🎯 Custom, ~2 minutes** — the AI asks you 8 short questions (tool, project size, solo/team, chat volume, record style, tidy-up on/off, trust-building on/off, your ritual words), then builds the same system tuned to your answers:
+**🎯 Custom, ~2 minutes** — the AI asks you 9 short questions (tool, code or not, project size, solo/team, chat volume, record style, tidy-up on/off, your ritual words, trust-building on/off), then builds the same system tuned to your answers:
 
 ```
 Fetch https://raw.githubusercontent.com/Dawncoral/wallaby-agent-rules/main/PROMPT.md
-and follow its "L1 — 8-question interview" section in this project.
+and follow its "L1 — 9-question interview" section in this project.
 ```
 
 Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly — it's plain text.
@@ -52,8 +53,11 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 | `scripts/health_check.py` | Zero-dependency weekly check, seven scans: stray root files, build artifacts, index drift both ways, stale entries, entry-file size walls (bytes/lines/tokens, CJK-aware), undated facts |
 | `scripts/reconcile.py` | Zero-dependency weekly audit, two scans: log entries that claim "done" while NOW.md still lists the work in flight, and "done" claims with nothing to verify against |
 | Trust-building mode (default on) | For the first two weeks, new long-term memories are *proposed* for your approval before they become permanent — you watch what the AI chooses to remember before letting it write freely |
+| Code & releases (code projects) | The current released version is a dated memory fact, updated the moment it changes; every release, migration, or rollback gets logged with its commit reference |
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
+
+**New in v4.1**: the code-version memory module (mounted conditionally — the interview asks whether your project involves code and only adds it if yes) and a full Chinese edition ([README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md)).
 
 **New in v4**: trust-building mode (approval-gated memory writes for the first two weeks — default on, one question in the interview, expires on its own), a tool-integration matrix with per-tool cards ([templates/integrations/](templates/integrations/)), and versioned GitHub Releases from now on.
 
@@ -92,7 +96,7 @@ Already using this? Paste the **L2 — Upgrade check** prompt from [PROMPT.md](P
 
 ## Roadmap
 
-One line: v3 shipped the closeout ritual and the deeper health check; v3.1 added the reconcile audit; v4 added trust-building mode and tool integrations; next open drop is multi-agent / team memory discipline. Deeper governance (architecture review, managed oversight) is planned as a hosted offering rather than an open drop — watch the repo.
+One line: v3 shipped the closeout ritual and the deeper health check; v3.1 added the reconcile audit; v4 added trust-building mode and tool integrations; v4.1 added the code-version module and the Chinese edition; next open drop is multi-agent / team memory discipline. Deeper governance (architecture review, managed oversight) is planned as a hosted offering rather than an open drop — watch the repo.
 
 ## Also in this repo
 
@@ -100,6 +104,7 @@ One line: v3 shipped the closeout ritual and the deeper health check; v3.1 added
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
 - [`upgrade/`](upgrade/) — one-page upgrade cards between versions.
 - [`COMMERCIAL.md`](COMMERCIAL.md) — commercial licensing: what's free, what needs a license, how to reach us.
+- [`README.zh-CN.md`](README.zh-CN.md) / [`PROMPT.zh-CN.md`](PROMPT.zh-CN.md) — 中文版说明与提示词。
 - [`AGENTS.md`](AGENTS.md) / [`MEMORY.md`](MEMORY.md) — the v1 starter templates (token-budget discipline, three-tier memory, stakeholder register), still valid and still dogfooded by this repo itself.
 - [`examples/`](examples/) — filled-in MEMORY / NOW / INDEX examples: what "good" looks like two weeks in, not just on day one.
 

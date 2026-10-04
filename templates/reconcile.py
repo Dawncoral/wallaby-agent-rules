@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# wallaby-agent-rules v3.1
+# wallaby-agent-rules 1.0.0
 """reconcile.py — weekly consistency audit between the dated log and current state.
 
 Zero dependencies, Python 3.8+. Two scans:

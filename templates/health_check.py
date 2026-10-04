@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# wallaby-agent-rules v3
+# wallaby-agent-rules 1.0.0
 """health_check.py — weekly tidy-up check for projects using the memory system.
 
 Zero dependencies, Python 3.8+. Seven scans:

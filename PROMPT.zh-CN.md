@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules v4.1 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # PROMPT.zh-CN.md —— 粘贴即用的提示词（中文版）
 
 四段自包含提示词。选一段，整个代码块复制，粘给在你项目里干活的 AI（Kimi Code、Claude Code、Cursor、Codex，或任何能读写文件的 agent）。无需安装、零依赖——AI 自己把整套系统建出来。English version: [PROMPT.md](PROMPT.md)。
@@ -150,8 +150,9 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 找出本项目所有记忆/指令文件（AGENTS.md、CLAUDE.md、GEMINI.md、.cursorrules、MEMORY.md、NOW.md、INDEX.md、LOG.md、COLD_START.md 及类似文件）。
 
-- 首行注释 `<!-- wallaby-agent-rules vX -->` 直接写明版本。
+- 首行注释直接写明版本：1.0.0 起为语义化 `<!-- wallaby-agent-rules 1.0.0 -->`；早期安装为 `<!-- wallaby-agent-rules vX -->`（v1–v4.1）。
 - 无标记 → 按指纹推断：
+  - **1.0.0**：语义化标记；内容与 v4.1 相同（只是改编号，不是重构）。
   - **v4.1**：同 v4，另（可选）入口文件有 `## 代码与版本` 节（代码项目）。它是可选增量——指纹停在 v3.1/v4 的项目可能只是还没升；按下面的清单提议即可。
   - **v4**：同 v3.1，另（可选）入口文件有 `## 信任培养模式` 节。
   - **v3.1**：同 v3，另有 `scripts/reconcile.py`（两项扫描）。
@@ -162,10 +163,10 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 ## 第 2 步：提出增量升级清单
 
-拿现状对照 v4.1 布局（入口文件含 记忆协议 + 仪式词 + 红线 + 可选信任培养模式 + 可选代码与版本；MEMORY.md 长期事实；NOW.md 当前状态；INDEX.md 项目地图；scripts/health_check.py 七项扫描；scripts/reconcile.py 两项扫描；可选 LOG.md）。输出编号清单：
+拿现状对照 1.0.0 布局（入口文件含 记忆协议 + 仪式词 + 红线 + 可选信任培养模式 + 可选代码与版本；MEMORY.md 长期事实；NOW.md 当前状态；INDEX.md 项目地图；scripts/health_check.py 七项扫描；scripts/reconcile.py 两项扫描；可选 LOG.md）。输出编号清单：
 
 - **新增**——还不存在的文件。INDEX.md 先扫描项目并给我看你将要写入的首个完整版本。
-- **建议改动**——每个已有文件给一份 diff：你建议加什么（比如 `## 仪式词` 节、可选的 `## 信任培养模式` 节、代码项目的 `## 代码与版本` 节、v4.1 版本标记）；如发现有内容在 v4.1 下显得冗余，*建议*移哪——明确标注可选，没我逐项明确同意绝不执行。
+- **建议改动**——每个已有文件给一份 diff：你建议加什么（比如 `## 仪式词` 节、可选的 `## 信任培养模式` 节、代码项目的 `## 代码与版本` 节、当前版本标记）；如发现有内容显得冗余，*建议*移哪——明确标注可选，没我逐项明确同意绝不执行。
 - **替换（仅限脚手架）**——若 scripts/health_check.py 早于七项扫描、或 scripts/reconcile.py 早于两项扫描，提议换成 wallaby-agent-rules 仓库的当前版本。只有这两个文件可以直接替换。
 - **指引**——如果我的工具在 wallaby-agent-rules 仓库的 `templates/integrations/` 里有卡，指给我。
 

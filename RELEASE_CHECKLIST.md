@@ -1,13 +1,13 @@
-<!-- wallaby-agent-rules v4.1 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # Release checklist
 
 Every version ships when every box is ticked, in this order. (This file is ours — it keeps us honest; users only see the results.)
 
 ## Version numbers and cadence (v4.1 立，源=10-04 三连版教训)
 
-- **Three tiers**: major (v4→v5) = new capability theme + a distribution event; minor (v4.1) = module-level additions; patch (v4.0.1) = fixes, licensing, copy. **Patches never get their own Release or announcement.**
+- **Three tiers**: major (1.0.0→2.0.0) = new capability theme + a distribution event; minor (1.1.0) = module-level additions; patch (1.0.1) = fixes, licensing, copy. **Patches never get their own Release or announcement.**
 - **Batch, don't drip**: same-day changes on the same theme accumulate into one version window. Default ceiling: **one public version (major/minor) per week**. If a feature is done Tuesday, it waits for the window — a version number is a promise of attention, and attention is finite.
-- **Releases are the marketing event**: only majors/minors get a GitHub Release; one Release can bundle many commits. (10-04: v4 + v4.0.1 + v4.1 landed same day — externally there should have been exactly one Release, v4.1.)
+- **Releases are the marketing event**: only majors/minors get a GitHub Release; one Release can bundle many commits. (10-04: three bumps landed same day — externally there was exactly one Release, 1.0.0.)
 - **Hotfix exception**: compliance/safety/licensing fixes ship any time, as a patch number, without the distribution event.
 - Self-check before assigning a number: "would a user care that this number changed?" If no, it's a patch or it waits.
 

@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules v4 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # Cursor
 
 - **Entry file**: `AGENTS.md` — Cursor reads it natively. (Older setups used `.cursorrules` or `.cursor/rules/`; the L1 interview covers those too, but prefer the single `AGENTS.md`.)

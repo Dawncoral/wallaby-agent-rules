@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules v3 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # INDEX.md — the project map
 
 > One line per file: `path | what it is, in a few words`.

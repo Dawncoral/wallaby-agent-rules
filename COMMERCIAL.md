@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules v4.0.1 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # Commercial licensing
 
 wallaby-agent-rules is free for personal projects, research, and use inside your own organization (MIT + Commons Clause — see [LICENSE](LICENSE)).

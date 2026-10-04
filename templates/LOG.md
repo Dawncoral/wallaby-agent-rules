@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules v3 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # LOG.md — dated log
 
 > Append-only. Newest entry on top. One entry per thing that happened:

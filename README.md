@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules v4.1 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v4.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
@@ -57,7 +57,7 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
 
-**New in v4.1**: the code-version memory module (mounted conditionally — the interview asks whether your project involves code and only adds it if yes) and a full Chinese edition ([README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md)).
+**New in 1.0.0**: the code-version memory module (mounted conditionally — the interview asks whether your project involves code and only adds it if yes), a full Chinese edition ([README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md)), and a renumbering to semantic versioning (earlier v1–v4.1 iterations are folded into 1.0.0).
 
 **New in v4**: trust-building mode (approval-gated memory writes for the first two weeks — default on, one question in the interview, expires on its own), a tool-integration matrix with per-tool cards ([templates/integrations/](templates/integrations/)), and versioned GitHub Releases from now on.
 
@@ -92,11 +92,11 @@ Everything is plain Markdown you can read, `git diff`, and edit. No vector store
 
 ## Updating
 
-Already using this? Paste the **L2 — Upgrade check** prompt from [PROMPT.md](PROMPT.md) to your AI. It detects your version (via the `<!-- wallaby-agent-rules vX -->` marker or file fingerprints), then proposes an incremental upgrade list — you approve item by item. **Your content is never overwritten.** From v4 on, every version also ships as a GitHub Release with migration notes — watch the repo to get notified. Version history and migration steps: [CHANGELOG.md](CHANGELOG.md); the one-page card for the latest step: [upgrade/v3-to-v4.md](upgrade/v3-to-v4.md).
+Already using this? Paste the **L2 — Upgrade check** prompt from [PROMPT.md](PROMPT.md) to your AI. It detects your version (via the first-line marker comment or file fingerprints), then proposes an incremental upgrade list — you approve item by item. **Your content is never overwritten.** Every version ships as a GitHub Release with migration notes — watch the repo to get notified. Version history and migration steps: [CHANGELOG.md](CHANGELOG.md); the one-page card for moving from pre-1.0 versions: [upgrade/pre-1.0.md](upgrade/pre-1.0.md).
 
 ## Roadmap
 
-One line: v3 shipped the closeout ritual and the deeper health check; v3.1 added the reconcile audit; v4 added trust-building mode and tool integrations; v4.1 added the code-version module and the Chinese edition; next open drop is multi-agent / team memory discipline. Deeper governance (architecture review, managed oversight) is planned as a hosted offering rather than an open drop — watch the repo.
+Shipped so far: the closeout ritual, the deeper health check, the reconcile audit, trust-building mode, tool integrations, the code-version module, and the Chinese edition. Next open drop is multi-agent / team memory discipline. Deeper governance (architecture review, managed oversight) is planned as a hosted offering rather than an open drop — watch the repo. Numbering is semantic from 1.0.0 on; earlier iterations (v1–v4.1) are folded into it — see [CHANGELOG.md](CHANGELOG.md).
 
 ## Also in this repo
 

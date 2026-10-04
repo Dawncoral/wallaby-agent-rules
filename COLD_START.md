@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules v2 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # COLD_START.md — superseded by PROMPT.md
 
 This file is kept so existing links do not break. Its content has been replaced by **[PROMPT.md](PROMPT.md)**, which covers the same ground and more:

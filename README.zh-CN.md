@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules v4.1 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v4.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
@@ -80,11 +80,11 @@
 
 ## 已在用？升级
 
-把 [PROMPT.zh-CN.md](PROMPT.zh-CN.md) 里的 **L2 —— 升级检查** 提示词粘给你的 AI。它会识别你的版本（靠 `<!-- wallaby-agent-rules vX -->` 标记或文件指纹），给出增量升级清单——你逐项批准。**你的内容永远不会被覆盖。** 从 v4 起每个版本都发 GitHub Release（含迁移说明），watch 这个仓库即可收到通知。版本历史与迁移步骤：[CHANGELOG.md](CHANGELOG.md)；最新一步的一页卡：[upgrade/v3-to-v4.md](upgrade/v3-to-v4.md)。
+把 [PROMPT.zh-CN.md](PROMPT.zh-CN.md) 里的 **L2 —— 升级检查** 提示词粘给你的 AI。它会识别你的版本（靠首行标记注释或文件指纹），给出增量升级清单——你逐项批准。**你的内容永远不会被覆盖。** 每个版本都发 GitHub Release（含迁移说明），watch 这个仓库即可收到通知。版本历史与迁移步骤：[CHANGELOG.md](CHANGELOG.md)；从早期版本迁移的一页卡：[upgrade/pre-1.0.md](upgrade/pre-1.0.md)。
 
 ## 路线图
 
-一句话：v3 出了收工仪式和深度健康检查；v3.1 加了对账审计；v4 加了信任培养模式与工具接入；v4.1 加了代码版本模块与中文版；下一个开源大件是多 agent/团队记忆纪律。更深的治理能力（架构评审、托管值守）规划为托管付费形态而非开源件——watch 这个仓库。
+至今已交付：收工仪式、深度健康检查、对账审计、信任培养模式、工具接入、代码版本模块、中文版。下一个开源大件是多 agent/团队记忆纪律。更深的治理能力（架构评审、托管值守）规划为托管付费形态而非开源件——watch 这个仓库。自 1.0.0 起用语义化版本号；早期迭代（v1–v4.1）已并入 1.0.0——见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 这个仓库里还有
 

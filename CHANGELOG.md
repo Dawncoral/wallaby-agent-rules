@@ -1,7 +1,17 @@
-<!-- wallaby-agent-rules v4.1 -->
+<!-- wallaby-agent-rules 1.0.0 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.0.0 — 2026-10-04
+
+**Renumbered to semantic versioning.** All earlier public iterations (v1 → v4.1, September–October 2026) are folded into this 1.0.0; their details are preserved under "Pre-1.0 history" below. From here on: **patch** (1.0.1) = fixes and small adjustments, **minor** (1.1.0) = feature-level additions, **major** (2.0.0) = theme-level or breaking change. Cadence rules live in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+
+Everything in the repo today — the closeout ritual, the reconcile audit, trust-building mode, the tool integrations, the code-version module, the Chinese edition, MIT + Commons Clause licensing — is 1.0.0.
+
+**Migrating from a pre-1.0 version**: your files carry `vX` markers; treat them as the same system. Paste the L2 prompt or read [upgrade/pre-1.0.md](upgrade/pre-1.0.md) — nothing breaks, nothing is required.
+
+## Pre-1.0 history
 
 ## v4.1 — 2026-10-04
 

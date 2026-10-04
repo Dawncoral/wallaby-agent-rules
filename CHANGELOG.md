@@ -1,7 +1,33 @@
-<!-- wallaby-agent-rules v3.1 -->
+<!-- wallaby-agent-rules v4 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## v4 — 2026-10-04
+
+Theme: **Trust is earned before it is assumed.** v3 taught the system to close; v4 makes new memory earn its way in — and makes the system easier to land in your tool.
+
+**Added**
+
+- **Trust-building mode** (default ON for new installs): for the first two weeks, new `MEMORY.md` entries are proposed at session end (⏳ pending, dated, sourced) and become permanent only after your yes. It expires two weeks after install, or the moment you say "trust mode off". L0 enables it by default; L1 gains an 8th question; L3 proposes instead of writing while it is active.
+- **Tool integration matrix** in README + per-tool cards in `templates/integrations/`: Claude Code, Codex, Cursor, GitHub Copilot, OpenHands, Gemini CLI — entry file, gotchas, and a 30-second self-check for each.
+- `upgrade/v3-to-v4.md` — the one-page upgrade card.
+- **GitHub Releases from v4 onward**: every version ships as a Release with migration notes, so watchers get notified. (This is the first one.)
+
+**Changed**
+
+- Version markers move to `<!-- wallaby-agent-rules v4 -->` on the files that changed (README, PROMPT, this changelog, and the new files).
+
+**Unchanged**
+
+- The upgrade rules: add, never overwrite; your content is sacred; nothing changes without your confirmation. `health_check.py` / `reconcile.py` are unchanged since v3.1 and remain the only outright-replaceable files.
+
+## Migrating from v3.1
+
+Nothing breaks and nothing is required. Two options:
+
+1. Paste the **L2 — Upgrade check** prompt; it will offer the optional trust-building section, a pointer to your tool's integration card, and the v4 marker — item by item, your call.
+2. Or read the one-page card: `upgrade/v3-to-v4.md`.
 
 ## v3.1 — 2026-10-01
 

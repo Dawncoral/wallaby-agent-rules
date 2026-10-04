@@ -1,7 +1,11 @@
-<!-- wallaby-agent-rules v4 -->
+<!-- wallaby-agent-rules v4.0.1 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## v4.0.1 — 2026-10-04
+
+**Licensing**: MIT + [Commons Clause](LICENSE) — free for personal projects, research, and use inside your own organization; selling it (bundled, hosted, or as paid services built on it) requires a commercial license — see [COMMERCIAL.md](COMMERCIAL.md). Commits prior to this release remain under plain MIT.
 
 ## v4 — 2026-10-04
 

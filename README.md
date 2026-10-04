@@ -1,7 +1,7 @@
-<!-- wallaby-agent-rules v4 -->
+<!-- wallaby-agent-rules v4.0.1 -->
 # wallaby-agent-rules
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-v4-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
@@ -99,6 +99,7 @@ One line: v3 shipped the closeout ritual and the deeper health check; v3.1 added
 - [`templates/`](templates/) — NOW / INDEX / LOG templates + the health check and reconcile scripts, ready to copy.
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
 - [`upgrade/`](upgrade/) — one-page upgrade cards between versions.
+- [`COMMERCIAL.md`](COMMERCIAL.md) — commercial licensing: what's free, what needs a license, how to reach us.
 - [`AGENTS.md`](AGENTS.md) / [`MEMORY.md`](MEMORY.md) — the v1 starter templates (token-budget discipline, three-tier memory, stakeholder register), still valid and still dogfooded by this repo itself.
 - [`examples/`](examples/) — filled-in MEMORY / NOW / INDEX examples: what "good" looks like two weeks in, not just on day one.
 
@@ -108,4 +109,4 @@ Wallaby Token (WALLABY DATA PTY LTD, ABN 90 701 729 964) provides inference-as-a
 
 ## License
 
-MIT — adapt freely, attribution appreciated.
+MIT + [Commons Clause](LICENSE) — free for personal projects, research, and use inside your own organization. Selling it (bundled, hosted, or as paid services built on it) needs a commercial license — see [COMMERCIAL.md](COMMERCIAL.md). Releases before v4.0.1 remain under plain MIT.

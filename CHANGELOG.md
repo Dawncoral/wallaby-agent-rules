@@ -1,7 +1,19 @@
-<!-- wallaby-agent-rules 1.1.0 -->
+<!-- wallaby-agent-rules 1.2.0 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.2.0 — 2026-10-06
+
+**The memory system, now as an installable skill.** One new distribution surface and one new tool card; nothing changes inside your project.
+
+- **New: `skills/agent-memory-rules/`** — the whole system packaged as a SKILL.md: what gets built (entry file, MEMORY.md, NOW.md, INDEX.md, LOG.md), the standing rules, the closeout ritual, and both check scripts bundled under `scripts/`. Install into Hermes Agent with `hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules`; the same directory works with any tool that reads the SKILL.md convention. The skill versions independently, starting at 1.0.0. Passes the Hermes community security scan at the cleanest verdict (safe — no findings beyond informational notes).
+- **New: `templates/integrations/hermes.md`** — entry file, three gotchas verified on Hermes v0.21.5 (only the entry file is auto-injected — MEMORY.md is pulled in by the protocol rule; context files pass a prompt-injection scan; oversized files truncate head/tail against a cap that scales with the model's context window, 20K chars floor), and the 30-second self-check.
+- README (EN + zh-CN): Hermes row in the tool table, a third get-started path, and the `skills/` listing.
+
+### Migrating from 1.1.0
+
+Nothing to migrate. 1.2.0 adds distribution surfaces; the files installed in your project are identical to 1.1.0, and an install that fingerprints as 1.1.0 is current.
 
 ## 1.1.0 — 2026-10-06
 

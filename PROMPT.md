@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.1.0 -->
+<!-- wallaby-agent-rules 1.2.0 -->
 # PROMPT.md — paste-in prompts for your AI
 
 Four self-contained prompts. Pick one, copy the whole fenced block, and paste it to the AI that works in your project (Kimi Code, Claude Code, Cursor, Codex, or any agent that can read and write files). No install, no dependencies — the AI builds everything itself.
@@ -154,6 +154,7 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, GEMINI
 
 - A first-line comment states the version directly: `<!-- wallaby-agent-rules 1.0.0 -->` style (semantic) from 1.0.0 on; `<!-- wallaby-agent-rules vX -->` (v1–v4.1) on earlier installs.
 - No marker → infer from fingerprints:
+  - **1.2.0**: repo-side additions only (the `skills/` skill package and the Hermes integration card) — the files installed in your project are identical to 1.1.0; an install fingerprinting as 1.1.0 is current.
   - **1.1.0**: as 1.0.0/1.0.1, plus health_check.py runs ten scans (adds MEMORY.md budget with demote candidates, secrets hygiene, commit silence) and the MEMORY.md rule carries an aging clause (past the soft wall, facts idle 30+ days move to LOG.md).
   - **1.0.0**: semantic marker; content equals v4.1 (renumbering, not a rebuild).
   - **v4.1**: as v4, plus (optionally) a `## Code & releases` section in the entry file (code projects). Additive-optional — a project fingerprinting as v3.1 or v4 may simply not have picked up v4.1 yet; propose the additions below.
@@ -166,7 +167,7 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, GEMINI
 
 ## Step 2: Propose an incremental upgrade list
 
-Compare what exists against the 1.1.0 layout (entry file with Memory protocol + Ritual words + Red lines + optional Trust-building mode + optional Code & releases; MEMORY.md long-term facts with the aging clause; NOW.md current state; INDEX.md project map; scripts/health_check.py with ten scans; scripts/reconcile.py with two scans; optional LOG.md). Output a numbered checklist:
+Compare what exists against the 1.2.0 layout (for installed files, unchanged from 1.1.0: entry file with Memory protocol + Ritual words + Red lines + optional Trust-building mode + optional Code & releases; MEMORY.md long-term facts with the aging clause; NOW.md current state; INDEX.md project map; scripts/health_check.py with ten scans; scripts/reconcile.py with two scans; optional LOG.md). Output a numbered checklist:
 
 - **Add** — files that do not exist yet. For INDEX.md, scan the project and show me the first full version you would write.
 - **Suggest change** — for each existing file, show a diff: what you would add (for example the `## Ritual words` section, the optional `## Trust-building mode` section, the optional `## Code & releases` section for code projects, the current version marker) and, if anything looks redundant, what you *recommend* moving — clearly marked as optional, never executed without my explicit yes per item.

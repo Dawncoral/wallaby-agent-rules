@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.1.0 -->
+<!-- wallaby-agent-rules 1.2.0 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
@@ -40,6 +40,12 @@ Fetch https://raw.githubusercontent.com/Dawncoral/wallaby-agent-rules/main/PROMP
 and follow its "L1 — 9-question interview" section in this project.
 ```
 
+**🧩 Hermes Agent, one command** — the whole system as an installable skill:
+
+```
+hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
+```
+
 Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly — it's plain text.
 
 ## What you get
@@ -77,6 +83,7 @@ No plugin, no MCP server, no install — the entry file is the integration. Each
 | Codex | `AGENTS.md` | Native convention |
 | Cursor | `AGENTS.md` | Native support; keep memory here rather than splitting into `.cursor/rules` |
 | GitHub Copilot | `AGENTS.md` | Native support; `.github/copilot-instructions.md` also honored if present |
+| Hermes | `AGENTS.md` | Native; chained from git root to working directory; also installable as a hub skill |
 | OpenHands | `AGENTS.md` | Native — its system prompt tells the agent to maintain this file |
 | Gemini CLI | `GEMINI.md` | Primary file; a one-line pointer to `AGENTS.md` also works |
 | Anything else | `AGENTS.md` | The cross-tool convention; check your tool's docs |
@@ -104,6 +111,7 @@ Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, 
 
 - [`templates/`](templates/) — NOW / INDEX / LOG templates + the health check and reconcile scripts, ready to copy.
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
+- [`skills/agent-memory-rules/`](skills/agent-memory-rules/) — the whole system packaged as an installable agent skill (SKILL.md + both check scripts), for Hermes and any SKILL.md-compatible tool.
 - [`upgrade/`](upgrade/) — one-page upgrade cards between versions.
 - [`COMMERCIAL.md`](COMMERCIAL.md) — commercial licensing: what's free, what needs a license, how to reach us.
 - [`README.zh-CN.md`](README.zh-CN.md) / [`PROMPT.zh-CN.md`](PROMPT.zh-CN.md) — 中文版说明与提示词。

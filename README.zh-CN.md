@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.1.0 -->
+<!-- wallaby-agent-rules 1.2.0 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
@@ -31,6 +31,12 @@
 ```
 
 **🎯 定制，约 2 分钟**——AI 会逐个问你 9 个简短问题（工具、是否涉及代码、项目规模、个人/团队、对话量、记录风格、要不要定期整理、你的口头禅、信任培养开关），然后按你的答案构建同一套系统。
+
+**🧩 Hermes Agent，一条命令**——整套装成可安装技能：
+
+```
+hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
+```
 
 不能抓 URL？直接打开 [PROMPT.zh-CN.md](PROMPT.zh-CN.md) 复制对应段落粘贴——纯文本。
 
@@ -65,6 +71,7 @@
 | Codex | `AGENTS.md` | 原生约定 |
 | Cursor | `AGENTS.md` | 原生支持；记忆集中在这里，别拆进 `.cursor/rules` |
 | GitHub Copilot | `AGENTS.md` | 原生支持；若已有 `.github/copilot-instructions.md` 也会被读取 |
+| Hermes | `AGENTS.md` | 原生；git 根目录到工作目录链式加载；也可装成 hub 技能 |
 | OpenHands | `AGENTS.md` | 原生——它的系统提示词要求 agent 维护这个文件 |
 | Gemini CLI | `GEMINI.md` | 主文件；也可以在 `GEMINI.md` 里写一行指向 `AGENTS.md` |
 | 其他工具 | `AGENTS.md` | 跨工具通用约定；查你的工具文档 |
@@ -92,6 +99,7 @@
 
 - [`templates/`](templates/)——NOW / INDEX / LOG 模板 + 健康检查与对账脚本，可直接复制。
 - [`templates/integrations/`](templates/integrations/)——每工具一张卡：入口文件、坑、30 秒自检。
+- [`skills/agent-memory-rules/`](skills/agent-memory-rules/)——整套系统打包成可安装的 agent 技能（SKILL.md + 两个检查脚本），适配 Hermes 及任何认 SKILL.md 约定的工具。
 - [`upgrade/`](upgrade/)——版本间的一页升级卡。
 - [`COMMERCIAL.md`](COMMERCIAL.md)——商用授权：什么免费、什么要授权、怎么联系。
 - [`AGENTS.md`](AGENTS.md) / [`MEMORY.md`](MEMORY.md)——v1 起始模板（token 预算纪律、三层记忆、相关方名册），仍有效，且本仓库自己也在用。

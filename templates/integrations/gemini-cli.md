@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # Gemini CLI
 
 - **Entry file**: `GEMINI.md` — Gemini CLI's native context file. Answer "Gemini CLI" in the L1 interview and the system anchors there. (`AGENTS.md` with a one-line pointer from `GEMINI.md` also works if you share the repo with other tools.)

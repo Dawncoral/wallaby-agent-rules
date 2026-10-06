@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # Claude Code
 
 - **Entry file**: `CLAUDE.md`. Answer "Claude Code" in the L1 interview and everything anchors there — the file Claude Code reads at every session start. `/memory` opens it for quick edits.

@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # Codex
 
 - **Entry file**: `AGENTS.md` — Codex's native convention, read at every session start. The default L0 install already targets it.

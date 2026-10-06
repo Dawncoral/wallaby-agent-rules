@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # OpenHands
 
 - **Entry file**: `AGENTS.md` — OpenHands's system prompt natively instructs the agent to read and maintain the repository-root `AGENTS.md`. This system is the closest fit of any tool here: the slot is official.

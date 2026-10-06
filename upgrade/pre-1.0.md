@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # Upgrade card: pre-1.0 → 1.0.0
 
 **TL;DR: nothing breaks, nothing is required.** 1.0.0 is a renumbering, not a rebuild. If your files carry `vX` markers (v1–v4.1), you already have this system — read on for the optional extras you may have missed.

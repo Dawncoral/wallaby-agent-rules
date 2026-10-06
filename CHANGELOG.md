@@ -1,7 +1,11 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.0.1 — 2026-10-06
+
+**Ordering semantics fix (EN + zh-CN).** `NOW.md` updates were scheduled "at the end of every task" while `INDEX.md` registration was already "the moment it is created" — one protocol, two cadences, which quietly teaches "state can be backfilled". Both files now say: update `NOW.md` the moment tracked work moves; register new files the moment they are created. No action needed for existing users; adopting the wording is a one-line edit. (Patch — no Release, per RELEASE_CHECKLIST.)
 
 ## 1.0.0 — 2026-10-04
 

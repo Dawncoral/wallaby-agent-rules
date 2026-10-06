@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # GitHub Copilot
 
 - **Entry file**: `AGENTS.md` — Copilot reads repository-level `AGENTS.md` natively. If your repo already has `.github/copilot-instructions.md`, that file is honored too; keep memory in one place and let the other file point to it.

@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # Release checklist
 
 Every version ships when every box is ticked, in this order. (This file is ours — it keeps us honest; users only see the results.)

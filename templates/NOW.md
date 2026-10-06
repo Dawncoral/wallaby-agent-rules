@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # NOW.md — current state
 
 > Your AI reads this file (with MEMORY.md) at the start of every session.

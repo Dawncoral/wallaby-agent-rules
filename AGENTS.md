@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.0 -->
+<!-- wallaby-agent-rules 1.0.1 -->
 # AGENTS.md — token-budget starter template
 # Source: Wallaby Token engineering practice — https://www.wallabytoken.com/blog/p/agents-md-token-budget
 # License: MIT — adapt freely, attribution appreciated.

@@ -1,7 +1,27 @@
-<!-- wallaby-agent-rules 1.0.1 -->
+<!-- wallaby-agent-rules 1.1.0 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.1.0 — 2026-10-06
+
+**Hygiene layer, hardened by our own failure log.** Three additions to `health_check.py` (now ten scans), one protocol rule change, and one design boundary made explicit. Every addition maps to a failure mode we logged running this system on our own business — 45 dated cases as of today.
+
+**Added**
+
+- **MEMORY.md aging** (protocol + scan 8): a threshold-triggered rule replaces "nothing ages out". Past the soft wall (~150 dated lines or ~8k estimated tokens, CJK-weighted), facts idle 30+ days move to `LOG.md` at the next closeout; below the wall, nothing happens and nothing nags. The health check lists the demote candidates. Calibrated to the values we run internally.
+- **Secrets hygiene** (scan 9): credential files (`.env`, `.credentials/`) tracked by git, and common key patterns (`sk-…`, `AKIA…`, private-key blocks, `ghp_…`, `xox…-…`) in text files, are flagged. Placeholders and examples are whitelisted; `.credentials/` may exist, it just may not be committed. It is a reminder, not a safety net — the real defense is the habit.
+- **Commit-silence detection** (scan 10): when the last git commit is newer than the newest dated entry in `NOW.md`/`LOG.md`, work happened with no record — flagged. Skipped without `.git` (fail-open).
+- **`extras/pre-commit.sample`**: an optional 23-line hook for those who want enforcement. It stays a sample on purpose: detection plus the closeout rhythm is the system; a blocking hook gets bypassed (`--no-verify`) the first time it annoys.
+
+**Changed**
+
+- `MEMORY.md` pointer discipline: one dated line per fact *with a pointer to where the detail lives* — the detail itself never gets inlined.
+- `INDEX.md` scope made explicit (EN + zh-CN): it maps documents and knowledge files; code is tracked by git and the changelog, not duplicated in the index.
+- The receipts line now links the 45-case failure taxonomy write-up.
+- Version markers move to `<!-- wallaby-agent-rules 1.1.0 -->` on changed files.
+
+**Migrating from 1.0.x**: nothing breaks. Paste the L2 prompt — it will offer the new `health_check.py` (scaffolding swap), the aging clause, and the pointer-discipline wording as approve-item-by-item diffs.
 
 ## 1.0.1 — 2026-10-06
 

@@ -1,0 +1,23 @@
+#!/bin/sh
+# wallaby-agent-rules 1.1.0 — optional pre-commit hook (SAMPLE, not the mainline).
+#
+# The mainline answer to drift is cadence: the closeout ritual after each
+# session plus the weekly scans. Detection beats enforcement — a blocking
+# hook gets bypassed (--no-verify) the first time it annoys.
+#
+# If you want enforcement anyway:
+#   cp extras/pre-commit.sample .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+#
+# Behavior: runs health_check.py; if it reports findings, the commit is
+# blocked with a reminder. Escape hatch, as always: git commit --no-verify.
+
+if [ -f scripts/health_check.py ]; then
+  python3 scripts/health_check.py . >/dev/null 2>&1
+  if [ $? -ne 0 ]; then
+    echo "wallaby-agent-rules: health_check found drift."
+    echo "  See it:   python3 scripts/health_check.py"
+    echo "  Bypass:   git commit --no-verify"
+    exit 1
+  fi
+fi
+exit 0

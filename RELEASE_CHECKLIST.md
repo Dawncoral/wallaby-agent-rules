@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.1 -->
+<!-- wallaby-agent-rules 1.2.0 -->
 # Release checklist
 
 Every version ships when every box is ticked, in this order. (This file is ours — it keeps us honest; users only see the results.)
@@ -9,6 +9,7 @@ Every version ships when every box is ticked, in this order. (This file is ours 
 - **Batch, don't drip**: same-day changes on the same theme accumulate into one version window. Default ceiling: **one public version (major/minor) per week**. If a feature is done Tuesday, it waits for the window — a version number is a promise of attention, and attention is finite.
 - **Releases are the marketing event**: only majors/minors get a GitHub Release; one Release can bundle many commits. (10-04: three bumps landed same day — externally there was exactly one Release, 1.0.0.)
 - **Hotfix exception**: compliance/safety/licensing fixes ship any time, as a patch number, without the distribution event.
+- **Heat-window exception**: when an external window is hot (a platform moment, a live conversation), the owner may break the weekly ceiling by an explicit, dated decision recorded in the project log. Every break is counted and reviewable — urgency should be a decision with a receipt, never a habit. (10-06: two breaks in four days, both owner-approved and logged; this clause exists so the count is visible.)
 - Self-check before assigning a number: "would a user care that this number changed?" If no, it's a patch or it waits.
 
 ## Ship steps

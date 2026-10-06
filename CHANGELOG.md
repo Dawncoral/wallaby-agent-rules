@@ -9,7 +9,7 @@ All notable changes to wallaby-agent-rules. This project versions by marker comm
 
 **Added**
 
-- **MEMORY.md aging** (protocol + scan 8): a threshold-triggered rule replaces "nothing ages out". Past the soft wall (~150 dated lines or ~8k estimated tokens, CJK-weighted), facts idle 30+ days move to `LOG.md` at the next closeout; below the wall, nothing happens and nothing nags. The health check lists the demote candidates. Calibrated to the values we run internally.
+- **MEMORY.md aging** (protocol + scan 8): a threshold-triggered rule replaces "nothing ages out". Past the soft wall (~150 dated lines or ~8k estimated tokens, CJK-weighted), facts idle 30+ days move to `LOG.md` at the next closeout; below the wall, nothing happens and nothing nags. The health check lists the demote candidates. Calibrated to the ranges we run internally.
 - **Secrets hygiene** (scan 9): credential files (`.env`, `.credentials/`) tracked by git, and common key patterns (`sk-…`, `AKIA…`, private-key blocks, `ghp_…`, `xox…-…`) in text files, are flagged. Placeholders and examples are whitelisted; `.credentials/` may exist, it just may not be committed. It is a reminder, not a safety net — the real defense is the habit.
 - **Commit-silence detection** (scan 10): when the last git commit is newer than the newest dated entry in `NOW.md`/`LOG.md`, work happened with no record — flagged. Skipped without `.git` (fail-open).
 - **`extras/pre-commit.sample`**: an optional 23-line hook for those who want enforcement. It stays a sample on purpose: detection plus the closeout rhythm is the system; a blocking hook gets bypassed (`--no-verify`) the first time it annoys.

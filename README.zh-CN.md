@@ -2,7 +2,7 @@
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
@@ -86,6 +86,21 @@ hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
 4. 每周对账抓另一种漂移：日志声称的与状态文件显示的之间的差距。
 
 一切都是纯 Markdown，你可以读、`git diff`、直接改。没有向量库、没有服务、没有锁定。
+
+## 跑这套系统要花多少钱
+
+记忆系统 = 一段固定前缀：`MEMORY.md` 和 `NOW.md` 跟着每次调用走。这笔成本不大；有提示词缓存时，大头按缓存命中价计。
+
+按 Kimi K3 算笔账。健康的 `MEMORY.md` 在健康检查强制执行的约 8k 估算 token 软上限以内，整个前缀按 10k token 计；每天 100 次调用，一个月过表的前缀量是 30M token：
+
+| | Kimi 官方 API（输入统一价） | Wallaby（前缀命中缓存） |
+|---|---|---|
+| 输入价 | $3.00 / 1M token | $0.27 / 1M token（缓存命中） |
+| 每月前缀成本 | $90.00 | $8.10 |
+
+缓存命中价是我们标准输入价（$2.70 / 1M）的十分之一，比官方输入价低 91%。前缀没动就便宜重读；真改了记忆，按全价输入计一次。同模型、同权重、同 1M 上下文。
+
+想要这个价格，迁移只有一行：把 `base_url` 指向 `https://api.wallabytoken.com/v1`，换上你的 key——OpenAI 兼容。（[wallabytoken.com](https://wallabytoken.com) 是我们自己的产品，见文末「谁在做」。）
 
 ## 已在用？升级
 

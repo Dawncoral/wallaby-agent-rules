@@ -2,7 +2,7 @@
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
@@ -98,6 +98,21 @@ Per-tool gotchas and a 30-second self-check for each: [templates/integrations/](
 4. A weekly reconcile audit catches the other kind of drift: the gap between what the log claims and what the state file shows.
 
 Everything is plain Markdown you can read, `git diff`, and edit. No vector store, no service, no lock-in.
+
+## What this costs to run
+
+A memory system is a fixed prefix: `MEMORY.md` and `NOW.md` ride along on every call. The cost is small, and with prompt caching most of it bills at cache-hit rates.
+
+The worked example, on Kimi K3. A healthy `MEMORY.md` sits under the ~8k-est-token soft wall the health check enforces, so call the whole prefix 10k tokens. 100 calls a day puts 30M prefix tokens through the meter each month:
+
+| | Official Kimi API (flat input) | Wallaby, prefix cached |
+|---|---|---|
+| Input price | $3.00 / 1M tokens | $0.27 / 1M tokens (cache hit) |
+| Monthly prefix cost | $90.00 | $8.10 |
+
+Cache hits bill at one tenth of our standard input rate ($2.70 / 1M), 91% below official list. An unchanged prefix re-reads cheap; an actual memory edit bills at full input, once. Same model, same weights, same 1M context.
+
+If you want those rates, the migration is one line: point `base_url` at `https://api.wallabytoken.com/v1` and use your key — OpenAI-compatible. ([wallabytoken.com](https://wallabytoken.com) is us — see [Who built this](#who-built-this).)
 
 ## Updating
 

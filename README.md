@@ -1,15 +1,15 @@
-<!-- wallaby-agent-rules 1.2.0 -->
+<!-- wallaby-agent-rules 1.3.0 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
 
 **AI remembers, you find.**
 
-Give your project's AI a long-term memory — and give yourself a map of the project. Two paste-in prompts, five plain files, zero dependencies. Works with any AI coding tool. 中文版：[README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md)。
+Give your project's AI a long-term memory — and give yourself a map of the project. Two paste-in prompts, five plain files, zero dependencies. Works with any AI coding tool. Chinese edition: [README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md).
 
 We run this system on our own business. As of October 2026 it has caught 45 logged memory failures — each dated, sourced, and turned into a rule or a scan you can see in this repo ([the failure taxonomy, with receipts](https://wallabytoken.com/blog/p/ai-memory-benchmarks-wrong-thing.html)).
 
@@ -62,6 +62,8 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 | Code & releases (code projects) | The current released version is a dated memory fact, updated the moment it changes; every release, migration, or rollback gets logged with its commit reference |
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
+
+**New in 1.3.0**: Skill Forge — the same governance idea, one layer up. The memory system governs what your AI *remembers*; [Skill Forge](extras/skill-forge/) governs what it *does*: a skill gets derived from requirements with a high-stakes checklist, generated to a measured spec, and kept honest by a failure ledger the skill itself writes to. Three forms, one protocol — MCP server, paste-ready prompt pack, installable skill. Nothing changes inside your project; it is a standalone toolkit under `extras/`.
 
 **New in 1.1.0**: three hygiene additions, each answering a failure mode we logged running this system on our own business: MEMORY.md aging (past the soft wall of ~150 dated lines or ~8k est. tokens, CJK-weighted, so a Chinese MEMORY.md hits the same wall — facts idle 30+ days move to LOG.md at closeout; silent below the wall), a secrets-hygiene scan that catches tracked credential files and common key patterns while ignoring placeholders (a reminder, not a safety net — the real defense is the habit of keeping keys out of git), and commit-silence detection (a git commit with no matching record in NOW.md/LOG.md gets flagged). Plus: INDEX.md's scope is now explicit (documents and knowledge files; code is git's job), and `extras/pre-commit.sample` ships as an optional hook for those who want enforcement anyway. It stays a sample on purpose: detection plus the closeout rhythm is the system; a blocking hook gets bypassed (`--no-verify`) the first time it annoys.
 
@@ -127,9 +129,10 @@ Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, 
 - [`templates/`](templates/) — NOW / INDEX / LOG templates + the health check and reconcile scripts, ready to copy.
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/) — the whole system packaged as an installable agent skill (SKILL.md + both check scripts), for Hermes and any SKILL.md-compatible tool.
+- [`extras/skill-forge/`](extras/skill-forge/) — Skill Forge: lifecycle governance for the skills themselves. Requirement derivation, generation to a measured spec, a failure ledger, an optimize loop — as an MCP server, a prompt pack, or a SKILL.md-compatible skill.
 - [`upgrade/`](upgrade/) — one-page upgrade cards between versions.
 - [`COMMERCIAL.md`](COMMERCIAL.md) — commercial licensing: what's free, what needs a license, how to reach us.
-- [`README.zh-CN.md`](README.zh-CN.md) / [`PROMPT.zh-CN.md`](PROMPT.zh-CN.md) — 中文版说明与提示词。
+- [`README.zh-CN.md`](README.zh-CN.md) / [`PROMPT.zh-CN.md`](PROMPT.zh-CN.md) — the Chinese edition.
 - [`AGENTS.md`](AGENTS.md) / [`MEMORY.md`](MEMORY.md) — the v1 starter templates (token-budget discipline, three-tier memory, stakeholder register), still valid and still dogfooded by this repo itself.
 - [`examples/`](examples/) — filled-in MEMORY / NOW / INDEX examples: what "good" looks like two weeks in, not just on day one.
 

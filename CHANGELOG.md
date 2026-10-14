@@ -1,7 +1,19 @@
-<!-- wallaby-agent-rules 1.2.0 -->
+<!-- wallaby-agent-rules 1.3.0 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.3.0 — 2026-10-14
+
+**Skill lifecycle governance joins the repo.** One new standalone toolkit under `extras/`; nothing changes inside your project.
+
+- **New: `extras/skill-forge/`** — Skill Forge runs the part of a skill's life that starts after creation: requirement derivation with a high-stakes checklist, generation to a measured spec, a failure ledger the skill itself writes to, and an optimize loop driven by that evidence. Three forms, one protocol: an MCP server (`mcp/`, zero dependencies, stdio, 78-assertion smoke suite), a paste-ready prompt pack (`prompt-pack/`), and a SKILL.md-compatible skill (`skill-form/`) generated from the same source. Versions independently, starting at 1.0.0. Every behavioral claim was measured on real models; the write-ups are linked from its README.
+- README (EN + zh-CN): a Skill Forge note in the "New in" line and a row in "Also in this repo".
+- PROMPT (EN + zh-CN): the L2 upgrade check now recognizes 1.3.0; installed files are unchanged from 1.1.0.
+
+### Migrating from 1.2.0
+
+Nothing to migrate. 1.3.0 adds a standalone toolkit; the files installed in your project are identical to 1.1.0, and an install that fingerprints as 1.1.0 is current.
 
 ## 1.2.0 — 2026-10-06
 

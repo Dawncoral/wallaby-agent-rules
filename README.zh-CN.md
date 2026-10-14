@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.2.0 -->
+<!-- wallaby-agent-rules 1.3.0 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
@@ -54,6 +54,8 @@ hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
 | 代码与版本节（代码项目） | 当前发布版本=带日期的记忆事实，一变就更新；每次发布/迁移/回滚都带 commit 号落日志 |
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
+
+**1.3.0 新增**：Skill Forge——同一治理思想，上移一层。记忆体系管 AI *记得什么*；[Skill Forge](extras/skill-forge/) 管它*会做什么*：技能从需求推导起步（带高危确认清单），按实测过的规格生成，再靠技能自己写故障台账持续纠偏。三种形态同一协议——MCP 服务器、即贴即用提示词包、可安装技能。装进你项目的文件没有任何变化；它是 `extras/` 下的独立工具包。
 
 **1.1.0 新增**：三项卫生加固，全部来自我们在自己业务里跑这套系统记下的失败形态——MEMORY 老化（软上限约 150 行带日期条目或约 8k 估算 token，token 估算对中文按字加权；超上限后闲置 30 天以上的事实在收工时降级进 LOG.md，低于上限则完全静默）、密钥卫生扫（被 git 追踪的凭证文件与常见密钥模式会被抓到，占位符不误报；它只是提醒，不是保险网——让密钥远离 git 靠的是习惯，不是一道闸）、提交沉默检测（有 git 提交而 NOW.md/LOG.md 里没有对应记录，当场显形）。另：INDEX.md 管辖范围写明（管文档与知识文件——代码归 git 管），并附 `extras/pre-commit.sample` 可选钩子样件给想要强制的人。它刻意只是样件：检出加节奏才是系统本体，阻断式钩子第一次烦到人就会被 `--no-verify` 绕过。
 
@@ -115,6 +117,7 @@ hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
 - [`templates/`](templates/)——NOW / INDEX / LOG 模板 + 健康检查与对账脚本，可直接复制。
 - [`templates/integrations/`](templates/integrations/)——每工具一张卡：入口文件、坑、30 秒自检。
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/)——整套系统打包成可安装的 agent 技能（SKILL.md + 两个检查脚本），适配 Hermes 及任何认 SKILL.md 约定的工具。
+- [`extras/skill-forge/`](extras/skill-forge/)——Skill Forge：技能本身的生命周期治理。需求推导、按实测规格生成、故障台账、优化回路——MCP 服务器、提示词包、SKILL.md 技能三种形态。
 - [`upgrade/`](upgrade/)——版本间的一页升级卡。
 - [`COMMERCIAL.md`](COMMERCIAL.md)——商用授权：什么免费、什么要授权、怎么联系。
 - [`AGENTS.md`](AGENTS.md) / [`MEMORY.md`](MEMORY.md)——v1 起始模板（token 预算纪律、三层记忆、相关方名册），仍有效，且本仓库自己也在用。

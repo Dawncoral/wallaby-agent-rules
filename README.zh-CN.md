@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.4.0 -->
+<!-- wallaby-agent-rules 1.4.1 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
@@ -62,6 +62,8 @@ python3 scripts/memory_governance.py doctor
 | 代码与版本节（代码项目） | 当前发布版本=带日期的记忆事实，一变就更新；每次发布/迁移/回滚都带 commit 号落日志 |
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
+
+**1.4.1 新增**：[《周轧差创建指南》](extras/memory-governance/WEEKLY_RECONCILE.md)把检查变成可重复的复核流程：确定范围、机械扫描、小样本语义复核、前提与矛盾检查、责任人分配，以及一页报告模板。
 
 **1.4.0 新增**：[记忆治理包](extras/memory-governance/)把变更传导变成可执行检查。九类事件映射到必触面，前提失败返回非零退出码，矛盾历史只追加，旧引用或未读文件仍在时验收回执不能转绿。三个可选模板 [MAP.md](templates/MAP.md)、[CAPABILITIES.md](templates/CAPABILITIES.md)、[FAILURES.md](templates/FAILURES.md) 和 [10 个脱敏失败示例](examples/FAILURES.example.md)让系统更容易交接。收工流程现在要求 LOG.md 与 NOW.md 在同一动作里更新。现有安装继续有效，每项新增都可单独采用。见 [1.3 到 1.4 升级卡](upgrade/1.3-to-1.4.md)。
 

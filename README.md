@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.4.0 -->
+<!-- wallaby-agent-rules 1.4.1 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
@@ -70,6 +70,8 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 | Code & releases (code projects) | The current released version is a dated memory fact, updated the moment it changes; every release, migration, or rollback gets logged with its commit reference |
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
+
+**New in 1.4.1**: [Weekly reconciliation: a creation guide](extras/memory-governance/WEEKLY_RECONCILE.md) turns the checks into a repeatable review: scope, mechanical scans, a small semantic sample, premise and contradiction review, finding owners, and a one-page report template.
 
 **New in 1.4.0**: [Memory governance](extras/memory-governance/) turns change propagation into an executable check. Nine event types map changes to required surfaces, premise failures return nonzero exit codes, contradiction history stays append-only, and impact receipts cannot verify while old references or unread files remain. The three optional templates [MAP.md](templates/MAP.md), [CAPABILITIES.md](templates/CAPABILITIES.md), and [FAILURES.md](templates/FAILURES.md), plus [ten sanitized failure examples](examples/FAILURES.example.md), make the system easier to hand over. The closeout procedure now writes LOG.md and NOW.md in the same action. Existing installs stay valid; adopt each addition separately. See the [1.3-to-1.4 upgrade card](upgrade/1.3-to-1.4.md).
 

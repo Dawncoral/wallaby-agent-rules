@@ -1,7 +1,15 @@
-<!-- wallaby-agent-rules 1.4.0 -->
+<!-- wallaby-agent-rules 1.4.1 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.4.1 — 2026-10-30
+
+**Documentation: weekly reconciliation, from principles to a working routine.** New `extras/memory-governance/WEEKLY_RECONCILE.md` covers scope selection, deterministic checks, a small semantic sample, premise and contradiction review, finding ownership, a report template, and a worked rename example. No installed files change, and there is no separate Release or announcement for this patch.
+
+### Migrating from 1.4.0
+
+Nothing is required. Read the guide when you want to introduce a weekly review or evaluate the health of an existing memory process.
 
 ## 1.4.0 — 2026-10-30
 

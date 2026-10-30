@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.0 -->
+<!-- wallaby-agent-rules 1.4.1 -->
 # Memory governance: from a change to a verified update
 
 One Python CLI connects four jobs that are often skipped: impact mapping, premise checks, contradiction history, and verification receipts. It has no dependencies and does not call a model.
@@ -137,3 +137,5 @@ python3 scripts/memory_governance.py doctor
 ```
 
 For implementation tests, run `python3 -m unittest discover -s extras/memory-governance/tests -v` from the repository root.
+
+To build a recurring review around these checks, read [Weekly reconciliation: a creation guide](WEEKLY_RECONCILE.md). It covers the weekly sequence, report template, finding ownership, and the limits of a green result.

@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
-"""wallaby_skill_forge_mcp.py — Skill Forge MCP server (public 1.0.0).
+"""wallaby_skill_forge_mcp.py — Skill Forge MCP server (public 1.1.0).
 
 An analyst, not a generator. This server does only deterministic work:
 requirement-derivation scaffolds, prompt assembly, machine health checks,
 and failure-ledger bookkeeping. All generation and rewriting — the semantic
 work — is done by the calling AI, never by this server.
 
+Version 1.1.0 makes core the default form and adds core-shell, which keeps
+executable steps, concrete red lines, and key criteria. The legacy single,
+layered, and shell forms remain; combo still forces its pointer-only shell.
+Feedback stays as one unnumbered footer by default. The 6KB size check is a
+weaker-model/short-context heuristic, never an automatic layered trigger.
+
 Three tools (two call shapes: standalone / full flow):
   skill_forge    — create a skill (or SOP, or a combo of both). Two stages:
                    without `answers` it returns derivation guidance plus the
                    questionnaire skeleton; with `answers` it returns the
-                   assembled generation prompt. mode="full" additionally
-                   seeds the failure ledger, embeds a feedback hook in the
-                   generated skill, and appends the operating-rhythm card.
+                   assembled generation prompt. Both modes keep a feedback
+                   footer; mode="full" additionally seeds the failure ledger
+                   and appends the operating-rhythm card.
   skill_optimize — optimize an existing skill: locate it, run seven machine
                    health checks, read its failure ledger, and assemble the
                    optimization package (diagnosis + failure history + the
@@ -34,8 +40,8 @@ import re
 import sys
 
 SERVER_NAME = "wallaby-skill-forge-mcp"
-SERVER_VERSION = "1.0.0"
-TEMPLATE_VERSION = "1.0.0"  # protocol version; carried in every tool response to detect stale copies
+SERVER_VERSION = "1.1.0"
+TEMPLATE_VERSION = "1.1.0"  # protocol version; carried in every tool response to detect stale copies
 
 LEDGER_DIR = os.path.expanduser("~/.skill-forge")
 LEDGER_PATH = os.path.join(LEDGER_DIR, "ledger.jsonl")
@@ -131,7 +137,7 @@ ROUTE_GUIDANCE = """You are a requirements router. The user wants to build somet
 
 【Four criteria】Derive each from the description:
 1. Who consumes the output: an AI re-executing it repeatedly → skill; humans reading and following → SOP;
-2. Volume: rules that fit in ~40 lines → a skill can hold them; dozens of items, manual-grade → SOP (skills over ~6KB burn through weaker models' reasoning budget — measured 25-50% empty responses);
+2. Volume: rules that fit in ~40 lines → a skill can hold them; dozens of items, manual-grade → SOP. The 6KB mark is only a heuristic from weaker-model/short-context samples, not a cross-model hard limit. Layer only for an explicit context budget, observed empty/truncated responses or cost anomalies, or naturally on-demand content;
 3. Usage pattern: high-frequency repeated execution → skill; occasional reference → SOP;
 4. Both at once (AI must execute AND content is large AND people read it) → combo: a thin-shell skill (trigger words + red lines + pointer) plus the SOP as the content body, cross-linked so the two never drift apart.
 
@@ -235,12 +241,15 @@ What counts as critical is not your guess: this tool scans the description with 
 
 【Auto-fill】Clear description + simple scene (single tool, single flow, reversible actions) = fill in everything yourself, don't interrupt the user.
 
-【Form routing】Pick the form field from the executing model and the task's boundaries (three-regime measured conclusions):
-- Target model is a cheap/fast tier (weaker) → single: structured scaffolding lifts weak models the most (measured quality 0.88 → 2.0);
-- Strong model + fixed, clear-cut task → single (strong models tie with scaffolding on easy tasks; you lose nothing);
-- Strong model + multi-branch, fuzzy-boundary task → shell: thick constraints push strong models into overcautious shutdowns (measured: they refuse with "conditions not fully met" and skip parts they could have done);
-- Any case where the body projects over ~6KB → layered (detail sinks into references/: ≥6KB enters the reasoning burn-through zone — 25% empty responses on weak models).
-Can't derive the target model → default single.
+【Form routing】Default to core. Model strength and the 6KB mark do not automatically change the form:
+- Default → core: one file with a description, project facts, the shortest executable steps, concrete red lines, and key completion criteria;
+- Strong model + multi-branch, fuzzy-boundary task, or only the core constraints needed → core-shell: keep the shortest executable steps, concrete red lines, and key criteria; this is not a pointer-only shell;
+- Need the legacy one-file, <=40-line scaffold → single;
+- Choose layered only for an explicit context budget, observed empty/truncated responses or cost anomalies in the target environment, or content that naturally belongs in on-demand references/. The 6KB mark is a heuristic from weaker-model/short-context samples, not an automatic layered trigger;
+- shell remains for backward compatibility and combo's pointer-only skill. Do not confuse it with the P2 shell, which kept task steps.
+If the model or context budget is unknown, default to core.
+
+【Feedback placement】Keep the feedback instruction. Default to one unnumbered footer. Recommend a numbered step only when the deployer's own real ledger shows a benefit; otherwise use footer/auto. P1 did not reproduce a step-only advantage over footer, but that does not make position universally irrelevant.
 
 【Trigger-word discipline】Triggers grow from the user's own words. Don't summarize on their behalf. Don't invent scenes they never mentioned.
 
@@ -255,7 +264,7 @@ When derivation/confirmation is done, call skill_forge again with the answers pa
   "acceptance": "acceptance criteria",
   "non_triggers": "when it should not trigger",
   "confusables": "most-confusable similar tasks, named one by one (verdict-line material; empty if none)",
-  "form": "single (one file <=40 lines) | layered (scene-tiered) | shell (thin shell); default single"
+  "form": "core (default one-file core) | core-shell (core shell with steps) | single (legacy one file) | layered (explicit budget/observed issue/on-demand content only) | shell (legacy/combo pointer-only shell)"
 }
 Mode this run: {{MODE}}
 {{STAKES_NOTICE}}"""
@@ -277,16 +286,16 @@ GENERATION_PROMPT = """You are an AI-skill writer. Using the confirmed requireme
 
 ## Output spec
 
-1. The frontmatter `description` carries only positive trigger conditions ("use this skill when the user says or does X"), including phrasings the user would actually say. No feature brochures. Boundaries are handled two ways (two experiment rounds behind this split):
+1. The frontmatter `description` carries only positive trigger conditions ("use this skill when the user says or does X"), including phrasings the user would actually say. No feature brochures. Boundaries are handled two ways after two experiment rounds:
    - Input-shape restrictions ("plain text only", "only when …") NEVER go in the description — routers execute them as do-not-trigger rules, and recall collapses;
-   - Neighbor routing verdicts ARE allowed and SHOULD go in, but each must name the specific confusable scene ("when the user only wants X and Y is not involved, do not trigger this skill") — no abstract boundaries.
+   - Neighbor routing verdicts ARE allowed and SHOULD go in, but each must name the specific confusable scene, such as "when the user only wants X and Y is not involved, do not trigger this skill" — no abstract boundaries.
    Also: the skill does not assume it is the only capability in the environment — the description claims only its own scene territory; never write anything that demotes, overrides, or replaces other tools or skills.
 2. The body holds only what breaks the model's default behavior: project-specific facts, red lines, steps, pitfalls. Cut anything the model already knows.
-3. Red lines go first in the body, one short sentence each, starting with "Never" or "Always". Two wording rules (measured on the hard-task set): ①every red line must be concrete and checkable ("never guess amount fields", not "never make mistakes"); ②NEVER write blanket shutdown clauses ("if conditions are not fully met, stop entirely") — strong models execute these as righteous shutdowns and skip work they could have done. Outside the red lines, keep working: if input is slightly off or partly missing, do the parts that can be done and report what was missing. Stop only on an explicit red line.
-4. Pitfalls: only real, observed failures (one source note each). If there is no real failure history at creation time, add a single trailing note — "Pitfalls: none on record (to be backfilled from the failure ledger)" — and NO standalone section. Never invent plausible-looking pitfalls — an invented pitfall is worse than none.
+3. Red lines go first in the body, one short sentence each, starting with "Never" or "Always". Two wording rules from the hard-task set: ①every red line must be concrete and checkable ("never guess amount fields", not "never make mistakes"); ②NEVER write blanket shutdown clauses ("if conditions are not fully met, stop entirely") — strong models execute these as righteous shutdowns and skip work they could have done. Outside the red lines, keep working: if input is slightly off or partly missing, do the parts that can be done and report what was missing. Stop only on an explicit red line.
+4. Pitfalls: record only real, observed failures, with one source note each. With no failure history, omit them. Full mode may add one trailing placeholder, "Pitfalls: none on record (to be backfilled from the failure ledger)", without a standalone section. Never invent plausible-looking pitfalls.
 5. Commands use full paths — no bare filenames. Never hard-code versions, dates, or prices — write pointers ("see the latest version of file X").
-6. Key steps get checkable completion criteria (file exists / exit code / output contains a string). Not every step needs one; total criteria text stays under half the step body. One closing self-check line may end the flow.
-7. Ritual budget: maintenance content (pitfall placeholders, feedback hooks, change logs) totals ≤3 lines and never gets its own section. Budget goes to task steps first — when space runs out, cut ritual and compress criteria, never cut steps.
+6. Keep only the shortest executable path from input to delivery. Key steps get checkable completion criteria (file exists / exit code / output contains a string). Not every step needs one; total criteria text stays under half the step body. One closing self-check line may end the flow.
+7. Only full mode adds maintenance rituals and the optimize rhythm. core/core-shell do not add pitfall placeholders, change logs, or similar rituals. If maintenance content exists, keep it to ≤3 lines with no standalone section. When space runs out, cut ritual and compress criteria, never cut steps.
 8. Form constraint: {{FORM_RULE}}
 9. {{FEEDBACK_HOOK}}
 
@@ -294,26 +303,29 @@ GENERATION_PROMPT = """You are an AI-skill writer. Using the confirmed requireme
 
 - [ ] Is the description trigger conditions, not a manual?
 - [ ] Zero input-shape restrictions in the description? Do all verdict lines (if any) name concrete scenes?
+- [ ] Are project facts, the shortest executable steps, concrete red lines, and key completion criteria present?
 - [ ] Are all red lines at the top, none dropped?
 - [ ] Anything written that the model already knows?
 - [ ] Any hard-coded volatile facts?
 - [ ] Full paths for every command?
 - [ ] Any trigger scenes the user never mentioned?
 - [ ] Are acceptance criteria actually checkable?
-- [ ] Ritual budget held — maintenance content ≤3 lines, no standalone section? Criteria under half the step text?"""
+- [ ] No maintenance rituals outside full mode? Criteria under half the step text?"""
 
 FORM_RULES = {
-    "single": "Single file — ≤40 lines (the ceiling is not a target). Don't force splits; budget goes to steps and substance.",
-    "layered": "Layered — the body keeps only high-frequency rules plus a scene routing table; scene detail moves into references/ files (engage when the body projects over ~6KB, the burn-through risk line).",
-    "shell": "Thin shell — the body holds only red lines, criteria, and pointer tables; step detail is not duplicated (for strong-model execution on fuzzy-boundary tasks: the thicker the constraints, the easier a strong model shuts down righteously). Guard against double-source drift.",
+    "core": "Core, one file — description, project facts, the shortest executable steps, concrete red lines, and key completion criteria. No mandatory maintenance rituals; keep one feedback footer.",
+    "core-shell": "Core shell — keep the description, project facts, shortest executable steps, concrete red lines, and key completion criteria. Cut low-frequency explanation and maintenance rituals; never reduce this to pointers only.",
+    "single": "Legacy single file — ≤40 lines (the ceiling is not a target). Don't force splits; budget goes to steps and substance.",
+    "layered": "Layered — the body keeps high-frequency rules plus a scene routing table; details move into references/. Use only for an explicit context budget, observed empty/truncated responses or cost anomalies, or naturally on-demand content. The 6KB mark alone never triggers this form.",
+    "shell": "Legacy/combo thin shell — the body holds only triggers, concrete red lines, and pointers, preserving combo behavior. Use core/core-shell for a standalone executable skill; do not confuse this with core-shell.",
 }
 
 FEEDBACK_HOOK_LINE = (
-    "Write failure logging as the LAST numbered step of the task flow (a formal step, numbered "
-    "with the task steps — not a footnote, not its own section): \"Wrap-up: review this run for "
-    "anomalies, incompletions, or failures — if any, and the environment provides a skill_feedback "
-    "tool, call it with the skill name, the scene, and a one-line failure; if no such tool exists, "
-    "skip. Never fabricate a call. If nothing went wrong, this step passes silently.\""
+    "Keep one unnumbered footer at the end of the body: \"If this run had an anomaly, incomplete "
+    "work, or a failure, and the environment provides skill_feedback, call it with the skill name, "
+    "scene, and a one-line failure. If no such tool exists, skip; never fabricate a call. If nothing "
+    "went wrong, do nothing.\" Default to footer/auto. Move it to a numbered step only when the "
+    "deployer's own real ledger shows a benefit."
 )
 
 FULL_FLOW_OUTRO = (
@@ -325,7 +337,8 @@ FULL_FLOW_OUTRO = (
 )
 
 OPTIMIZE_PROMPT = """First, ask the user one question: recently, has this skill misfired, felt off, or failed to trigger when it should have?
-Append the answer to the failure records below as optimization input (don't assume the ledger is recording — measured across models, embedded feedback hooks fail silently, so on-the-spot collection is the fallback channel). Ask first, then start:
+Append the answer to the failure records below as optimization input. Do not assume the ledger is complete; on-the-spot collection is the fallback.
+Keep the feedback instruction and default to footer/auto. P1 did not reproduce a numbered-step advantage, but it did not prove position universally irrelevant. Recommend step only when the deployer's own real ledger shows a benefit. Ask first, then start:
 
 Go through the skill section by section, sentence by sentence, with a substance test: if this sentence were deleted, would behavior change? Four verdicts:
 - Cut: deleting it changes nothing — narrative, family history, dead data snapshots.
@@ -353,9 +366,9 @@ TOOLS = [
             "criteria (skill = spec an AI executes / SOP = document people read / combo = "
             "thin-shell skill + SOP body), then derives requirements from the questionnaire "
             "skeleton (asking only what can't be derived and matters), and finally returns an "
-            "assembled generation prompt that you (the AI) execute. mode='full' runs the full "
-            "flow: it additionally seeds the failure ledger and embeds a feedback hook in the "
-            "generated skill."
+            "assembled generation prompt that you (the AI) execute. The default form is core, "
+            "with one feedback footer. mode='full' additionally seeds the failure ledger and "
+            "adds the maintenance and optimization rhythm."
         ),
         "inputSchema": {
             "type": "object",
@@ -529,7 +542,7 @@ def _normalize_answers(answers):
             drifted.append(k)
         out[k] = to_list(out.get(k))
     if out.get("form") not in FORM_RULES:
-        out["form"] = "single"
+        out["form"] = "core"
     return out, drifted
 
 
@@ -619,8 +632,14 @@ def tool_forge(args):
     if route == "combo":
         answers["form"] = "shell"  # combo forces shell: content lives in the SOP; the skill is trigger + red lines + pointer
     skill_name = (answers.get("skill_name") or "new-skill").strip()
-    form = answers.get("form") or "single"
-    form_label = {"single": "single (one file)", "layered": "layered (scene-tiered)", "shell": "shell (thin shell)"}.get(form, form)
+    form = answers.get("form") or "core"
+    form_label = {
+        "core": "core (one-file core)",
+        "core-shell": "core-shell (core shell with steps)",
+        "single": "single (legacy one file)",
+        "layered": "layered (scene-tiered)",
+        "shell": "shell (legacy/combo pointer-only shell)",
+    }.get(form, form)
 
     def _list(key, empty="(none)"):
         v = answers.get(key) or []
@@ -651,12 +670,12 @@ def tool_forge(args):
                     "(array/non-standard type → the type the template needs; next time emit the field types from the questionnaire skeleton)")
         return out + _version_tail()
 
-    hook = FEEDBACK_HOOK_LINE if mode == "full" else "(not applicable in standalone mode)"
+    hook = FEEDBACK_HOOK_LINE
     prompt = GENERATION_PROMPT
     for slot, val in {**slot_vals,
                       "{{CONFUSABLES}}": answers.get("confusables") or "(unspecified)",
                       "{{FORM}}": form_label,
-                      "{{FORM_RULE}}": FORM_RULES.get(form, FORM_RULES["single"]),
+                      "{{FORM_RULE}}": FORM_RULES.get(form, FORM_RULES["core"]),
                       "{{FEEDBACK_HOOK}}": hook}.items():
         prompt = prompt.replace(slot, val)
 
@@ -677,12 +696,13 @@ def tool_forge(args):
     tests = _birth_tests(answers)
     if tests:
         out += "\n\n" + tests
-    # Size smoke (burn-through law): shipped with the birth certificate — the
-    # first thing to do after installing the skill is measure its size
-    out += ("\n\n【Size smoke】After installing the skill, run skill_optimize on it and read check "
-            "#2: <6KB = safe zone (measured zero burn-throughs on weak models); ≥6KB = risk zone "
-            "(25% empty responses); ≥9KB = danger zone (50% empty responses). Over the line → "
-            "compress and distill first, then put it to work.")
+    # Size is a heuristic only: the old samples used weaker models and short
+    # contexts. It never forces layered by itself.
+    out += ("\n\n【Size smoke】After installing the skill, skill_optimize check #2 reports a size "
+            "heuristic from weaker-model/short-context samples. The 6KB mark does not automatically "
+            "mean layered. Layer only for an explicit context budget, observed empty/truncated "
+            "responses or cost anomalies, or naturally on-demand content; otherwise test in the "
+            "target environment and keep core.")
     if drifted:
         out += (f"\n\n【Type tolerance】answers fields auto-normalized: {', '.join(drifted)} "
                 "(array/non-standard type → the type the template needs; next time emit the field types from the questionnaire skeleton)")
@@ -766,19 +786,16 @@ def _health_check(content):
     else:
         emit(1, "🟡", "description reads like a manual (no \"use when\"/\"当…时\" trigger phrasing; heuristic hint — behavior tests are the arbiter)")
 
-    # Size smoke, three tiers (measured burn-through law): burn-through = the
-    # reasoning budget maxes out and the model returns empty. <6KB safe zone
-    # (0/8 measured); ≥6KB risk zone (25% empty on weak models); ≥9KB danger
-    # zone (50% on naturally bloated files — twice as toxic as same-size
-    # padded files).
+    # These three size tiers are heuristics from weaker-model/short-context
+    # samples, not a cross-model law. No tier automatically requires layered.
     if nbytes >= 9216:
-        emit(2, "🔴", f"size {nbytes} bytes, danger zone (≥9KB; ~50% measured burn-through on weak models) "
-             "— compress and distill before it goes to work; messiness (repetition, tangled structure) is more toxic than raw size")
+        emit(2, "🟡", f"size {nbytes} bytes, heuristic warning (≥9KB; weaker-model/short-context samples had more empty responses) "
+             "— test in the target environment; do not auto-layer, though repetition and tangled structure can still be compressed")
     elif nbytes >= 6144:
-        emit(2, "🟡", f"size {nbytes} bytes, risk zone (6-9KB; ~25% measured empty responses on weak models) "
-             "— compress below 6KB if you can; if not, run a burn-through smoke on the target model")
+        emit(2, "🟡", f"size {nbytes} bytes, heuristic warning (6-9KB; ~25% empty responses in weaker-model/short-context samples) "
+             "— do not auto-layer; layer only for an explicit budget, observed empty/truncated responses or cost anomalies, or naturally on-demand content")
     else:
-        emit(2, "✅", f"size {nbytes} bytes ({len(lines)} lines), safe zone (<6KB, zero measured burn-throughs)")
+        emit(2, "✅", f"size {nbytes} bytes ({len(lines)} lines), below 6KB (no empty responses in the old weaker-model/short-context sample; not a cross-model guarantee)")
 
     hits = VERSION_RE.findall(content) + SNAPSHOT_RE.findall(content)
     if hits:
@@ -800,9 +817,9 @@ def _health_check(content):
         emit(5, "✅", "no red-line section; no high-risk actions detected — conversational/text skills are exempt (graded)")
 
     if PITFALL_RE.search(content):
-        emit(6, "✅", "pitfalls section present (including the \"none on record\" placeholder)")
+        emit(6, "✅", "pitfall records present (including full mode's optional \"none on record\" placeholder)")
     else:
-        emit(6, "🟡", "pitfalls section missing — a new skill may use a \"none on record\" placeholder; real failure history must be listed")
+        emit(6, "✅", "no pitfall placeholder; core/core-shell do not require one, and only real failures need recording")
 
     body_lines = [l for l in lines if l.strip() and not l.strip().startswith("---")]
     ritual = [l for l in body_lines if RITUAL_LINE_RE.search(l)]

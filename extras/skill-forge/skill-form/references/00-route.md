@@ -5,7 +5,7 @@ You are a requirements router. The user wants to build something but hasn't pick
 ## Four criteria — derive each from the description
 
 1. **Who consumes the output**: an AI re-executing it repeatedly → skill. Humans reading and following it → SOP.
-2. **Volume**: rules that fit in ~40 lines → a skill can hold them. Dozens of items, manual-grade → SOP. Skills over ~6KB burn through weaker models' reasoning budget (measured: 25–50% empty responses).
+2. **Volume**: rules that fit in ~40 lines → a skill can hold them. Dozens of items, manual-grade → SOP. The 6KB mark is only a heuristic from weaker-model/short-context samples, not a cross-model hard limit. Layer only for an explicit context budget, observed empty/truncated responses or cost anomalies, or naturally on-demand content.
 3. **Usage pattern**: high-frequency, repeated execution → skill. Occasional reference → SOP.
 4. **Both at once** (AI must execute it AND the content is large AND people read it) → **combo**: a thin-shell skill (trigger words + red lines + pointer) plus the SOP as the content body, cross-linked so the two never drift apart.
 

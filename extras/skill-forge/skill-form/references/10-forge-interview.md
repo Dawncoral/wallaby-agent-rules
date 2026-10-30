@@ -55,13 +55,19 @@ Clear description plus a simple scene of single tool, single flow, and reversibl
 
 ## Form routing
 
-Pick the `form` field from the executing model and the task's boundaries, per the three-regime measured conclusions:
+Default to `core`. Model strength and the 6KB mark do not automatically change the form:
 
-- **Cheap/fast, weaker model** → `single`. Structured scaffolding lifts weak models the most (measured quality 0.88 → 2.0).
-- **Strong model + fixed, clear-cut task** → `single`. Strong models tie with scaffolding on easy tasks; you lose nothing.
-- **Strong model + multi-branch, fuzzy-boundary task** → `shell`. Thick constraints push strong models into overcautious shutdowns — they refuse with "conditions not fully met" and skip parts they could have done (measured).
-- **Any case where the body projects over ~6KB** → `layered`. Detail sinks into `references/`; ≥6KB enters the reasoning burn-through zone (25% empty responses on weak models).
-- Can't derive the target model → default `single`.
+- **Default** → `core`: one file with a description, project facts, the shortest executable steps, concrete red lines, and key completion criteria.
+- **Strong model + multi-branch, fuzzy-boundary task, or only the core constraints needed** → `core-shell`. Keep the shortest executable steps, concrete red lines, and key criteria. This is not a pointer-only shell.
+- **Legacy one-file scaffold** → `single` (≤40 lines).
+- **Explicit context budget, observed empty/truncated responses or cost anomalies in the target environment, or naturally on-demand content** → `layered`. The 6KB mark is a heuristic from weaker-model/short-context samples, not an automatic trigger.
+- **Backward compatibility or combo's pointer-only skill** → `shell`. Do not confuse it with the P2 shell, which kept task steps.
+
+If the model or context budget is unknown, use `core`.
+
+## Feedback placement
+
+Keep the feedback instruction. Default to one unnumbered footer. Recommend a numbered step only when the deployer's own real ledger shows a benefit; otherwise use footer/auto. P1 did not reproduce a step-only advantage over footer, but that does not make position universally irrelevant.
 
 ## Trigger-word discipline
 
@@ -82,6 +88,6 @@ Once derivation and confirmation are done, assemble the answers object and move 
   "acceptance": "how to judge the skill works",
   "non_triggers": "when it should not trigger",
   "confusables": "most-confusable similar tasks, named one by one; empty if none",
-  "form": "single (one file, <=40 lines) | layered (scene-tiered) | shell (thin shell); default single"
+  "form": "core (default) | core-shell (with steps) | single (legacy) | layered (explicit budget/observed issue/on-demand content) | shell (legacy/combo pointer-only)"
 }
 ```

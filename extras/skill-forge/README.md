@@ -16,6 +16,12 @@ Anthropic's skill-creator writes the birth certificate. Skill Forge runs the hos
 
 The protocol is identical across forms. `skill-form/references/` is generated from `prompt-pack/` at release time by `sync_skill_form.sh` — one source, no drift.
 
+## Generated skill forms
+
+`core` is the default: description, project facts, the shortest executable steps, concrete red lines, and key completion criteria in one file. `core-shell` keeps that executable core with less surrounding material; it is not a pointer-only shell. The legacy `single`, `layered`, and `shell` forms remain, and `combo` still uses its pointer-only `shell` alongside an SOP.
+
+Only full mode adds the maintenance and optimize rhythm. Both standalone and full keep one unnumbered feedback footer. Move it to a numbered step only when your own real ledger shows a benefit.
+
 ## Quickstart (MCP)
 
 Zero dependencies, Python 3 standard library only. Add to any MCP client that speaks stdio:
@@ -36,23 +42,24 @@ Then three tools are available: `skill_forge` for creating a skill (say "make th
 Verify your copy before trusting it:
 
 ```sh
-python3 mcp/smoke_test.py   # 78 assertions against a live server instance
+python3 mcp/smoke_test.py   # 89 assertions against a live server instance
 ```
 
 ## Evidence
 
-Every behavioral claim above was measured on real models, and the full write-ups are public:
+Behavioral claims below belong to their experiment setups. The design defaults above are not cross-model laws.
 
-- We pre-registered the rule that would kill our own hypothesis, [and it fired](https://wallabytoken.com/blog/p/skill-forge-kill-rule-falsified). Trigger accuracy: one-shot 98.3% vs forge 91.7% — Wilson intervals overlap; no significant win at the routing layer. The same experiment surfaced the finding that mattered: embedded feedback hooks went 0/20 across models until we moved failure-logging into the task flow as a numbered step.
-- [Same skill, opposite effects.](https://wallabytoken.com/blog/p/skill-engineering-three-regimes) Scaffolding lifted a weaker model's execution quality 0.88 → 2.0 (four dimensions, all up). On hard, fuzzy tasks it pushed a strong model into overcautious shutdowns — four dimensions, all down.
-- [The 6KB line.](https://wallabytoken.com/blog/p/skill-file-size-6kb-limit) Empty-response rates by skill-file size: 0/8 under 6KB, ~25% at 6–9KB, ~50% at ≥9KB for naturally bloated files.
+- We pre-registered the rule that would kill our own hypothesis, [and it fired](https://wallabytoken.com/blog/p/skill-forge-kill-rule-falsified). Trigger accuracy: one-shot 98.3% vs forge 91.7% — Wilson intervals overlap; no significant win at the routing layer.
+- A later P1 experiment used real `skill_feedback` ledgers across 240 executions. The baseline without the instruction in the skill produced 0–5% valid calls; footer, section, and step placements were at or near the ceiling. Step did not show a reliable advantage over footer. A shared tool prompt and fixed arm order limit generalization, so this does not prove position universally irrelevant.
+- [Same skill, opposite effects](https://wallabytoken.com/blog/p/skill-engineering-three-regimes) was an earlier small-sample result. P2 later ran 180 executions plus 180 judged executions under a shared anti-shutdown prompt and did not reproduce a full-vs-shell difference on its main metric. Its shell still kept task steps, concrete red lines, safety constraints, and completion criteria; do not generalize that result to pointer-only files or other environments.
+- [The 6KB results](https://wallabytoken.com/blog/p/skill-file-size-6kb-limit) came from weaker-model/short-context samples: 0/8 empty responses under 6KB, ~25% at 6–9KB, and ~50% at ≥9KB for naturally bloated files. They are heuristic warnings, not an automatic `layered` rule. Layer for an explicit context budget, observed empty/truncated responses or cost anomalies, or naturally on-demand content.
 
 ## Honest limits
 
 - Skill Forge makes quality requirements consistent across models; it does not make models equally capable of meeting them.
 - The generation/rewrite semantics still depend on the executing model: a weak model may not honor a long spec, and no scaffolding removes that.
-- On hard tasks with fuzzy boundaries, thick constraints measurably hurt strong models in the current form. The form router steers those to `shell` for this reason.
-- Sample sizes are small, n=10–20 per arm; we publish Wilson intervals with the numbers and treat near-ties as noise.
+- P1 and P2 bound their claims to shared prompts, small task sets, and the tested models. Neither a missing difference nor an early positive result becomes a universal rule.
+- Evaluation uses the existing P0/P1 harness and per-run ledgers. The MCP does not add a production execution-logging pipeline; see `mcp/README.md#evaluation-evidence`.
 
 ## License
 

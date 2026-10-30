@@ -4,7 +4,7 @@ First, ask the user one question:
 
 > Recently, has this skill misfired, felt off, or failed to trigger when it should have?
 
-Append the answer to the failure records below as optimization input. Don't assume a ledger is recording — measured across models, embedded feedback hooks fail silently, so on-the-spot collection is the fallback channel. Ask first, then start.
+Append the answer to the failure records below as optimization input. Do not assume the ledger is complete; on-the-spot collection is the fallback. Keep the feedback instruction and default to footer/auto. P1 did not reproduce a numbered-step advantage, but it did not prove position universally irrelevant. Recommend step only when the deployer's own real ledger shows a benefit. Ask first, then start.
 
 ## The substance test
 
@@ -38,11 +38,11 @@ Check each one off: confirm the rewrite catches it.
 The MCP server runs these as machine checks. By hand, walk the same list:
 
 1. **Description**: present, and phrased as trigger conditions like "use when …"? A manual-phrased description is a heuristic warning; behavior tests are the arbiter.
-2. **Size**: under 6KB (6,144 bytes) = safe zone (measured 0/8 burn-throughs). 6–9KB = risk zone (~25% empty responses on weak models): compress below 6KB, or run a burn-through smoke on the target model. ≥9KB = danger zone (~50% on naturally bloated files): compress before it goes to work. Messiness — repetition, tangled structure — is more toxic than raw size.
+2. **Size**: the 6KB (6,144 bytes) and 9KB tiers are heuristics from weaker-model/short-context samples, not cross-model laws. They never require `layered` by themselves. Layer only for an explicit context budget, observed empty/truncated responses or cost anomalies, or naturally on-demand content. Otherwise test in the target environment; repetition and tangled structure can still be compressed.
 3. **Hard-coded volatile facts**: versions, dates, prices, snapshots. Rewrite as pointers.
 4. **Bare filenames in commands**? Full paths.
 5. **Red lines**: absent while the content touches shell, network, files, or money → high risk, add red lines. Purely conversational or text skills are exempt.
-6. **Pitfalls section**, or a "none on record" placeholder — missing → add it.
+6. **Pitfalls**: keep real, sourced failures when they exist. `core` and `core-shell` do not require a "none on record" placeholder.
 7. **Ritual budget**: more than 3 maintenance lines → compress to a single trailing note. Criteria sentences over half the body lines → criteria only for key steps.
 
 **Waivers**: a line `forge-waiver: <n> <reason>` inside the skill exempts check `<n>`. List waived items visibly in your report — never swallow them silently.

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""smoke_test.py — wallaby_skill_forge_mcp smoke tests (public 1.0.0).
+"""smoke_test.py — wallaby_skill_forge_mcp smoke tests (public 1.1.0).
 
 Usage: python3 smoke_test.py  (runs under a temporary HOME; the real ledger
 is never touched)
 Covers: initialize / tools/list / prompts/list / prompts:get / forge two-stage
-/ full-flow ledger write / feedback append / optimize health checks (a clean
-skill plus a six-disease fixture) / routing lanes / SOP & combo branches.
+/ core defaults and legacy forms / footer feedback / size heuristics / full-flow
+ledger write / feedback append / optimize health checks / routing lanes / SOP &
+combo branches.
 """
 import datetime
 import json
@@ -81,7 +82,7 @@ def main():
         print("== skill_forge two stages ==")
         t = srv.tool_text("skill_forge", {"description": "make me a skill: turn weekly meeting recordings into notes"})
         check("stage one = derivation guidance", "Derive first" in t and "answers" in t and "Default to yes" in t)
-        check("stage one carries version stamp", "template_version=1.0" in t)
+        check("stage one carries version stamp", "template_version=1.1" in t)
         check("stage one three-way classification", "open and critical" in t and "Safe derivation" in t)
 
         print("== deterministic stakes ==")
@@ -106,14 +107,20 @@ def main():
         t = srv.tool_text("skill_forge", {
             "description": "x", "mode": "full", "answers": answers})
         check("stage two = generation prompt", "Output spec" in t and "meeting-notes" in t)
-        check("full carries feedback hook", "skill_feedback" in t)
+        check("full keeps a footer feedback hook", "skill_feedback" in t and "unnumbered footer" in t)
         check("full carries optimize entry", "skill_optimize" in t)
         check("full writes ledger", "Wrote 1 initial failure record" in t)
         ledger = os.path.join(tmp, ".skill-forge", "ledger.jsonl")
         check("ledger.jsonl physically exists", os.path.exists(ledger))
 
-        t = srv.tool_text("skill_forge", {"description": "x", "answers": answers})
-        check("standalone has no feedback hook", "skill_feedback" not in t)
+        core_answers = dict(answers)
+        core_answers.pop("form")
+        t = srv.tool_text("skill_forge", {"description": "x", "answers": core_answers})
+        check("missing form defaults to core", "core (one-file core)" in t)
+        check("core carries five execution elements", all(x in t for x in ["description", "project facts", "shortest executable steps", "concrete red lines", "key completion criteria"]))
+        check("core keeps one footer feedback hook", "skill_feedback" in t and "unnumbered footer" in t)
+        check("core does not force a numbered step", "LAST numbered step" not in t)
+        check("standalone omits full maintenance rhythm", "【Full-flow add-on】" not in t and "【Ledger】" not in t)
 
         print("== skill_feedback ==")
         t = srv.tool_text("skill_feedback", {
@@ -138,11 +145,11 @@ def main():
         assert len(bad.encode("utf-8")) >= 9216, f"bad fixture size drifted: {len(bad.encode('utf-8'))}"
         t = srv.tool_text("skill_optimize", {"skill": "bad", "content": bad})
         check("bad: manual-style description flagged", "🟡 1" in t)
-        check("bad: size danger zone flagged", "🔴 2" in t and "danger zone" in t)
+        check("bad: size raises only a heuristic warning", "🟡 2" in t and "heuristic warning" in t and "do not auto-layer" in t)
         check("bad: hard-coded version flagged", "🟡 3" in t)
         check("bad: bare filename flagged", "🟡 4" in t)
         check("bad: missing red lines flagged", "🔴 5" in t)
-        check("bad: missing pitfalls flagged", "🟡 6" in t)
+        check("core does not require a pitfall placeholder", "✅ 6" in t and "do not require one" in t)
 
         print("== three-section report + waiver + redaction ==")
         check("report has three sections", "Section 1 · Structural health" in t and "Section 2 · Behavioral confidence" in t and "Section 3 · Unknowns" in t)
@@ -161,11 +168,11 @@ def main():
         print("== type tolerance + description boundary ban + trigger window ==")
         drifted = dict(answers)
         drifted["triggers"] = ["organize meeting notes", "note the last meeting"]  # weaker models drift strings into arrays
-        drifted["form"] = "weird-form"  # illegal form falls back to single
+        drifted["form"] = "weird-form"  # illegal form falls back to core
         t = srv.tool_text("skill_forge", {"description": "x", "answers": drifted})
         check("array triggers normalized into template", "organize meeting notes; note the last meeting" in t)
         check("drifted fields listed transparently", "【Type tolerance】" in t and "triggers" in t)
-        check("illegal form falls back to single", "single (one file)" in t)
+        check("illegal form falls back to core", "core (one-file core)" in t)
         check("spec carries description boundary ban", "NEVER go in the description" in t)
         longq = ("---\nname: longq\ndescription: use when the user says \"extract the key fields "
                  "(amount, tax id, date, header) from invoice images into a table and send me "
@@ -200,16 +207,18 @@ def main():
             "domain": "personal", "attribution": "route"})
         check("feedback with domain/attribution persisted", '"domain": "personal"' in t and '"attribution": "route"' in t)
 
-        print("== ritual budget + idle ledger + rhythm card + composability / step-embedded hook ==")
+        print("== ritual budget + idle ledger + rhythm card + composability / footer hook ==")
         t = srv.tool_text("skill_forge", {"description": "x", "answers": answers})
-        check("spec carries ritual budget clause", "Ritual budget" in t and "never cut steps" in t)
+        check("maintenance rituals belong to full mode", "Only full mode adds maintenance rituals" in t and "never cut steps" in t)
         check("spec carries criteria budget", "under half the step body" in t)
         check("spec carries composability clause", "the only capability in the environment" in t)
         t = srv.tool_text("skill_forge", {"description": "x", "mode": "full", "answers": answers})
-        check("feedback hook embedded as a task step", "LAST numbered step" in t and "Wrap-up: review this run" in t)
+        check("full defaults to footer, not a numbered step", "unnumbered footer" in t and "LAST numbered step" not in t)
+        check("step advice requires deployer ledger evidence", "deployer's own real ledger shows a benefit" in t and "footer/auto" in t)
         check("full outro points at the rhythm card", "operating-rhythm card" in t)
         t = srv.tool_text("skill_optimize", {"skill": "meeting-notes", "content": good})
         check("optimize interview guidance", "ask the user one question" in t and "on-the-spot collection" in t)
+        check("optimize does not call position universally irrelevant", "did not prove position universally irrelevant" in t)
 
         ritual_heavy = (
             "---\nname: ritual-heavy\ndescription: use when the user says \"organize files\"\n---\n"
@@ -240,22 +249,29 @@ def main():
         t = srv.tool_text("skill_optimize", {"skill": "meeting-notes", "content": good})
         check("recent records raise no idle warning", "Idle-ledger warning" not in t)
 
-        print("== size smoke three tiers + red-line wording discipline + form routing ==")
-        safe = good + "Additional step notes.\n" * 20  # ~0.5KB, safe zone
+        print("== 1.1.0 size heuristic + core/core-shell + legacy forms ==")
+        safe = good + "Additional step notes.\n" * 20
         t = srv.tool_text("skill_optimize", {"skill": "safe-skill", "content": safe})
-        check("size safe zone green", "✅ 2" in t and "safe zone" in t)
+        check("below 6KB makes no cross-model guarantee", "✅ 2" in t and "below 6KB" in t and "not a cross-model guarantee" in t)
         risky = good + ("## Steps\n" + "1. Process the input per protocol and verify each output against its criterion.\n" * 90)
         assert 6144 <= len(risky.encode("utf-8")) < 9216, f"risky fixture size drifted: {len(risky.encode('utf-8'))}"
         t = srv.tool_text("skill_optimize", {"skill": "risky-skill", "content": risky})
-        check("size risk zone yellow", "🟡 2" in t and "risk zone" in t)
+        check("6KB warns without forcing layered", "🟡 2" in t and "heuristic warning" in t and "do not auto-layer" in t)
         t = srv.tool_text("skill_forge", {"description": "[skill] x"})
-        check("guidance carries form routing", "Form routing" in t and "overcautious shutdowns" in t)
+        check("form routing defaults to core", "Form routing" in t and "Default to core" in t)
+        check("6KB guidance does not force layered", "6KB mark is a heuristic" in t and "not an automatic layered trigger" in t)
+        check("layered requires budget, observed issue, or on-demand content", all(x in t for x in ["explicit context budget", "empty/truncated responses or cost anomalies", "naturally belongs in on-demand"]))
         t = srv.tool_text("skill_forge", {"description": "x", "answers": answers})
+        check("legacy single remains available", "single (legacy one file)" in t)
         check("spec carries red-line wording discipline", "blanket shutdown clauses" in t and "concrete and checkable" in t)
-        check("birth certificate carries size smoke", "Size smoke" in t and "compress and distill" in t)
-        shell_answers = dict(answers, form="shell")
-        t = srv.tool_text("skill_forge", {"description": "x", "answers": shell_answers})
-        check("shell form rule carries its use case", "fuzzy-boundary tasks" in t)
+        check("birth certificate size smoke avoids auto-layering", "Size smoke" in t and "does not automatically" in t)
+        core_shell_answers = dict(answers, form="core-shell")
+        t = srv.tool_text("skill_forge", {"description": "x", "answers": core_shell_answers})
+        check("core-shell keeps steps, red lines, and criteria", all(x in t for x in ["shortest executable steps", "concrete red lines", "key completion criteria"]))
+        check("core-shell is not pointer-only", "never reduce this to pointers only" in t)
+        layered_answers = dict(answers, form="layered")
+        t = srv.tool_text("skill_forge", {"description": "x", "answers": layered_answers})
+        check("layered rule rejects the 6KB-only trigger", "6KB mark alone never triggers" in t)
 
         print("== entry routing: three lanes + SOP/combo branches ==")
         t = srv.tool_text("skill_forge", {"description": "I want to lock down my expense reporting process, it happens every week"})
@@ -271,7 +287,7 @@ def main():
         t = srv.tool_text("skill_forge", {"description": "[combo] compliance review manual plus automated checks", "answers": answers})
         check("combo delivers two pieces back to back", "Generation prompt" in t and "SOP generation prompt" in t and "combo, second piece" in t)
         t = srv.tool_text("skill_forge", {"description": "[combo] compliance review", "answers": dict(answers, form="single")})
-        check("combo forces the shell form", "shell (thin shell)" in t)
+        check("combo preserves its pointer-only shell", "shell (legacy/combo pointer-only shell)" in t and "only triggers, concrete red lines, and pointers" in t)
         # maintenance trigger: at 3 failure records for one skill, the ledger nudges optimization at write time
         for i in range(2):
             srv.tool_text("skill_feedback", {"skill": "nudge-test", "scene": f"scene {i}", "failure": f"failure {i}"})

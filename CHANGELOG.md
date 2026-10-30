@@ -1,7 +1,22 @@
-<!-- wallaby-agent-rules 1.3.0 -->
+<!-- wallaby-agent-rules 1.4.0 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.4.0 — 2026-10-30
+
+**Memory governance becomes executable.** A new optional pack connects change conduction, premise checks, contradiction history, and verification receipts; the existing install remains valid.
+
+- **New: `extras/memory-governance/`** — one zero-dependency CLI with nine conduction event types, three premise levels, append-only contradiction history, and impact receipts that cannot verify while old references or unread files remain. `init` never overwrites user files; `doctor` runs the complete check.
+- **New: `templates/MAP.md`** — map system components, change keywords, and authoritative detail files.
+- **New: `templates/CAPABILITIES.md`** — register reusable scripts, skills, templates, and jobs before building another implementation.
+- **New: `templates/FAILURES.md` and `examples/FAILURES.example.md`** — a failure-to-regression format plus ten sanitized composite examples. No private project or customer incidents are included.
+- **Closeout update**: when tracked work closes, LOG.md and NOW.md must be written in the same action. Pending entries use an anchor and current status, not a deferral placeholder. Updated in AGENTS.md, PROMPT.md, PROMPT.zh-CN.md, and the installable skill (now skill version 1.1.0).
+- **New: `upgrade/1.3-to-1.4.md`** — the optional additions, governance installation, and closeout wording on one page. The L2 upgrade check recognizes 1.4.0.
+
+### Migrating from 1.3.0
+
+Nothing is required. The core file layout is unchanged. Adopt the templates or governance pack independently, then add the closeout wording if you want it. Health check 1.4.0 only adds the three new filenames to its root whitelist; reconcile.py is unchanged. See `upgrade/1.3-to-1.4.md`.
 
 ## 1.3.0 — 2026-10-14
 
@@ -53,7 +68,7 @@ Nothing to migrate. 1.2.0 adds distribution surfaces; the files installed in you
 
 ## 1.0.0 — 2026-10-04
 
-**Renumbered to semantic versioning.** All earlier public iterations (v1 → v4.1, September–October 2026) are folded into this 1.0.0; their details are preserved under "Pre-1.0 history" below. From here on: **patch** (1.0.1) = fixes and small adjustments, **minor** (1.1.0) = feature-level additions, **major** (2.0.0) = theme-level or breaking change. Cadence rules live in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+**Renumbered to semantic versioning.** All earlier public iterations (v1 → v4.1, September–October 2026) are folded into this 1.0.0; their details are preserved under "Pre-1.0 history" below. From here on: **patch** (1.0.1) = fixes and small adjustments, **minor** (1.1.0) = feature-level additions, **major** (1.4.0) = theme-level or breaking change. Cadence rules live in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
 Everything in the repo today — the closeout ritual, the reconcile audit, trust-building mode, the tool integrations, the code-version module, the Chinese edition, MIT + Commons Clause licensing — is 1.0.0.
 

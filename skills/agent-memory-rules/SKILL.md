@@ -1,7 +1,7 @@
 ---
 name: agent-memory-rules
 description: Build and maintain a file-based long-term memory system in any project — entry file (AGENTS.md or per-tool variant), tiered MEMORY.md with aging, session closeout ritual, weekly health-check scripts. Use when project context gets re-explained every session, files are hard to locate, or the user says "remember this".
-version: 1.0.0
+version: 1.1.0
 author: Wallaby Token
 license: MIT
 metadata:
@@ -56,7 +56,7 @@ Six pieces, all inside the project:
 
 Two minutes at the end of a session:
 
-1. **Triage** everything the session produced: lasting fact or rule → one dated, sourced line in MEMORY.md (propose instead, while trust-building mode is active); evidence for later → LOG.md; version state change → LOG.md line with the commit or tag plus the version line update; "this got done" → NOW.md with a pointer; process scratch → delete.
+1. **Triage** everything the session produced: lasting fact or rule → one dated, sourced line in MEMORY.md (propose instead, while trust-building mode is active); evidence for later → LOG.md; version state change → LOG.md line with the commit or tag plus the version line update; "this got done" → NOW.md with a pointer; process scratch → delete. When tracked work closes, write LOG.md and update NOW.md in the same action. Pending entries use `<anchor> — <current status>`, never "later" or another deferral placeholder.
 2. **Update INDEX.md** if files were created or removed.
 3. **Drift check**: compare what the session set out to do with what happened, one line per drift, recorded in LOG.md.
 4. **Report in ≤8 lines**: what moved where, what is pending approval, what drifted, and a to-confirm list.

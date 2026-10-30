@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "contradictions": [
+    {
+      "id": "C-001",
+      "old": "The project map is optional.",
+      "new": "The project map is maintained when files change.",
+      "evidence": "README.md",
+      "status": "resolved",
+      "history": [
+        { "ts": "2026-01-01T00:00:00+00:00", "status": "open", "evidence": "sanitized example" },
+        { "ts": "2026-01-02T00:00:00+00:00", "status": "resolved", "evidence": "README.md" }
+      ]
+    }
+  ]
+}

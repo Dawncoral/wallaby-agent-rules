@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.3.0 -->
+<!-- wallaby-agent-rules 1.4.0 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
@@ -38,6 +38,14 @@
 hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
 ```
 
+**🛠 治理包，约 1 分钟**——可选的传导、前提检查、矛盾历史和验收回执：
+
+```
+python3 extras/memory-governance/memory_governance.py --target /path/to/your-project init
+cd /path/to/your-project
+python3 scripts/memory_governance.py doctor
+```
+
 不能抓 URL？直接打开 [PROMPT.zh-CN.md](PROMPT.zh-CN.md) 复制对应段落粘贴——纯文本。
 
 ## 你会得到什么
@@ -54,6 +62,8 @@ hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
 | 代码与版本节（代码项目） | 当前发布版本=带日期的记忆事实，一变就更新；每次发布/迁移/回滚都带 commit 号落日志 |
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
+
+**1.4.0 新增**：[记忆治理包](extras/memory-governance/)把变更传导变成可执行检查。九类事件映射到必触面，前提失败返回非零退出码，矛盾历史只追加，旧引用或未读文件仍在时验收回执不能转绿。三个可选模板 [MAP.md](templates/MAP.md)、[CAPABILITIES.md](templates/CAPABILITIES.md)、[FAILURES.md](templates/FAILURES.md) 和 [10 个脱敏失败示例](examples/FAILURES.example.md)让系统更容易交接。收工流程现在要求 LOG.md 与 NOW.md 在同一动作里更新。现有安装继续有效，每项新增都可单独采用。见 [1.3 到 1.4 升级卡](upgrade/1.3-to-1.4.md)。
 
 **1.3.0 新增**：Skill Forge——同一治理思想，上移一层。记忆体系管 AI *记得什么*；[Skill Forge](extras/skill-forge/) 管它*会做什么*：技能从需求推导起步（带高危确认清单），按实测过的规格生成，再靠技能自己写故障台账持续纠偏。三种形态同一协议——MCP 服务器、即贴即用提示词包、可安装技能。装进你项目的文件没有任何变化；它是 `extras/` 下的独立工具包。
 
@@ -110,18 +120,19 @@ hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
 
 ## 路线图
 
-至今已交付：收工仪式、深度健康检查（十项扫描：漂移、预算、老化、密钥卫生、提交沉默）、对账审计、信任培养模式、工具接入、代码版本模块、中文版。下一个开源大件是多 agent/团队记忆纪律。更深的治理能力（架构评审、托管值守）规划为托管付费形态而非开源件——watch 这个仓库。自 1.0.0 起用语义化版本号；早期迭代（v1–v4.1）已并入 1.0.0——见 [CHANGELOG.md](CHANGELOG.md)。
+至今已交付：收工仪式、深度健康检查（十项扫描：漂移、预算、老化、密钥卫生、提交沉默）、对账审计、信任培养模式、工具接入、代码版本模块、中文版、文件式记忆治理。下一个开源大件是多 agent/团队记忆纪律。架构评审与托管值守仍规划为托管付费形态——watch 这个仓库。自 1.0.0 起用语义化版本号；早期迭代（v1–v4.1）已并入 1.0.0——见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 这个仓库里还有
 
-- [`templates/`](templates/)——NOW / INDEX / LOG 模板 + 健康检查与对账脚本，可直接复制。
+- [`templates/`](templates/)——NOW / INDEX / LOG 模板、可选 MAP / CAPABILITIES / FAILURES 模板，以及健康检查与对账脚本，可直接复制。
 - [`templates/integrations/`](templates/integrations/)——每工具一张卡：入口文件、坑、30 秒自检。
+- [`extras/memory-governance/`](extras/memory-governance/)——通过一个零依赖 CLI 提供传导、前提检查、矛盾历史与验收回执。
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/)——整套系统打包成可安装的 agent 技能（SKILL.md + 两个检查脚本），适配 Hermes 及任何认 SKILL.md 约定的工具。
 - [`extras/skill-forge/`](extras/skill-forge/)——Skill Forge：技能本身的生命周期治理。需求推导、按实测规格生成、故障台账、优化回路——MCP 服务器、提示词包、SKILL.md 技能三种形态。
 - [`upgrade/`](upgrade/)——版本间的一页升级卡。
 - [`COMMERCIAL.md`](COMMERCIAL.md)——商用授权：什么免费、什么要授权、怎么联系。
 - [`AGENTS.md`](AGENTS.md) / [`MEMORY.md`](MEMORY.md)——v1 起始模板（token 预算纪律、三层记忆、相关方名册），仍有效，且本仓库自己也在用。
-- [`examples/`](examples/)——填好的 MEMORY / NOW / INDEX 示例：「好」在两周后的样子，不只是第一天。
+- [`examples/`](examples/)——填好的 MEMORY / NOW / INDEX 示例，另有 10 个脱敏合成失败条目。
 
 ## 谁在做
 

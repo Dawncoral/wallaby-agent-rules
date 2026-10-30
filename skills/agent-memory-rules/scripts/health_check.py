@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# wallaby-agent-rules 1.1.0
+# wallaby-agent-rules 1.4.0
 """health_check.py — weekly tidy-up check for projects using the memory system.
 
 Zero dependencies, Python 3.8+. Ten scans:
@@ -48,6 +48,7 @@ import sys
 ROOT_WHITELIST = {
     "README.md", "AGENTS.md", "CLAUDE.md", ".cursorrules",
     "MEMORY.md", "NOW.md", "INDEX.md", "LOG.md", "CHANGELOG.md",
+    "MAP.md", "CAPABILITIES.md", "FAILURES.md",
     "LICENSE", "LICENCE", "LICENSE.md", "LICENSE.txt",
     "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md",
     "Makefile", "Dockerfile", "docker-compose.yml",

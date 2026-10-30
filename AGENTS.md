@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.0.1 -->
+<!-- wallaby-agent-rules 1.4.0 -->
 # AGENTS.md — token-budget starter template
 # Source: Wallaby Token engineering practice — https://www.wallabytoken.com/blog/p/agents-md-token-budget
 # License: MIT — adapt freely, attribution appreciated.
@@ -90,7 +90,10 @@ allowed the moment a human asks for it.
    you check.
 2. **Memory update**: touch MEMORY.md only if the task changed a settled
    fact, produced a decision worth keeping, or finished tracked work.
-   Otherwise write nothing.
+   Otherwise write nothing. When tracked work closes, write LOG.md and
+   update NOW.md in the same action — never leave one for later. Pending
+   entries use `<anchor> — <current status>`; do not write "later",
+   "afterwards", or another deferral placeholder.
 3. **Delete process notes.** Git history and the decision log already hold
    what matters; blow-by-blow scratch is the biggest token garbage source
    in any memory system.

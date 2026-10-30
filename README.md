@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.3.0 -->
+<!-- wallaby-agent-rules 1.4.0 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
@@ -46,6 +46,14 @@ and follow its "L1 — 9-question interview" section in this project.
 hermes skills install Dawncoral/wallaby-agent-rules/skills/agent-memory-rules
 ```
 
+**🛠 Governance pack, ~1 minute** — optional conduction, premise checks, contradiction history, and verification receipts:
+
+```
+python3 extras/memory-governance/memory_governance.py --target /path/to/your-project init
+cd /path/to/your-project
+python3 scripts/memory_governance.py doctor
+```
+
 Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly — it's plain text.
 
 ## What you get
@@ -62,6 +70,8 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 | Code & releases (code projects) | The current released version is a dated memory fact, updated the moment it changes; every release, migration, or rollback gets logged with its commit reference |
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
+
+**New in 1.4.0**: [Memory governance](extras/memory-governance/) turns change propagation into an executable check. Nine event types map changes to required surfaces, premise failures return nonzero exit codes, contradiction history stays append-only, and impact receipts cannot verify while old references or unread files remain. The three optional templates [MAP.md](templates/MAP.md), [CAPABILITIES.md](templates/CAPABILITIES.md), and [FAILURES.md](templates/FAILURES.md), plus [ten sanitized failure examples](examples/FAILURES.example.md), make the system easier to hand over. The closeout procedure now writes LOG.md and NOW.md in the same action. Existing installs stay valid; adopt each addition separately. See the [1.3-to-1.4 upgrade card](upgrade/1.3-to-1.4.md).
 
 **New in 1.3.0**: Skill Forge — the same governance idea, one layer up. The memory system governs what your AI *remembers*; [Skill Forge](extras/skill-forge/) governs what it *does*: a skill gets derived from requirements with a high-stakes checklist, generated to a measured spec, and kept honest by a failure ledger the skill itself writes to. Three forms, one protocol — MCP server, paste-ready prompt pack, installable skill. Nothing changes inside your project; it is a standalone toolkit under `extras/`.
 
@@ -122,19 +132,20 @@ Already using this? Paste the **L2 — Upgrade check** prompt from [PROMPT.md](P
 
 ## Roadmap
 
-Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, budgets, aging, secrets hygiene, commit silence), the reconcile audit, trust-building mode, tool integrations, the code-version module, and the Chinese edition. Next open drop is multi-agent / team memory discipline. Deeper governance (architecture review, managed oversight) is planned as a hosted offering rather than an open drop — watch the repo. Numbering is semantic from 1.0.0 on; earlier iterations (v1–v4.1) are folded into it — see [CHANGELOG.md](CHANGELOG.md).
+Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, budgets, aging, secrets hygiene, commit silence), the reconcile audit, trust-building mode, tool integrations, the code-version module, the Chinese edition, and file-based memory governance. Next open drop is multi-agent / team memory discipline. Architecture review and managed oversight remain hosted offerings; watch the repo. Numbering is semantic from 1.0.0 on; earlier iterations (v1–v4.1) are folded into it. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Also in this repo
 
-- [`templates/`](templates/) — NOW / INDEX / LOG templates + the health check and reconcile scripts, ready to copy.
+- [`templates/`](templates/) — NOW / INDEX / LOG templates, optional MAP / CAPABILITIES / FAILURES templates, and the health check and reconcile scripts, ready to copy.
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
+- [`extras/memory-governance/`](extras/memory-governance/) — conduction, premise checks, contradiction history, and verification receipts through one zero-dependency CLI.
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/) — the whole system packaged as an installable agent skill (SKILL.md + both check scripts), for Hermes and any SKILL.md-compatible tool.
 - [`extras/skill-forge/`](extras/skill-forge/) — Skill Forge: lifecycle governance for the skills themselves. Requirement derivation, generation to a measured spec, a failure ledger, an optimize loop — as an MCP server, a prompt pack, or a SKILL.md-compatible skill.
 - [`upgrade/`](upgrade/) — one-page upgrade cards between versions.
 - [`COMMERCIAL.md`](COMMERCIAL.md) — commercial licensing: what's free, what needs a license, how to reach us.
 - [`README.zh-CN.md`](README.zh-CN.md) / [`PROMPT.zh-CN.md`](PROMPT.zh-CN.md) — the Chinese edition.
 - [`AGENTS.md`](AGENTS.md) / [`MEMORY.md`](MEMORY.md) — the v1 starter templates (token-budget discipline, three-tier memory, stakeholder register), still valid and still dogfooded by this repo itself.
-- [`examples/`](examples/) — filled-in MEMORY / NOW / INDEX examples: what "good" looks like two weeks in, not just on day one.
+- [`examples/`](examples/) — filled-in MEMORY / NOW / INDEX examples, plus ten sanitized composite failure entries.
 
 ## Who built this
 

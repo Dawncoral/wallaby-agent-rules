@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.3.0 -->
+<!-- wallaby-agent-rules 1.4.0 -->
 # PROMPT.md — paste-in prompts for your AI
 
 Four self-contained prompts. Pick one, copy the whole fenced block, and paste it to the AI that works in your project (Kimi Code, Claude Code, Cursor, Codex, or any agent that can read and write files). No install, no dependencies — the AI builds everything itself.
@@ -46,6 +46,7 @@ Build with the default profile (no questions — just build):
      - Before searching for any file, check `INDEX.md` first.
      - Conflict order: what the memory files say > what you remember > what you infer. On conflict, follow the file and flag it to me.
      - As you work: update `NOW.md` the moment tracked work moves, register any new file in `INDEX.md` the moment it is created, and delete process scratch (git history already holds the trace).
+     - When tracked work closes, write `LOG.md` and update `NOW.md` in the same action. Pending entries use `<anchor> — <current status>`; never write "later" or another deferral placeholder.
    - A `## Code & releases` section (this project involves code):
      - The current released/deployed version is a memory fact: keep one dated line in `MEMORY.md` (or in `NOW.md` while a release is in flight) and update it the moment it changes.
      - Every release, migration, or rollback gets one dated line in `LOG.md` with the commit or tag reference.
@@ -115,7 +116,7 @@ After my last answer, tell me in 3 lines which profile you derived, then build i
 
 The same files as the one-click install, parameterized by my answers:
 
-1. **Entry file** (per Q1) at the project root — merge, never overwrite, if one exists. Contents: one paragraph of project orientation; a `## Memory protocol` section (read MEMORY.md + NOW.md at every session start; check INDEX.md before searching for files; conflict order: files > your memory > your inference — on conflict follow the file and flag it; update NOW.md the moment tracked work moves, register new files in INDEX.md the moment they are created, delete process scratch); a `## Ritual words` section (per Q8 — each word mapped to its ritual: "wrap up" → closeout triage + drift check, "note this" → dated log entry, "that's wrong" → record the failure and the expected behavior); a `## Red lines` section (credentials: never read/print/commit; destructive or live-service actions: list the blast radius and wait for approval; you draft, I release); plus the conditional additions: Q2 → a `## Code & releases` section (the current released/deployed version is a dated memory fact updated the moment it changes; every release/migration/rollback gets one dated LOG.md line with the commit or tag; before any deploy or release, confirm the working tree is committed — the local repo is the source of truth; on version-state conflict, the file wins and gets flagged); Q4 → "Shared conventions"; Q7 → weekly-check reminder; Q9 → a `## Trust-building mode` section (while active, new MEMORY.md entries are proposed at session end marked ⏳ pending, dated, with a source, and promoted only after my yes; record the install date; it expires two weeks later or when I say "trust mode off").
+1. **Entry file** (per Q1) at the project root — merge, never overwrite, if one exists. Contents: one paragraph of project orientation; a `## Memory protocol` section (read MEMORY.md + NOW.md at every session start; check INDEX.md before searching for files; conflict order: files > your memory > your inference — on conflict follow the file and flag it; update NOW.md the moment tracked work moves, register new files in INDEX.md the moment they are created, delete process scratch; when tracked work closes, write LOG.md and update NOW.md in the same action; pending entries use `<anchor> — <current status>`, never "later" or another deferral placeholder); a `## Ritual words` section (per Q8 — each word mapped to its ritual: "wrap up" → closeout triage + drift check, "note this" → dated log entry, "that's wrong" → record the failure and the expected behavior); a `## Red lines` section (credentials: never read/print/commit; destructive or live-service actions: list the blast radius and wait for approval; you draft, I release); plus the conditional additions: Q2 → a `## Code & releases` section (the current released/deployed version is a dated memory fact updated the moment it changes; every release/migration/rollback gets one dated LOG.md line with the commit or tag; before any deploy or release, confirm the working tree is committed — the local repo is the source of truth; on version-state conflict, the file wins and gets flagged); Q4 → "Shared conventions"; Q7 → weekly-check reminder; Q9 → a `## Trust-building mode` section (while active, new MEMORY.md entries are proposed at session end marked ⏳ pending, dated, with a source, and promoted only after my yes; record the install date; it expires two weeks later or when I say "trust mode off").
 2. **`MEMORY.md`** — long-term memory: permanent facts, key decisions with reasons, iron rules. One dated line per fact with a pointer to where the detail lives — the detail itself never gets inlined. Never write guesses as facts — unsure items go on the to-confirm list. Aging: past the soft wall (~150 dated lines or ~8k est. tokens, CJK-weighted), facts untouched 30+ days move to LOG.md at the next closeout. While trust-building mode is active, additions here go through the approval step described in the entry file.
 3. **`NOW.md`** — current state: work in flight (dated lines with pointers) on top, recently-touched pointers below; entries idle 30 days are pruned at the next update. Caps per Q5/Q6.
 4. **`INDEX.md`** — one line per file (`path | what it is`), granularity per Q3. Scope: documents and knowledge files; code is tracked by git and the changelog, not duplicated here. **Build the first version now by actually scanning the project** — never hand me an empty template. New files get registered on creation from now on.
@@ -154,6 +155,7 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, GEMINI
 
 - A first-line comment states the version directly: `<!-- wallaby-agent-rules 1.0.0 -->` style (semantic) from 1.0.0 on; `<!-- wallaby-agent-rules vX -->` (v1–v4.1) on earlier installs.
 - No marker → infer from fingerprints:
+  - **1.4.0**: optional MAP.md, CAPABILITIES.md, and FAILURES.md templates; an optional `extras/memory-governance/` pack adds conduction, premise checks, contradiction history, and verification receipts; the closeout procedure writes LOG.md and NOW.md in the same action and bans deferral placeholders in pending entries. The core files otherwise match 1.3.0.
   - **1.3.0**: repo-side additions only (the `extras/skill-forge/` toolkit: MCP server, prompt pack, SKILL.md form) — the files installed in your project are identical to 1.1.0; an install fingerprinting as 1.1.0 is current.
   - **1.2.0**: repo-side additions only (the `skills/` skill package and the Hermes integration card) — the files installed in your project are identical to 1.1.0; an install fingerprinting as 1.1.0 is current.
   - **1.1.0**: as 1.0.0/1.0.1, plus health_check.py runs ten scans (adds MEMORY.md budget with demote candidates, secrets hygiene, commit silence) and the MEMORY.md rule carries an aging clause (past the soft wall, facts idle 30+ days move to LOG.md).
@@ -168,9 +170,11 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, GEMINI
 
 ## Step 2: Propose an incremental upgrade list
 
-Compare what exists against the 1.3.0 layout (for installed files, unchanged from 1.1.0: entry file with Memory protocol + Ritual words + Red lines + optional Trust-building mode + optional Code & releases; MEMORY.md long-term facts with the aging clause; NOW.md current state; INDEX.md project map; scripts/health_check.py with ten scans; scripts/reconcile.py with two scans; optional LOG.md). Output a numbered checklist:
+Compare what exists against the 1.4.0 layout (core files keep the 1.1.0 structure, with the 1.4.0 closeout wording; optional templates and the memory-governance pack are repo-side additions). Output a numbered checklist:
 
 - **Add** — files that do not exist yet. For INDEX.md, scan the project and show me the first full version you would write.
+- **Optional add** — offer MAP.md, CAPABILITIES.md, and FAILURES.md separately; do not make them required for a working install.
+- **Optional governance** — offer to run `python3 extras/memory-governance/memory_governance.py --target . init`, then `python3 scripts/memory_governance.py doctor`. Never make it a required upgrade.
 - **Suggest change** — for each existing file, show a diff: what you would add (for example the `## Ritual words` section, the optional `## Trust-building mode` section, the optional `## Code & releases` section for code projects, the current version marker) and, if anything looks redundant, what you *recommend* moving — clearly marked as optional, never executed without my explicit yes per item.
 - **Replace (scaffolding only)** — if scripts/health_check.py exists and is older than ten scans, or scripts/reconcile.py exists and is older than two scans, offer to swap in the current version from the wallaby-agent-rules repo. These are the only files you may replace outright.
 - **Point** — if my tool has a card in `templates/integrations/` in the wallaby-agent-rules repo, point me to it.
@@ -196,8 +200,10 @@ For each outcome, one question decides where it goes:
 1. **Did it change a lasting fact or rule?** → Add one dated line, with a source, to `MEMORY.md`. (If trust-building mode is active, propose it instead — ⏳ pending, dated, sourced — and let me approve.)
 2. **Is it evidence for a future judgment call?** → Append one dated line to `LOG.md`. Append-only — never rewrite history.
 3. **Did the version/release state change (release, migration, rollback)?** → One dated line in `LOG.md` with the commit or tag reference, and update the version line in `MEMORY.md`/`NOW.md`.
-4. **Is it just "this got done"?** → One dated line in `NOW.md`, with a pointer to where the detail lives. While here: move anything idle 30+ days out of NOW.md — and if `MEMORY.md` is past its soft wall (~150 dated lines or ~8k est. tokens, CJK-weighted), demote its facts idle 30+ days into `LOG.md`. Git history keeps the record.
+4. **Is it just "this got done"?** → Write the dated LOG.md entry and update NOW.md in the same action, with a pointer to where the detail lives. Never leave one write for later. While here: move anything idle 30+ days out of NOW.md — and if `MEMORY.md` is past its soft wall (~150 dated lines or ~8k est. tokens, CJK-weighted), demote its facts idle 30+ days into `LOG.md`. Git history keeps the record.
 5. **Is it process scratch?** → Delete it. Intermediate notes and abandoned approaches are the largest source of context garbage; git already holds the trace.
+
+Pending entries use `<anchor> — <current status>`. Do not write "later", "afterwards", or another deferral placeholder.
 
 If files were created or removed this session, update `INDEX.md` now.
 

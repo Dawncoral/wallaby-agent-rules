@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "events": {
+    "feature": { "surfaces": ["MAP.md", "CAPABILITIES.md", "INDEX.md", "CHANGELOG.md"], "premise_review": true, "contradiction_review": false },
+    "mechanism": { "surfaces": ["MAP.md", "CHANGELOG.md", "PREMISES"], "premise_review": true, "contradiction_review": true },
+    "document": { "surfaces": ["INDEX.md", "CAPABILITIES.md"], "premise_review": false, "contradiction_review": false },
+    "external_copy": { "surfaces": ["README.md", "CHANGELOG.md"], "premise_review": false, "contradiction_review": true },
+    "automation": { "surfaces": ["CAPABILITIES.md", "MAP.md"], "premise_review": true, "contradiction_review": false },
+    "decision": { "surfaces": ["LOG.md", "NOW.md", "PREMISES"], "premise_review": true, "contradiction_review": true },
+    "skill": { "surfaces": ["CAPABILITIES.md", "INDEX.md", "CHANGELOG.md"], "premise_review": false, "contradiction_review": false },
+    "file_move": { "surfaces": ["INDEX.md", "MAP.md", "CAPABILITIES.md"], "premise_review": false, "contradiction_review": false },
+    "closure": { "surfaces": ["LOG.md", "NOW.md"], "premise_review": false, "contradiction_review": false }
+  }
+}

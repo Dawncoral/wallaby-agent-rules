@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "premises": [
+    {
+      "id": "P-001",
+      "level": "P2",
+      "assertion": "The project has a README, so a new session has an onboarding entry point.",
+      "failure_signal": { "type": "file_missing", "path": "README.md" },
+      "detection": "Run premise check before relying on the project map.",
+      "status": "active",
+      "source": "sanitized example"
+    }
+  ]
+}

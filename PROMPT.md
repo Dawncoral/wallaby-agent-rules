@@ -155,6 +155,7 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, GEMINI
 
 - A first-line comment states the version directly: `<!-- wallaby-agent-rules 1.0.0 -->` style (semantic) from 1.0.0 on; `<!-- wallaby-agent-rules vX -->` (v1–v4.1) on earlier installs.
 - No marker → infer from fingerprints:
+  - **1.4.2**: the governance CLI gains a lossless `upgrade` command with a dry run, backup, post-replacement validation, and automatic restore on failure; other installed files otherwise match 1.4.1.
   - **1.4.1**: documentation-only patch adding `extras/memory-governance/WEEKLY_RECONCILE.md`; installed files otherwise match 1.4.0.
   - **1.4.0**: optional MAP.md, CAPABILITIES.md, and FAILURES.md templates; an optional `extras/memory-governance/` pack adds conduction, premise checks, contradiction history, and verification receipts; the closeout procedure writes LOG.md and NOW.md in the same action and bans deferral placeholders in pending entries. The core files otherwise match 1.3.0.
   - **1.3.0**: repo-side additions only (the `extras/skill-forge/` toolkit: MCP server, prompt pack, SKILL.md form) — the files installed in your project are identical to 1.1.0; an install fingerprinting as 1.1.0 is current.

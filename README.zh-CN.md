@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.4.1 -->
+<!-- wallaby-agent-rules 1.4.2 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.2-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
@@ -62,6 +62,8 @@ python3 scripts/memory_governance.py doctor
 | 代码与版本节（代码项目） | 当前发布版本=带日期的记忆事实，一变就更新；每次发布/迁移/回滚都带 commit 号落日志 |
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
+
+**1.4.2 新增**：治理 CLI 无损升级。`upgrade` 默认只预览并拒绝降级，`--apply` 会先备份再只替换 CLI；新 CLI 必须能启动并报告预期版本，否则自动恢复旧脚本。记忆文件、配置、回执和其他项目文件均不受影响。
 
 **1.4.1 新增**：[《周轧差创建指南》](extras/memory-governance/WEEKLY_RECONCILE.md)把检查变成可重复的复核流程：确定范围、机械扫描、小样本语义复核、前提与矛盾检查、责任人分配，以及一页报告模板。
 

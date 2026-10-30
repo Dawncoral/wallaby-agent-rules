@@ -32,6 +32,32 @@ class GovernanceTests(unittest.TestCase):
         path = self.root / ".memory" / name
         path.write_text(json.dumps(data), encoding="utf-8")
 
+    def set_cli_version(self, path, version):
+        text = path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        for i, line in enumerate(lines):
+            if line.startswith("VERSION = "):
+                lines[i] = f'VERSION = "{version}"'
+                path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                return
+        self.fail(f"VERSION not found in {path}")
+
+    def make_source(self, version, invalid=False):
+        path = self.root / "new_source.py"
+        if invalid:
+            path.write_text(f'VERSION = "{version}"\nthis is not valid python\n', encoding="utf-8")
+        else:
+            path.write_text(CLI.read_text(encoding="utf-8"), encoding="utf-8")
+            self.set_cli_version(path, version)
+        return path
+
+    def snapshot(self):
+        return {
+            str(path.relative_to(self.root)): path.read_bytes()
+            for path in self.root.rglob("*")
+            if path.is_file() and ".memory/backups" not in str(path)
+        }
+
     def test_init_and_doctor_green(self):
         self.init()
         self.assertTrue((self.root / "scripts/memory_governance.py").is_file())
@@ -158,6 +184,63 @@ class GovernanceTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("WARNING skipped", result.stderr)
         self.assertEqual(self.run_cli("verify", "--receipt", "R-000001").returncode, 1)
+
+    def test_upgrade_dry_run_changes_no_files(self):
+        self.init()
+        target = self.root / "scripts/memory_governance.py"
+        self.set_cli_version(target, "1.0.0")
+        source = self.make_source("1.4.2")
+        before = self.snapshot()
+        result = self.run_cli("upgrade", "--source", str(source))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("DRY RUN", result.stdout)
+        self.assertEqual(self.snapshot(), before)
+        self.assertFalse((self.root / ".memory/backups").exists())
+
+    def test_upgrade_apply_preserves_memory_and_creates_backup(self):
+        self.init()
+        target = self.root / "scripts/memory_governance.py"
+        self.set_cli_version(target, "1.0.0")
+        old_cli = target.read_bytes()
+        source = self.make_source("1.4.2")
+        (self.root / ".memory/receipts.jsonl").write_text('{"type":"impact","receipt":"R-000001"}\n', encoding="utf-8")
+        (self.root / "README.md").write_text("user memory\n", encoding="utf-8")
+        before = self.snapshot()
+        result = self.run_cli("upgrade", "--source", str(source), "--apply")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(target.read_bytes(), source.read_bytes())
+        backup = self.root / ".memory/backups/memory_governance_1.0.0.py"
+        self.assertEqual(backup.read_bytes(), old_cli)
+        after = self.snapshot()
+        self.assertEqual(after["README.md"], before["README.md"])
+        self.assertEqual(after[".memory/receipts.jsonl"], before[".memory/receipts.jsonl"])
+        self.assertEqual(after[".memory/impact.json"], before[".memory/impact.json"])
+        self.assertEqual(after[".memory/premises.json"], before[".memory/premises.json"])
+        self.assertEqual(after[".memory/contradictions.json"], before[".memory/contradictions.json"])
+
+    def test_upgrade_refuses_downgrade_without_touching_cli(self):
+        self.init()
+        target = self.root / "scripts/memory_governance.py"
+        self.set_cli_version(target, "9.9.9")
+        old_cli = target.read_bytes()
+        source = self.make_source("1.4.2")
+        result = self.run_cli("upgrade", "--source", str(source), "--apply")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("refusing downgrade", result.stderr)
+        self.assertEqual(target.read_bytes(), old_cli)
+        self.assertFalse((self.root / ".memory/backups").exists())
+
+    def test_failed_upgrade_restores_original_cli(self):
+        self.init()
+        target = self.root / "scripts/memory_governance.py"
+        self.set_cli_version(target, "1.0.0")
+        old_cli = target.read_bytes()
+        source = self.make_source("9.9.9", invalid=True)
+        result = self.run_cli("upgrade", "--source", str(source), "--apply")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("original CLI restored", result.stderr)
+        self.assertEqual(target.read_bytes(), old_cli)
+        self.assertEqual((self.root / ".memory/backups/memory_governance_1.0.0.py").read_bytes(), old_cli)
 
     def test_examples_match_install_defaults(self):
         spec = importlib.util.spec_from_file_location("mg_defaults", CLI)

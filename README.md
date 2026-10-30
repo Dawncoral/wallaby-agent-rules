@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.4.1 -->
+<!-- wallaby-agent-rules 1.4.2 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.2-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
@@ -70,6 +70,8 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 | Code & releases (code projects) | The current released version is a dated memory fact, updated the moment it changes; every release, migration, or rollback gets logged with its commit reference |
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
+
+**New in 1.4.2**: lossless governance CLI upgrades. `upgrade` defaults to a dry run, refuses downgrades, and `--apply` replaces only the CLI after a backup. The new CLI must start and report the expected version, or the original is restored. Memory files, configs, receipts, and all other project files stay untouched.
 
 **New in 1.4.1**: [Weekly reconciliation: a creation guide](extras/memory-governance/WEEKLY_RECONCILE.md) turns the checks into a repeatable review: scope, mechanical scans, a small semantic sample, premise and contradiction review, finding owners, and a one-page report template.
 

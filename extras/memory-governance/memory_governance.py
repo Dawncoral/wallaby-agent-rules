@@ -11,13 +11,14 @@ import fnmatch
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "1.4.0"
+VERSION = "1.4.2"
 SKIP_DIRS = {
     ".git", ".hg", ".svn", ".credentials", ".memory", "node_modules",
     ".venv", "venv", "env", "__pycache__", ".pytest_cache", "dist",
@@ -239,6 +240,66 @@ def cmd_init(args):
         print(f"KEEP {target_script.relative_to(root)}")
     print(f"Initialized governance in {root}; created={created or ['nothing new']}")
     print("Next: python3 scripts/memory_governance.py doctor")
+    return 0
+
+
+def script_version(path: Path):
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as e:
+        raise GovernanceError(f"cannot read CLI {path}: {e}")
+    for line in text.splitlines():
+        if line.startswith("VERSION = "):
+            return line.split("=", 1)[1].strip().strip("\"'")
+    raise GovernanceError(f"VERSION not found in {path}")
+
+
+def version_tuple(version: str):
+    try:
+        return tuple(int(part) for part in version.split("."))
+    except ValueError:
+        raise GovernanceError(f"invalid version {version!r}; expected x.y.z")
+
+
+def cmd_upgrade(args):
+    root = Path(args.target).resolve()
+    target = root / "scripts" / "memory_governance.py"
+    source = Path(args.source).resolve() if args.source else Path(__file__).resolve()
+    target_version = script_version(target)
+    source_version = script_version(source)
+    print(f"CURRENT {target_version} {target}")
+    print(f"AVAILABLE {source_version} {source}")
+    if source.resolve() == target.resolve() or source.read_bytes() == target.read_bytes():
+        print("Already current; no files changed.")
+        return 0
+    if version_tuple(source_version) < version_tuple(target_version):
+        raise GovernanceError(f"refusing downgrade {target_version} -> {source_version}")
+    backup = memory_dir(root) / "backups" / f"memory_governance_{target_version}.py"
+    print(f"BACKUP {backup}")
+    if not args.apply:
+        print(f"DRY RUN would replace only the CLI {target} -> {source_version}; memory data and all other files stay untouched.")
+        print("Run with --apply to back up and replace the CLI, then verify it starts.")
+        return 0
+    with FileLock(memory_dir(root) / "upgrade.lock"):
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(target, backup)
+        fd, tmp_name = tempfile.mkstemp(prefix="memory_governance.upgrade.", dir=str(target.parent))
+        try:
+            with os.fdopen(fd, "wb") as tmp:
+                tmp.write(source.read_bytes())
+            os.replace(tmp_name, target)
+        finally:
+            if os.path.exists(tmp_name):
+                os.unlink(tmp_name)
+        try:
+            result = subprocess.run([sys.executable, str(target), "--version"], text=True, capture_output=True)
+            if result.returncode != 0 or result.stdout.strip() != source_version:
+                raise GovernanceError("new CLI failed the version check")
+        except Exception as e:
+            shutil.copy2(backup, target)
+            raise GovernanceError(f"upgrade failed; original CLI restored: {e}")
+    print(f"UPGRADED {target_version} -> {source_version}; backup={backup}")
+    print("Memory data, configs, receipts, and all other project files were not modified.")
     return 0
 
 
@@ -490,6 +551,9 @@ def build_parser():
     contradiction.add_argument("--evidence")
     contradiction.add_argument("--open", action="store_true")
     sub.add_parser("doctor", help="run all governance checks")
+    upgrade = sub.add_parser("upgrade", help="preview or apply a lossless CLI-only upgrade")
+    upgrade.add_argument("--source", help="newer memory_governance.py; defaults to the current source file")
+    upgrade.add_argument("--apply", action="store_true", help="back up and replace the CLI after the preview")
     return p
 
 
@@ -512,6 +576,8 @@ def main(argv=None):
             return cmd_contradict(args)
         if args.command == "doctor":
             return cmd_doctor(args)
+        if args.command == "upgrade":
+            return cmd_upgrade(args)
         return 2
     except GovernanceError as e:
         print(f"ERROR {e}", file=sys.stderr)

@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.1 -->
+<!-- wallaby-agent-rules 1.4.2 -->
 # Memory governance: from a change to a verified update
 
 One Python CLI connects four jobs that are often skipped: impact mapping, premise checks, contradiction history, and verification receipts. It has no dependencies and does not call a model.
@@ -24,6 +24,17 @@ DOCTOR OK
 ```
 
 `init` creates `.memory/` and copies the CLI to `scripts/memory_governance.py`. It never overwrites an existing config or script. The sample premise passes when `README.md` exists; the sample contradiction is already resolved.
+
+## Lossless upgrades
+
+Preview an upgrade without changing any file:
+
+```bash
+python3 scripts/memory_governance.py upgrade \
+  --source /path/to/newer/memory_governance.py
+```
+
+The preview shows the current and available versions and the backup path. If you approve it, run the same command with `--apply`. Only the CLI is replaced, after a backup is written to `.memory/backups/`. The new CLI must start and report the expected version, or the original is restored automatically. `MEMORY.md`, `NOW.md`, `.memory/` configs, receipts, and all other project files stay untouched. Downgrades are refused.
 
 ## Your first change
 

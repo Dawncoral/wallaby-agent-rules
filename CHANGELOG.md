@@ -1,7 +1,15 @@
-<!-- wallaby-agent-rules 1.4.1 -->
+<!-- wallaby-agent-rules 1.4.2 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.4.2 — 2026-10-30
+
+**Lossless governance CLI upgrades.** New `upgrade` command: a default dry run shows current and available versions, refuses downgrades, and changes nothing. With `--apply`, it replaces only the CLI after making a backup, verifies that the new CLI starts, and restores the original if validation fails. Memory files, `.memory/` configs, receipts, and all other project files stay untouched.
+
+### Migrating from 1.4.1
+
+Run `python3 scripts/memory_governance.py upgrade --source /path/to/newer/memory_governance.py` to preview. Add `--apply` only after reviewing the preview. No data migration is needed.
 
 ## 1.4.1 — 2026-10-30
 

@@ -1,13 +1,13 @@
-<!-- wallaby-agent-rules 1.2.0 -->
+<!-- wallaby-agent-rules 1.4.2 -->
 # Release checklist
 
 Every version ships when every box is ticked, in this order. (This file is ours — it keeps us honest; users only see the results.)
 
 ## Version numbers and cadence (v4.1 立，源=10-04 三连版教训)
 
-- **Three tiers**: major (1.0.0→2.0.0) = new capability theme + a distribution event; minor (1.1.0) = module-level additions; patch (1.0.1) = fixes, licensing, copy. **Patches never get their own Release or announcement.**
+- **Three tiers**: major (1.0.0→2.0.0) = new capability theme + a distribution event; minor (1.1.0) = module-level additions; patch (1.0.1) = fixes, licensing, copy. **Patches do not get their own Release or announcement by default. Exception: a patch with a user-visible CLI/workflow change may get a patch Release, clearly labeled, with no marketing announcement.**
 - **Batch, don't drip**: same-day changes on the same theme accumulate into one version window. Default ceiling: **one public version (major/minor) per week**. If a feature is done Tuesday, it waits for the window — a version number is a promise of attention, and attention is finite.
-- **Releases are the marketing event**: only majors/minors get a GitHub Release; one Release can bundle many commits. (10-04: three bumps landed same day — externally there was exactly one Release, 1.0.0.)
+- **Releases are the marketing event**: majors/minors get a GitHub Release; one Release can bundle many commits. The patch exception above is a maintenance notice, not a marketing event. (10-04: three bumps landed same day — externally there was exactly one Release, 1.0.0.)
 - **Hotfix exception**: compliance/safety/licensing fixes ship any time, as a patch number, without the distribution event.
 - **Heat-window exception**: when an external window is hot (a platform moment, a live conversation), the owner may break the weekly ceiling by an explicit, dated decision recorded in the project log. Every break is counted and reviewable — urgency should be a decision with a receipt, never a habit. (10-06: two breaks in four days, both owner-approved and logged; this clause exists so the count is visible.)
 - Self-check before assigning a number: "would a user care that this number changed?" If no, it's a patch or it waits.
@@ -21,7 +21,7 @@ Every version ships when every box is ticked, in this order. (This file is ours 
 5. L2 upgrade prompt: fingerprints updated so it recognizes the previous version, and the "compare against" layout names the new one.
 6. Repo description and topics match the current release theme (GitHub settings).
 7. Push to main.
-8. Create the GitHub Release (tag `vX`, majors/minors only), with the migration notes as the body — Releases are how existing users hear about new versions.
+8. Create the GitHub Release (tag `vX`; majors/minors, plus the user-visible patch exception), with the migration notes as the body — Releases are how existing users hear about new versions.
 9. Internal registration: doc registry + project log.
 
 If a step was skipped, the release isn't done. The fix is always: finish the step, then note it — never "we'll catch it next time."

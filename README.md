@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.4.2 -->
+<!-- wallaby-agent-rules 1.4.3 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.3-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
@@ -71,6 +71,8 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
 
+**New in 1.4.3**: an optional [memory MCP server](extras/memory-mcp/) for agents that never load the entry file. It reads, looks up, and logs through the same four files, and new facts wait in `PROPOSALS.md` until a person approves them. One Python file, no dependencies, 24 smoke checks.
+
 **New in 1.4.2**: lossless governance CLI upgrades. `upgrade` defaults to a dry run, refuses downgrades, and `--apply` replaces only the CLI after a backup. The new CLI must start and report the expected version, or the original is restored. Memory files, configs, receipts, and all other project files stay untouched.
 
 **New in 1.4.1**: [Weekly reconciliation: a creation guide](extras/memory-governance/WEEKLY_RECONCILE.md) turns the checks into a repeatable review: scope, mechanical scans, a small semantic sample, premise and contradiction review, finding owners, and a one-page report template.
@@ -91,7 +93,7 @@ New in v3: the **closeout ritual**. Say "wrap up" and the AI triages everything 
 
 ## Works in your tool
 
-No plugin, no MCP server, no install — the entry file is the integration. Each tool reads its own; the setup interview picks the right one for you.
+No plugin, no MCP server, no install — the entry file is the integration. Each tool reads its own; the setup interview picks the right one for you. For an agent that cannot read an entry file, the optional [memory MCP server](extras/memory-mcp/) serves the same files.
 
 | Tool | Entry file | Notes |
 |---|---|---|
@@ -143,6 +145,7 @@ Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, 
 - [`templates/`](templates/) — NOW / INDEX / LOG templates, optional MAP / CAPABILITIES / FAILURES templates, and the health check and reconcile scripts, ready to copy.
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
 - [`extras/memory-governance/`](extras/memory-governance/) — conduction, premise checks, contradiction history, and verification receipts through one zero-dependency CLI.
+- [`extras/memory-mcp/`](extras/memory-mcp/) — the same memory files as an MCP server: read, look up, propose, and log, with writes redacted and proposals kept out of MEMORY.md.
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/) — the whole system packaged as an installable agent skill (SKILL.md + both check scripts), for Hermes and any SKILL.md-compatible tool.
 - [`extras/skill-forge/`](extras/skill-forge/) — Skill Forge: lifecycle governance for the skills themselves. Requirement derivation, generation to a measured spec, a failure ledger, an optimize loop — as an MCP server, a prompt pack, or a SKILL.md-compatible skill.
 - [`upgrade/`](upgrade/) — one-page upgrade cards between versions.

@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.4.2 -->
+<!-- wallaby-agent-rules 1.4.3 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.3-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
@@ -63,6 +63,8 @@ python3 scripts/memory_governance.py doctor
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
 
+**1.4.3 新增**：可选的[记忆 MCP 服务器](extras/memory-mcp/)，给读不到入口文件的 agent 用。它通过同样四个文件读取、查找、记日志；新事实先进 `PROPOSALS.md`，等人批准。单个 Python 文件，零依赖，24 项冒烟自检。
+
 **1.4.2 新增**：治理 CLI 无损升级。`upgrade` 默认只预览并拒绝降级，`--apply` 会先备份再只替换 CLI；新 CLI 必须能启动并报告预期版本，否则自动恢复旧脚本。记忆文件、配置、回执和其他项目文件均不受影响。
 
 **1.4.1 新增**：[《周轧差创建指南》](extras/memory-governance/WEEKLY_RECONCILE.md)把检查变成可重复的复核流程：确定范围、机械扫描、小样本语义复核、前提与矛盾检查、责任人分配，以及一页报告模板。
@@ -79,7 +81,7 @@ python3 scripts/memory_governance.py doctor
 
 ## 你的工具怎么接
 
-无插件、无 MCP server、无需安装——入口文件就是集成。每个工具读自己的入口文件；启动面谈会帮你选对。
+无插件、无 MCP server、无需安装——入口文件就是集成。每个工具读自己的入口文件；启动面谈会帮你选对。读不到入口文件的 agent，可以用可选的[记忆 MCP 服务器](extras/memory-mcp/)读同一套文件。
 
 | 工具 | 入口文件 | 备注 |
 |---|---|---|
@@ -131,6 +133,7 @@ python3 scripts/memory_governance.py doctor
 - [`templates/`](templates/)——NOW / INDEX / LOG 模板、可选 MAP / CAPABILITIES / FAILURES 模板，以及健康检查与对账脚本，可直接复制。
 - [`templates/integrations/`](templates/integrations/)——每工具一张卡：入口文件、坑、30 秒自检。
 - [`extras/memory-governance/`](extras/memory-governance/)——通过一个零依赖 CLI 提供传导、前提检查、矛盾历史与验收回执。
+- [`extras/memory-mcp/`](extras/memory-mcp/)——把同一套记忆文件做成 MCP 服务器：读取、查找、提议、记日志；写入先脱敏，提议不进 MEMORY.md。
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/)——整套系统打包成可安装的 agent 技能（SKILL.md + 两个检查脚本），适配 Hermes 及任何认 SKILL.md 约定的工具。
 - [`extras/skill-forge/`](extras/skill-forge/)——Skill Forge：技能本身的生命周期治理。需求推导、按实测规格生成、故障台账、优化回路——MCP 服务器、提示词包、SKILL.md 技能三种形态。
 - [`upgrade/`](upgrade/)——版本间的一页升级卡。

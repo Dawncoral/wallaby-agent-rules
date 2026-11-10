@@ -1,7 +1,15 @@
-<!-- wallaby-agent-rules 1.4.2 -->
+<!-- wallaby-agent-rules 1.4.3 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.4.3 — 2026-11-09
+
+**Optional memory MCP server.** New `extras/memory-mcp/`: one zero-dependency stdio server that opens the memory files to agents that do not load the entry file. Seven tools cover the session-start read, INDEX lookup, proposals, log notes, in-flight updates, the weekly checks, and version status. `memory_propose` queues facts in `PROPOSALS.md` and never writes `MEMORY.md`. Every write is redacted first. `--tools` limits what a client sees, and `--origin` tags each proposal with the task that made it. No installed file changes.
+
+### Migrating from 1.4.2
+
+Nothing is required. To try the server, add it to your MCP client as shown in `extras/memory-mcp/README.md`, then run `python3 extras/memory-mcp/smoke_test.py` (24 checks on a temporary project).
 
 ## 1.4.2 — 2026-10-30
 

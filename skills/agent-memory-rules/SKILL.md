@@ -62,6 +62,7 @@ Two minutes at the end of a session:
 2. **Update INDEX.md** if files were created or removed.
 3. **Drift check**: compare what the session set out to do with what happened, one line per drift, recorded in LOG.md.
 4. **Report in ≤8 lines**: what moved where, what is pending approval, what drifted, and a to-confirm list.
+5. **One rule in, one rule out**: before adding a rule, check whether one already covers it. If the governance `audit` reports the always-loaded instructions over their baseline, merge or retire one first and name it in the report.
 
 ## Weekly Checks
 
@@ -71,6 +72,8 @@ python3 scripts/reconcile.py      # two scans: closure contradictions, evidence-
 ```
 
 Both exit 0 when clean, 1 with findings. Run them weekly, or wire them into a cron job.
+
+With the governance pack, also run `python3 scripts/memory_governance.py audit --rules` and read its JSON: name rules that mean the same thing, and rules a tool could enforce; the weekly guide in `extras/memory-governance/WEEKLY_RECONCILE.md` has a table of common guardrails. Ask the user once before installing a guardrail, and record the answer with `audit --rules-answer guardrails=yes` or `guardrails=no`.
 
 ## Pitfalls
 

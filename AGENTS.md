@@ -99,6 +99,9 @@ allowed the moment a human asks for it.
 3. **Delete process notes.** Git history and the decision log already hold
    what matters; blow-by-blow scratch is the biggest token garbage source
    in any memory system.
+4. **One rule in, one rule out.** Before adding a standing rule, check
+   whether one already covers it. If the governance `audit` reports this
+   file over its baseline, merge or retire a rule first, and say which.
 
 ## Ritual words
 

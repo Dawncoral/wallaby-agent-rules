@@ -213,6 +213,24 @@ Every split, in either mode:
 
 `reconcile.py` and `health_check.py` 1.4.3 read the volumes and INDEX parts. Update both scripts before your first split.
 
+### Measure the instructions agents load
+
+```bash
+python3 scripts/memory_governance.py audit
+python3 scripts/memory_governance.py audit --rules
+```
+
+`audit` finds the instruction files with no setup and splits them in two:
+
+- **Always loaded**: root `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, and `.github/copilot-instructions.md`. Every session pays for these, so `audit` counts their rules and their size.
+- **On demand**: nested entry files, skills under `.claude/skills`, `.agents/skills`, `skills`, and `.github/skills`, and the `.cursor/rules`, `.claude/rules`, and `.github/instructions` folders. `audit` reports how many there are and their size.
+
+A rule is a sentence with a word such as must, never, always, or do not, or a Chinese equivalent; wrapped lines in a paragraph count as one. A symlink or a second path to the same file counts once. Skills bundled elsewhere in the tree, such as inside an extension, are not counted.
+
+The first run records the always-loaded part in `.memory/rules_baseline.json`. You edit nothing. When the rule count rises above the baseline, or the size grows by more than 10%, `audit` and `doctor` print one line suggesting one rule in, one rule out. A rule that appears almost word for word in more than one file gets a paste-ready fix. When there is nothing to report, both stay silent, and neither ever changes an exit code.
+
+`audit --rules` prints JSON for the agent's weekly review: the numbers above, the baseline, every near-verbatim repeat, a compact list of all rules, and the user's recorded answer about guardrails. `audit --rebaseline-rules` accepts the current always-loaded instructions as the new baseline. `audit --rules-answer guardrails=no` or `guardrails=yes` records the user's answer, so the agent asks only once. See [the rules review](WEEKLY_RECONCILE.md#the-rules-review).
+
 ## What the scanner does and does not do
 
 - It reads text files and reports paths and match counts, not file contents.
@@ -230,6 +248,7 @@ Every split, in either mode:
 | `.memory/contradictions.json` | Old and new statements with append-only history |
 | `.memory/receipts.jsonl` | Pending impact scans, later verifications, and split receipts |
 | `.memory/splits/` | One manifest per split, plus backups of every file a split changed |
+| `.memory/rules_baseline.json` | The always-loaded instructions at first run, plus the user's guardrails answer |
 | `scripts/memory_governance.py` | The installed CLI |
 
 Run the complete check after any change:

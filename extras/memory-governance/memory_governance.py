@@ -26,7 +26,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections import Counter, OrderedDict
+from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -251,6 +251,10 @@ def cmd_init(args):
     else:
         print(f"KEEP {target_script.relative_to(root)}")
     print(f"Initialized governance in {root}; created={created or ['nothing new']}")
+    st = rules_status(root)
+    res = st["resident"]
+    print(f"RULES baseline: {res['rules']} always-loaded rule(s) in {len(res['files'])} instruction file(s), "
+          f"{res['bytes'] / 1024:.1f} KB; audit reports when this grows (report only)")
     print("Next: python3 scripts/memory_governance.py doctor")
     return 0
 
@@ -544,6 +548,8 @@ def cmd_doctor(args):
     print(f"AUDIT {counts}" + (f" (skipped: {'; '.join(report['skipped'])})" if report["skipped"] else ""))
     map_state = map_sync(root, check=True)
     print(f"MAP {map_state['status']}")
+    for line in rules_lines(rules_status(root)):   # report only: never changes the exit code
+        print(line)
     if any(report[k] for k in AUDIT_KINDS) or map_state["status"] == "drift":
         code = max(code, 1)
     if code == 0:
@@ -1239,10 +1245,15 @@ def orphans(root: Path, caps):
 
 def cmd_audit(args):
     root = Path(args.target).resolve()
+    if args.rules or args.rules_answer or args.rebaseline_rules:
+        return cmd_audit_rules(args, root)
     report = audit_report(root)
     total = sum(len(report[k]) for k in AUDIT_KINDS)
     if args.json:
-        print(json.dumps(OrderedDict(report, total=total), ensure_ascii=False))
+        st = rules_status(root)
+        summary = OrderedDict(resident=st["resident"], on_demand=st["on_demand"], over_baseline=st["over_baseline"],
+                              duplicate_pairs=len(st["pairs"]))
+        print(json.dumps(OrderedDict(report, total=total, rules=summary), ensure_ascii=False))
         return 1 if total else 0
     for k in AUDIT_KINDS:
         print(f"{k.upper()} {len(report[k])}")
@@ -1251,7 +1262,278 @@ def cmd_audit(args):
     for s in report["skipped"]:
         print(f"SKIPPED {s}")
     print("AUDIT OK" if not total else f"AUDIT FINDINGS {total}; run map sync for paste-ready rows")
+    for line in rules_lines(rules_status(root)):
+        print(line)
     return 1 if total else 0
+
+
+# ---------------------------------------------------------------------------
+# 1.4.3 · rules: the instructions agents load, against a baseline (report only)
+# ---------------------------------------------------------------------------
+
+RESIDENT_FILES = ("AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules", ".github/copilot-instructions.md")
+NESTED_NAMES = {"AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules"}
+SKILL_DIRS = (".claude/skills", ".agents/skills", "skills", ".github/skills")
+RULE_DIRS = ((".cursor/rules", (".mdc", ".md")), (".claude/rules", (".md",)), (".github/instructions", (".md",)))
+RULES_BASELINE = "rules_baseline.json"
+RULE_WORDS = re.compile(r"(红线|必须|禁止|严禁|务必|一律|绝不|不许|不得|\bmust\b|\bnever\b|\balways\b|\bdo not\b"
+                        r"|\bdon't\b|\brequired\b|\bforbidden\b)", re.I)
+RULE_SPLIT = re.compile(r"[；;。|]")
+DUP_MIN_GRAMS = 6
+DUP_JACCARD = 0.85
+DUP_SHOWN = 5
+BASELINE_BYTES_SLACK = 0.10
+
+
+def rule_files(root: Path):
+    """Files agents load. Resident: the root entry files. On demand: nested entry files, skills, rule folders.
+    Only the places agents read; a symlink or a second path to the same file counts once."""
+    seen, resident, on_demand = set(), [], []
+
+    def add(bucket, p: Path):
+        try:
+            if not p.is_file():
+                return
+            real = p.resolve()
+        except OSError:
+            return
+        if real not in seen:
+            seen.add(real)
+            bucket.append(p.relative_to(root).as_posix())
+
+    for name in RESIDENT_FILES:
+        add(resident, root / name)
+    for base, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        if Path(base) == root:
+            continue
+        for name in sorted(files):
+            if name in NESTED_NAMES:
+                add(on_demand, Path(base) / name)
+    for d in SKILL_DIRS:
+        if (root / d).is_dir():
+            for p in sorted((root / d).glob("*/SKILL.md")):
+                add(on_demand, p)
+    for d, exts in RULE_DIRS:
+        if (root / d).is_dir():
+            for p in sorted((root / d).rglob("*")):
+                if p.suffix in exts:
+                    add(on_demand, p)
+    return resident, on_demand
+
+
+def _join_wrapped(lines):
+    """Merge a paragraph's wrapped lines into one; list items, headings, tables, quotes and fences start new blocks."""
+    out, buf, start = [], [], 0
+
+    def flush():
+        if buf:
+            out.append((start, " ".join(x.strip() for x in buf)))
+
+    for i, line in enumerate(lines, 1):
+        s = line.strip()
+        if (not s) or s.startswith(("#", "|", "```", ">")) or re.match(r"^([-*+]|\d+[.)])\s", s):
+            flush()
+            buf = []
+            if s:
+                buf, start = [line], i
+                if s.startswith(("#", "|", "```")):
+                    flush()
+                    buf = []
+        else:
+            if not buf:
+                start = i
+            buf.append(line)
+    flush()
+    return out
+
+
+def extract_rules(text: str):
+    """(line, rule) pairs: sentences with a rule word, outside front matter, code fences and headings."""
+    s = text.strip()
+    if "\n" not in s and len(s) < 200 and s.endswith(".md"):
+        return []   # a symlink checked out as a one-line text file
+    lines = text.splitlines()
+    fm_end = 0
+    if lines and lines[0].strip() == "---":
+        fm_end = next((i + 1 for i in range(1, len(lines)) if lines[i].strip() == "---"), 0)
+    out, in_code = [], False
+    for start, block in _join_wrapped(lines):
+        b = block.strip()
+        if start <= fm_end:
+            continue
+        if b.startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code or not b or b.startswith("#") or (b.startswith("|") and _is_sep(_cells(b) or [])):
+            continue
+        if not RULE_WORDS.search(b):
+            continue
+        for chunk in RULE_SPLIT.split(b):
+            c = chunk.strip(" -*>")
+            if len(c) >= 4 and RULE_WORDS.search(c):
+                out.append((start, c))
+    return out
+
+
+def _grams(s: str):
+    s = s.replace("`", " ")
+    cjk = re.findall(r"[一-鿿]", s)
+    return {cjk[i] + cjk[i + 1] for i in range(len(cjk) - 1)} | {w.lower() for w in re.findall(r"[A-Za-z_][\w.-]{2,}", s)}
+
+
+def duplicate_pairs(rules):
+    """Near-verbatim pairs across files (Jaccard over words and CJK bigrams); same-file repeats are left alone."""
+    grams = [_grams(r["text"]) for r in rules]
+    index = defaultdict(list)
+    for i, g in enumerate(grams):
+        if len(g) >= DUP_MIN_GRAMS:
+            for x in g:
+                index[x].append(i)
+    pairs = []
+    for i, g in enumerate(grams):
+        if len(g) < DUP_MIN_GRAMS:
+            continue
+        hits = Counter(j for x in g for j in index[x] if j > i)
+        for j, inter in hits.items():
+            if rules[i]["file"] == rules[j]["file"]:
+                continue
+            jac = inter / len(g | grams[j])
+            if jac >= DUP_JACCARD:
+                pairs.append((round(jac, 2), i, j))
+    pairs.sort(key=lambda x: (-x[0], x[1], x[2]))
+    return pairs
+
+
+def rules_census(root: Path):
+    t0 = time.time()
+    resident, on_demand = rule_files(root)
+    rules, sizes = [], {}
+    for rel in resident + on_demand:
+        try:
+            text = (root / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        sizes[rel] = len(text.encode("utf-8"))
+        kind = "resident" if rel in resident else "on_demand"
+        rules.extend({"file": rel, "line": ln, "text": t, "kind": kind} for ln, t in extract_rules(text))
+    pairs = duplicate_pairs(rules)
+    return OrderedDict(
+        resident=OrderedDict(files=resident, rules=sum(1 for r in rules if r["kind"] == "resident"),
+                             bytes=sum(sizes.get(f, 0) for f in resident)),
+        on_demand=OrderedDict(files=len(on_demand), bytes=sum(sizes.get(f, 0) for f in on_demand)),
+        rules=rules, pairs=pairs, seconds=round(time.time() - t0, 2))
+
+
+def rules_nominations(census):
+    """Group duplicate pairs into clusters; each gets one paste-ready fix (keep one copy, point to it)."""
+    rules, parent = census["rules"], {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for _, a, b in census["pairs"]:
+        parent[find(a)] = find(b)
+    groups = defaultdict(set)
+    for _, a, b in census["pairs"]:
+        groups[find(a)] |= {a, b}
+    out = []
+    for members in sorted(groups.values(), key=lambda m: (-len(m), min(m))):
+        rows = sorted(members, key=lambda i: (rules[i]["kind"] != "resident", rules[i]["file"], rules[i]["line"]))
+        keep = rules[rows[0]]
+        target = keep["file"] if keep["kind"] == "resident" else "docs/shared-rules.md"
+        words = keep["text"].split()
+        quote = " ".join(words[:10]) + ("…" if len(words) > 10 else "")
+        where = [f"{rules[i]['file']}:{rules[i]['line']}" for i in rows]
+        replace = [w for w in where if not (target == keep["file"] and w == f"{keep['file']}:{keep['line']}")]
+        out.append(OrderedDict(text=keep["text"][:200], places=where, keep_in=target,
+                               fix=(f"keep this rule once in {target}; at {', '.join(replace)} replace it with: "
+                                    f"See {target}: \"{quote}\"")))
+    return out
+
+
+def load_rules_baseline(root: Path):
+    p = config_path(root, RULES_BASELINE)
+    if not p.is_file():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def save_rules_baseline(root: Path, census, keep=None):
+    data = OrderedDict(recorded_at=now_iso(), files=census["resident"]["files"], rules=census["resident"]["rules"],
+                       bytes=census["resident"]["bytes"])
+    if keep and keep.get("guardrails"):
+        data["guardrails"] = keep["guardrails"]
+    atomic_json(config_path(root, RULES_BASELINE), data)
+    return data
+
+
+def rules_status(root: Path, record=True):
+    """Census plus baseline. The first run records the baseline silently; nothing here ever blocks."""
+    census = rules_census(root)
+    base = load_rules_baseline(root)
+    recorded = False
+    if base is None and record:
+        base, recorded = save_rules_baseline(root, census), True
+    res = census["resident"]
+    over = bool(base) and (res["rules"] > base.get("rules", 0)
+                           or res["bytes"] > base.get("bytes", 0) * (1 + BASELINE_BYTES_SLACK))
+    census.update(baseline=base, over_baseline=over, recorded_now=recorded)
+    return census
+
+
+def rules_lines(status):
+    """Text for audit and doctor: silent when the resident instructions are within baseline and nothing repeats."""
+    out = []
+    res, base = status["resident"], status.get("baseline") or {}
+    if status["over_baseline"]:
+        out.append(f"RULES over baseline: always-loaded instructions have {res['rules']} rules, {res['bytes'] / 1024:.1f} KB "
+                   f"(baseline {base.get('rules', 0)}, {base.get('bytes', 0) / 1024:.1f} KB); merge or retire one "
+                   "before adding another (report only)")
+    noms = rules_nominations(status)
+    if noms:
+        out.append(f"RULES duplicates: {len(noms)} rule(s) repeat almost word for word across files; "
+                   f"top {min(len(noms), DUP_SHOWN)}:")
+        for n in noms[:DUP_SHOWN]:
+            out.append(f"  {', '.join(n['places'])}: {n['fix']}")
+    return out
+
+
+def rules_json(status):
+    return OrderedDict(
+        resident=status["resident"], on_demand=status["on_demand"], baseline=status.get("baseline"),
+        over_baseline=status["over_baseline"], duplicate_pairs=len(status["pairs"]),
+        nominations=rules_nominations(status),
+        guardrails=(status.get("baseline") or {}).get("guardrails"),
+        rules=[OrderedDict(f=r["file"], l=r["line"], k=r["kind"][0], t=r["text"][:200]) for r in status["rules"]],
+        seconds=status["seconds"])
+
+
+def cmd_audit_rules(args, root: Path):
+    if args.rules_answer:
+        key, _, value = args.rules_answer.partition("=")
+        if key != "guardrails" or value not in ("yes", "no"):
+            raise GovernanceError("--rules-answer takes guardrails=yes or guardrails=no")
+        status = rules_status(root)
+        base = status["baseline"]
+        base["guardrails"] = OrderedDict(answer=value, at=now_iso())
+        atomic_json(config_path(root, RULES_BASELINE), base)
+        print(f"RULES guardrails answer recorded: {value}; the weekly check will not ask again")
+        return 0
+    if args.rebaseline_rules:
+        census = rules_census(root)
+        data = save_rules_baseline(root, census, keep=load_rules_baseline(root))
+        print(f"RULES baseline reset: {data['rules']} always-loaded rules, {data['bytes'] / 1024:.1f} KB")
+        return 0
+    print(json.dumps(rules_json(rules_status(root)), ensure_ascii=False))
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -2233,8 +2515,12 @@ def build_parser():
     lookup_p.add_argument("--limit", type=int, default=10)
     lookup_p.add_argument("--detail", action="store_true")
     lookup_p.add_argument("--json", action="store_true")
-    audit = sub.add_parser("audit", help="unregistered capabilities, ghost entries, orphans, stubs, volumes")
+    audit = sub.add_parser("audit", help="unregistered capabilities, ghost entries, orphans, stubs, volumes, rules")
     audit.add_argument("--json", action="store_true")
+    audit.add_argument("--rules", action="store_true", help="JSON for the agent: instruction files, baseline, "
+                       "duplicates, and a compact list of every rule")
+    audit.add_argument("--rebaseline-rules", action="store_true", help="accept the current always-loaded instructions as the baseline")
+    audit.add_argument("--rules-answer", help="record the user's answer once, e.g. guardrails=no")
     map_p = sub.add_parser("map", help="keep the generated block in MAP.md current")
     map_p.add_argument("action", choices=["sync"])
     map_p.add_argument("--check", action="store_true", help="report drift (exit 1) without writing")

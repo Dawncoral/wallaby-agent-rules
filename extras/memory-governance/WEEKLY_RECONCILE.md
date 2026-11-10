@@ -74,6 +74,32 @@ These cover different failure modes:
 
 A nonzero exit is a finding to inspect, not a failure to hide. A zero exit is evidence only within the checks' coverage.
 
+#### The rules review
+
+`python3 scripts/memory_governance.py audit --rules` prints JSON for the agent:
+
+- always-loaded instructions, meaning root `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, and `.github/copilot-instructions.md`, with their rule count, size, and baseline;
+- on-demand files, meaning nested entry files, skills, and rule folders, by count and size;
+- rules that repeat almost word for word across files, each with a paste-ready fix;
+- a compact list of every rule;
+- the user's recorded answer about guardrails, if any.
+
+The agent reads it and:
+
+1. Names rules that mean the same thing, and proposes one wording.
+2. Names rules a tool could enforce, using the table below.
+3. Asks the user once whether to install those guardrails, because each one changes the user's own config. It records the answer with `audit --rules-answer guardrails=yes` or `guardrails=no`, and does not ask again.
+
+The CLI measures and finds near-verbatim repeats. The agent and the user judge what a rule means and whether a tool already enforces it. The CLI only reports; it never blocks.
+
+| Rule as written | Claude Code | pre-commit | husky | CI or package scripts |
+|---|---|---|---|---|
+| Never read `.env` | `permissions.deny`: `Read(./.env)`, `Read(./.env.*)` in `.claude/settings.json` | `detect-private-key` | — | secret scanning |
+| Run the tests before committing | — | a `local` hook that runs the tests | `.husky/pre-commit` runs the tests | a required test job |
+| Format and lint before committing | — | ruff, black, prettier, or eslint hooks | `lint-staged` in `.husky/pre-commit` | a lint job |
+| Use pnpm, never npm | — | — | — | `"preinstall": "npx only-allow pnpm"` in `package.json` |
+| Never commit to main | — | `no-commit-to-branch` | `.husky/pre-commit` refuses `main` | branch protection |
+
 ### Step 3: Inspect recent changes
 
 Take the changes from the window and ask:

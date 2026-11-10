@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.2 -->
+<!-- wallaby-agent-rules 1.4.3 -->
 # Release checklist
 
 Every version ships when every box is ticked, in this order. (This file is ours — it keeps us honest; users only see the results.)
@@ -16,12 +16,13 @@ Every version ships when every box is ticked, in this order. (This file is ours 
 
 1. External-copy gate and native-English gate pass on all changed user-facing text; gate record kept with the release.
 2. **License/compliance check** — is LICENSE still the intended one? Did anything legal-adjacent change? (v4.0.1 existed because this step was missing at v4.)
-3. Version markers bumped to the new version on every changed file (unchanged files keep their markers).
-4. CHANGELOG: new version section on top, plus a "Migrating from vX" subsection.
-5. L2 upgrade prompt: fingerprints updated so it recognizes the previous version, and the "compare against" layout names the new one.
-6. Repo description and topics match the current release theme (GitHub settings).
-7. Push to main.
-8. Create the GitHub Release (tag `vX`; majors/minors, plus the user-visible patch exception), with the migration notes as the body — Releases are how existing users hear about new versions.
-9. Internal registration: doc registry + project log.
+3. **Rules census**: `python3 extras/memory-governance/memory_governance.py --target . audit --rules`. This repo's always-loaded instructions stay within their baseline; fix or explain any rule repeated across files.
+4. Version markers bumped to the new version on every changed file (unchanged files keep their markers).
+5. CHANGELOG: new version section on top, plus a "Migrating from vX" subsection.
+6. L2 upgrade prompt: fingerprints updated so it recognizes the previous version, and the "compare against" layout names the new one.
+7. Repo description and topics match the current release theme (GitHub settings).
+8. Push to main.
+9. Create the GitHub Release (tag `vX`; majors/minors, plus the user-visible patch exception), with the migration notes as the body — Releases are how existing users hear about new versions.
+10. Internal registration: doc registry + project log.
 
 If a step was skipped, the release isn't done. The fix is always: finish the step, then note it — never "we'll catch it next time."

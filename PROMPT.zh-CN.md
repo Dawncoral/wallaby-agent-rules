@@ -155,7 +155,7 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 - 首行注释直接写明版本：1.0.0 起为语义化 `<!-- wallaby-agent-rules 1.0.0 -->`；早期安装为 `<!-- wallaby-agent-rules vX -->`（v1–v4.1）。
 - 无标记 → 按指纹推断：
-  - **1.4.3**：可选的 `extras/memory-mcp/` 服务器（九个工具）；治理 CLI 新增 `route`、`lookup`、`audit`、`map sync`、`split`；scripts/health_check.py 与 scripts/reconcile.py 标记升到 1.4.3，能读月卷（`LOG/YYYY-MM.md`）和 INDEX 分片（`INDEX/<分片>.md`）；入口文件可带两条可选规则（CAPABILITIES.md、MAP.md）。MEMORY.md、NOW.md、INDEX.md、LOG.md 与 1.4.2 相同。
+  - **1.4.3**：可选的 `extras/memory-mcp/` 服务器（九个工具）；治理 CLI 新增 `route`、`lookup`、`audit`（含常驻说明对基线）、`map sync`、`split`；scripts/health_check.py 与 scripts/reconcile.py 标记升到 1.4.3，能读月卷（`LOG/YYYY-MM.md`）和 INDEX 分片（`INDEX/<分片>.md`）；入口文件可带两条可选规则（CAPABILITIES.md、MAP.md）。MEMORY.md、NOW.md、INDEX.md、LOG.md 与 1.4.2 相同。
   - **1.4.2**：治理 CLI 新增无损 `upgrade` 命令——默认干跑、先备份、替换后验证，失败自动恢复；其他安装文件与 1.4.1 相同。
   - **1.4.1**：仅文档补丁，新增 `extras/memory-governance/WEEKLY_RECONCILE.md`；已安装文件其余与 1.4.0 相同。
   - **1.4.0**：可选 MAP.md、CAPABILITIES.md、FAILURES.md 模板；可选 `extras/memory-governance/` 治理包增加传导、前提检查、矛盾历史和验收回执；收工流程在同一动作里写 LOG.md 和更新 NOW.md，挂账条目禁用延期占位语。核心文件其余结构与 1.3.0 相同。
@@ -200,7 +200,7 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 每个产出问一个问题决定去留：
 
-1. **它改变了长期事实或规则吗？** → 在 `MEMORY.md` 加一条带日期、带出处的行。（信任培养模式生效期间改为提报——⏳ 待批、带日期、带出处——等我批准。）
+1. **它改变了长期事实或规则吗？** → 在 `MEMORY.md` 加一条带日期、带出处的行。（信任培养模式生效期间改为提报——⏳ 待批、带日期、带出处——等我批准。）加规则前先看有没有旧规则已经管着这件事；`python3 scripts/memory_governance.py audit` 若报常驻说明超过基线，先合并或退掉一条再加，并在汇报里点名。
 2. **它是未来做判断时的依据吗？** → 在 `LOG.md` 追加一条带日期的行。只追加——绝不改写历史。
 3. **版本/发布状态变了吗（发布、迁移、回滚）？** → 在 `LOG.md` 记一条带日期的行、带 commit 或 tag 号，并更新 `MEMORY.md`/`NOW.md` 里的版本行。
 4. **它只是「做完了」？** → 带日期、带详情指针的 `LOG.md` 条目和 `NOW.md` 更新必须在同一动作里做完，不许把其中一项留到以后。顺手把闲置超 30 天的条目移出 NOW.md——如果 `MEMORY.md` 超过软上限（约 150 行带日期条目或约 8k 估算 token，token 对中文按字加权），把它闲置 30 天以上的事实降级进 `LOG.md`。git 历史留底。
@@ -216,7 +216,7 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 ## 第 3 步：汇报
 
-不超过 8 行：什么移去了哪（MEMORY / LOG / NOW / INDEX）、什么在等我批准（信任培养模式）、什么漂移了及原因、以及待确认清单——拿不准的绝不写成事实。
+不超过 8 行：什么移去了哪（MEMORY / LOG / NOW / INDEX）、合并或退掉了哪条规则、什么在等我批准（信任培养模式）、什么漂移了及原因、以及待确认清单——拿不准的绝不写成事实。
 ````
 
 两分钟，一次，会话结束时。跳过两次，你就退回了依赖上下文窗口的日子——变质正是从那里开始的。

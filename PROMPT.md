@@ -157,7 +157,7 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, GEMINI
 
 - A first-line comment states the version directly: `<!-- wallaby-agent-rules 1.0.0 -->` style (semantic) from 1.0.0 on; `<!-- wallaby-agent-rules vX -->` (v1–v4.1) on earlier installs.
 - No marker → infer from fingerprints:
-  - **1.4.3**: the optional `extras/memory-mcp/` server (nine tools); the governance CLI gains `route`, `lookup`, `audit`, `map sync`, and `split`; scripts/health_check.py and scripts/reconcile.py carry the 1.4.3 marker and read month volumes (`LOG/YYYY-MM.md`) and INDEX parts (`INDEX/<part>.md`); the entry file may carry two optional lines for CAPABILITIES.md and MAP.md. MEMORY.md, NOW.md, INDEX.md, and LOG.md are unchanged from 1.4.2.
+  - **1.4.3**: the optional `extras/memory-mcp/` server (nine tools); the governance CLI gains `route`, `lookup`, `audit` (including the always-loaded instructions against a baseline), `map sync`, and `split`; scripts/health_check.py and scripts/reconcile.py carry the 1.4.3 marker and read month volumes (`LOG/YYYY-MM.md`) and INDEX parts (`INDEX/<part>.md`); the entry file may carry two optional lines for CAPABILITIES.md and MAP.md. MEMORY.md, NOW.md, INDEX.md, and LOG.md are unchanged from 1.4.2.
   - **1.4.2**: the governance CLI gains a lossless `upgrade` command with a dry run, backup, post-replacement validation, and automatic restore on failure; other installed files otherwise match 1.4.1.
   - **1.4.1**: documentation-only patch adding `extras/memory-governance/WEEKLY_RECONCILE.md`; installed files otherwise match 1.4.0.
   - **1.4.0**: optional MAP.md, CAPABILITIES.md, and FAILURES.md templates; an optional `extras/memory-governance/` pack adds conduction, premise checks, contradiction history, and verification receipts; the closeout procedure writes LOG.md and NOW.md in the same action and bans deferral placeholders in pending entries. The core files otherwise match 1.3.0.
@@ -202,7 +202,7 @@ Run the closeout ritual for this session.
 
 For each outcome, one question decides where it goes:
 
-1. **Did it change a lasting fact or rule?** → Add one dated line, with a source, to `MEMORY.md`. (If trust-building mode is active, propose it instead — ⏳ pending, dated, sourced — and let me approve.)
+1. **Did it change a lasting fact or rule?** → Add one dated line, with a source, to `MEMORY.md`. (If trust-building mode is active, propose it instead — ⏳ pending, dated, sourced — and let me approve.) Before adding a rule, check whether an existing rule already covers it. If `python3 scripts/memory_governance.py audit` says the always-loaded instructions are over their baseline, merge or retire a rule first, and name it in the report.
 2. **Is it evidence for a future judgment call?** → Append one dated line to `LOG.md`. Append-only — never rewrite history.
 3. **Did the version/release state change (release, migration, rollback)?** → One dated line in `LOG.md` with the commit or tag reference, and update the version line in `MEMORY.md`/`NOW.md`.
 4. **Is it just "this got done"?** → Write the dated LOG.md entry and update NOW.md in the same action, with a pointer to where the detail lives. Never leave one write for later. While here: move anything idle 30+ days out of NOW.md — and if `MEMORY.md` is past its soft wall (~150 dated lines or ~8k est. tokens, CJK-weighted), demote its facts idle 30+ days into `LOG.md`. Git history keeps the record.
@@ -218,7 +218,7 @@ Compare what this session set out to do with what actually happened — one line
 
 ## Step 3: Report
 
-In ≤8 lines: what moved where (MEMORY / LOG / NOW / INDEX), what is pending my approval (trust-building mode), what drifted and why, and a to-confirm list of anything you were unsure of — unsure items never go into the files as facts.
+In ≤8 lines: what moved where (MEMORY / LOG / NOW / INDEX), any rule you merged or retired, what is pending my approval (trust-building mode), what drifted and why, and a to-confirm list of anything you were unsure of — unsure items never go into the files as facts.
 ````
 
 Two minutes, once, at the end of the session. Skip it twice and you are back to trusting the context window — which is where the rot started.

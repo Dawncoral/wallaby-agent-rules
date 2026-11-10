@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wallaby_memory_mcp.py — the file memory as an MCP server (0.3.0, ships with wallaby-agent-rules 1.4.3).
+"""wallaby_memory_mcp.py — the file memory as an MCP server (0.4.0, ships with wallaby-agent-rules 1.4.3).
 
 The memory stays what it is: MEMORY.md, NOW.md, INDEX.md, LOG.md (and PROPOSALS.md for the trust-
 building queue) as plain Markdown in the project. This server is an optional second door to the same
@@ -25,6 +25,11 @@ memory_lookup and memory_route hold no logic of their own: they run the governan
 (scripts/memory_governance.py, 1.4.3 or newer; else the copy beside this server in the repo) with
 --json and return its output. Both are read-only.
 
+The three write tools (memory_propose, memory_note, memory_now) go through the CLI's `write` command
+when the project has a .memory/ directory, so each write is checked, lands in the right place, and
+is recorded in .memory/events.jsonl under the MCP client's name. In a project without .memory/ they
+write the files themselves, as before, and nothing new is created.
+
 `--tools` limits what a client sees (a workbench may expose only read/locate/propose). Every write is
 redacted (keys, tokens, emails, IPs, home-dir user names) before it touches a file.
 
@@ -45,8 +50,9 @@ import subprocess
 import sys
 
 SERVER_NAME = "wallaby-memory-mcp"
-SERVER_VERSION = "0.3.0"
+SERVER_VERSION = "0.4.0"
 ORIGIN = ""  # --origin: the work this session does (for example a task id); added to every proposal
+CLIENT = ""  # the MCP client's name from `initialize`; the event log records it as the actor of each write
 RULES_VERSION = "1.4.3"  # the wallaby-agent-rules release this server ships with
 CORE_FORMAT = "1.0.1"    # newest first-line marker on MEMORY.md / NOW.md / INDEX.md / LOG.md in that release
 PROTOCOL = "2024-11-05"
@@ -122,6 +128,23 @@ class Memory:
             text = text.rstrip("\n") + f"\n\n{heading}\n"
         head, rest = text.split(heading, 1)
         self.write(key, head + heading + "\n" + line + "\n" + rest.lstrip("\n"))
+
+    def insert_log(self, month, line):
+        """One line on top of its month. A month that is not in the file yet goes above the older months of a
+        newest-first log (the default) and below them in an oldest-first one, so the months stay in order."""
+        text = self.read("LOG") or LOG_HEADER
+        heading = f"## {month}"
+        if heading in text:
+            return self.insert_after("LOG", heading, line, header=LOG_HEADER)
+        months = [(m.start(), m.group(1)) for m in re.finditer(r"(?m)^## (\d{4}-\d{2})(?![0-9])", text)]
+        keys = [k for _, k in months]
+        oldest_first = len(set(keys)) > 1 and keys == sorted(keys)
+        at = next((pos for pos, k in months if (k > month if oldest_first else k < month)), None)
+        block = f"{heading}\n{line}\n"
+        if at is None:
+            self.write("LOG", text.rstrip("\n") + "\n\n" + block)
+        else:
+            self.write("LOG", text[:at] + block + "\n" + text[at:])
 
     # ---- facts
     def lines(self, key):
@@ -201,6 +224,30 @@ def run_governance(mem, argv):
     return None
 
 
+def cli_write(mem, argv):
+    """Send a write through the governance CLI when the project has .memory/. Returns (result, error):
+    (None, None) means "write the file here, the old way": no .memory/, or no CLI with the write command."""
+    if not os.path.isdir(os.path.join(mem.root, ".memory")):
+        return None, None
+    actor = re.sub(r"[^A-Za-z0-9_.:@/-]", "", CLIENT)[:64] or "mcp"
+    r = run_governance(mem, ["write"] + argv + ["--json", "--actor", actor])
+    if r is None:
+        return None, None
+    if r.returncode != 0:
+        return None, (r.stderr or r.stdout).strip()[:2000] or "the governance CLI failed without a message"
+    try:
+        return json.loads(r.stdout), None
+    except ValueError:
+        return None, "the governance CLI answered with text that is not JSON"
+
+
+def written_line(result):
+    for f in result.get("files") or []:
+        for row in f.get("added") or []:
+            return row.get("text", "")
+    return ""
+
+
 NO_GOVERNANCE = ("The governance CLI (1.4.3 or newer) is not installed under this root. Install it with "
                  "`python3 extras/memory-governance/memory_governance.py --target . init` from wallaby-agent-rules "
                  "(or update an older copy with its `upgrade --apply`), or read CAPABILITIES.md and MAP.md directly.")
@@ -237,8 +284,15 @@ def t_propose(mem, args):
     for key in ("MEMORY", "PROPOSALS"):
         if any(low == x["text"].split(" — source:")[0].strip().lower() for x in mem.lines(key)):
             return f"Already in {FILES[key]}: nothing added.", False
-    d, _ = today()
     origin = re.sub(r"[^A-Za-z0-9_.:-]", "", ORIGIN)[:64]
+    res, err = cli_write(mem, ["propose", "--text=" + fact, "--source=" + source] + (["--origin=" + origin] if origin else []))
+    if err:
+        return err, True
+    if res is not None:
+        if res.get("skipped"):
+            return res["skipped"][:1].upper() + res["skipped"][1:] + ".", False
+        return f"Proposed (not a fact until a person approves it):\n{written_line(res)}", False
+    d, _ = today()
     line = f"- [{d}] {fact} — source: {source} (proposed" + (f" · from {origin}" if origin else "") + ")"
     text = mem.read("PROPOSALS") or PROPOSALS_HEADER
     mem.write("PROPOSALS", text.rstrip("\n") + "\n" + line + "\n")
@@ -249,10 +303,15 @@ def t_note(mem, args):
     text = redact(one_line(args.get("text")))
     if not text:
         return "text is empty.", True
-    d, month = today()
     who = redact(one_line(args.get("source") or "agent", 80))
+    res, err = cli_write(mem, ["log", "--text=" + text, "--source=" + who])
+    if err:
+        return err, True
+    if res is not None:
+        return f"Logged in LOG.md:\n{written_line(res)}", False
+    d, month = today()
     line = f"- [{d}] {text} — {who}"
-    mem.insert_after("LOG", f"## {month}", line, header=LOG_HEADER)
+    mem.insert_log(month, line)
     return f"Logged in LOG.md:\n{line}", False
 
 
@@ -263,6 +322,11 @@ def t_now(mem, args):
         return "item is empty.", True
     if not pointer:
         return "pointer is required: where the detail lives (a path or a link).", True
+    res, err = cli_write(mem, ["now", "--text=" + item, "--pointer=" + pointer])
+    if err:
+        return err, True
+    if res is not None:
+        return f"NOW.md updated:\n{written_line(res)}", False
     d, _ = today()
     line = f"- [{d}] {item}; details: {pointer}"
     mem.insert_after("NOW", "## In flight", line)
@@ -401,6 +465,9 @@ def serve(mem, allowed):
         if rid is None:  # notifications (initialized, cancelled) need no answer
             continue
         if method == "initialize":
+            global CLIENT
+            info = params.get("clientInfo") if isinstance(params.get("clientInfo"), dict) else {}
+            CLIENT = str(info.get("name") or "")
             send({"jsonrpc": "2.0", "id": rid, "result": {
                 "protocolVersion": params.get("protocolVersion") or PROTOCOL,
                 "capabilities": {"tools": {}},

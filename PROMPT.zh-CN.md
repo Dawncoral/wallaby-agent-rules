@@ -155,7 +155,7 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 - 首行注释直接写明版本：1.0.0 起为语义化 `<!-- wallaby-agent-rules 1.0.0 -->`；早期安装为 `<!-- wallaby-agent-rules vX -->`（v1–v4.1）。
 - 无标记 → 按指纹推断：
-  - **1.4.3**：可选的 `extras/memory-mcp/` 服务器（九个工具）；治理 CLI 新增 `route`、`lookup`、`audit`（含常驻说明对基线）、`map sync`、`split`；scripts/health_check.py 与 scripts/reconcile.py 标记升到 1.4.3，能读月卷（`LOG/YYYY-MM.md`）和 INDEX 分片（`INDEX/<分片>.md`）；入口文件可带两条可选规则（CAPABILITIES.md、MAP.md）。MEMORY.md、NOW.md、INDEX.md、LOG.md 与 1.4.2 相同。
+  - **1.4.3**：可选的 `extras/memory-mcp/` 服务器（九个工具）；治理 CLI 新增 `route`（含 `--record`）、`lookup`、`audit`（含常驻说明对基线）、`map sync`、`split`、`write`、`events`、`id`；scripts/health_check.py 与 scripts/reconcile.py 标记升到 1.4.3，能读月卷（`LOG/YYYY-MM.md`）和 INDEX 分片（`INDEX/<分片>.md`）；入口文件可带两条可选规则（CAPABILITIES.md、MAP.md）。MEMORY.md、NOW.md、INDEX.md、LOG.md 与 1.4.2 相同。
   - **1.4.2**：治理 CLI 新增无损 `upgrade` 命令——默认干跑、先备份、替换后验证，失败自动恢复；其他安装文件与 1.4.1 相同。
   - **1.4.1**：仅文档补丁，新增 `extras/memory-governance/WEEKLY_RECONCILE.md`；已安装文件其余与 1.4.0 相同。
   - **1.4.0**：可选 MAP.md、CAPABILITIES.md、FAILURES.md 模板；可选 `extras/memory-governance/` 治理包增加传导、前提检查、矛盾历史和验收回执；收工流程在同一动作里写 LOG.md 和更新 NOW.md，挂账条目禁用延期占位语。核心文件其余结构与 1.3.0 相同。

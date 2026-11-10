@@ -5,6 +5,7 @@ Usage: python3 smoke_test.py   (never touches a real project)
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -189,9 +190,54 @@ def main():
         check("route: empty call is an error", err)
         s5.close()
         shutil.rmtree(reg, ignore_errors=True)
+
+        def three_writes(governed):
+            """One note, one in-flight item, one proposal, in a project whose log already holds two months."""
+            proj = tempfile.mkdtemp(prefix="memmcp-write-")
+            with open(os.path.join(proj, "MEMORY.md"), "w", encoding="utf-8") as f:
+                f.write("<!-- wallaby-agent-rules 1.0.1 -->\n# Memory\n\n## Active\n")
+            with open(os.path.join(proj, "NOW.md"), "w", encoding="utf-8") as f:
+                f.write("# NOW.md\n\n## In flight\n\n## Recently touched\n")
+            with open(os.path.join(proj, "LOG.md"), "w", encoding="utf-8") as f:
+                f.write("# LOG.md\n\n## 2020-02\n\n- [2020-02-03] february\n\n## 2020-01\n\n- [2020-01-05] january\n")
+            if governed:
+                os.makedirs(os.path.join(proj, ".memory"))
+            sv = Server(proj)
+            sv.call("initialize", {"clientInfo": {"name": "smoke-client"}})
+            texts = [sv.tool("memory_note", text="first note of this month", source="agent"),
+                     sv.tool("memory_now", item="Checkout redesign", pointer="docs/checkout.md"),
+                     sv.tool("memory_propose", fact="Invoices are monthly", source="docs/billing.md"),
+                     sv.tool("memory_propose", fact="Invoices are monthly", source="docs/billing.md")]
+            sv.close()
+            files = {n: open(os.path.join(proj, n), encoding="utf-8").read() for n in ("LOG.md", "NOW.md", "PROPOSALS.md")}
+            events = os.path.join(proj, ".memory", "events.jsonl")
+            rows = [json.loads(x) for x in open(events, encoding="utf-8")] if os.path.exists(events) else []
+            listing = sorted(os.listdir(proj))
+            shutil.rmtree(proj, ignore_errors=True)
+            return texts, files, rows, listing
+
+        for governed in (False, True):
+            label = "with .memory/" if governed else "without .memory/"
+            texts, files, rows, listing = three_writes(governed)
+            months = re.findall(r"(?m)^## (\d{4}-\d{2})", files["LOG.md"])
+            check(f"note {label}: a new month goes on top, older months keep their order",
+                  len(months) == 3 and months == sorted(months, reverse=True), months)
+            check(f"writes {label}: same answers and the same lines",
+                  not any(err for _, err in texts) and "first note of this month — agent" in files["LOG.md"]
+                  and files["NOW.md"].index("Checkout redesign; details: docs/checkout.md") < files["NOW.md"].index("## Recently touched")
+                  and files["PROPOSALS.md"].count("Invoices are monthly — source: docs/billing.md (proposed)") == 1
+                  and "Already in PROPOSALS.md" in texts[3][0], (texts, files))
+            if governed:
+                check("writes with .memory/: each one is an event under the client's name",
+                      [(r["event"], r["file"], r["actor"]) for r in rows] == [
+                          ("write.log", "LOG.md", "smoke-client"), ("write.now", "NOW.md", "smoke-client"),
+                          ("write.propose", "PROPOSALS.md", "smoke-client")] and all(r.get("sha256") for r in rows), rows)
+            else:
+                check("writes without .memory/: nothing new appears in the project",
+                      listing == ["LOG.md", "MEMORY.md", "NOW.md", "PROPOSALS.md"], listing)
         ver = subprocess.run([sys.executable, SERVER, "--version"], capture_output=True, text=True, timeout=10)
         check("--version names server, release and core format",
-              ver.stdout.strip() == "wallaby-memory-mcp 0.3.0 (wallaby-agent-rules 1.4.3, core format 1.0.1)",
+              ver.stdout.strip() == "wallaby-memory-mcp 0.4.0 (wallaby-agent-rules 1.4.3, core format 1.0.1)",
               ver.stdout)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

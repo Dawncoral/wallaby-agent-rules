@@ -63,7 +63,7 @@ python3 scripts/memory_governance.py doctor
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
 
-**1.4.3 新增**：[记忆治理包](extras/memory-governance/)把能力表、地图、传导检查和记忆文件接到一起。`route` 为一次改动出一张约 2 KB 的卡：能复用什么、碰到地图上哪些组件、要同步哪些面、走轻档还是重档，以及只列改动路径所依赖的前提。`audit` 查漏登和失效条目，`map sync` 让 MAP.md 里的机器区保持最新，`split` 把 LOG.md 已结束的月份切成分卷；MEMORY.md 和 INDEX.md 的拆分要你确认才执行，每次分裂都能回滚。`audit` 还会量 agent 加载的说明文件：第一次运行自动记下基线，之后超了就提示，并指出跨文件重复的规则；只报告，不拦截。另有可选的[记忆 MCP 服务器](extras/memory-mcp/)，给读不到入口文件的 agent 用同一套文件，九个工具，32 项冒烟自检。
+**1.4.3 新增**：[记忆治理包](extras/memory-governance/)把能力表、地图、传导检查和记忆文件接到一起。`route` 为一次改动出一张约 2 KB 的卡：能复用什么、碰到地图上哪些组件、要同步哪些面、走轻档还是重档，以及只列改动路径所依赖的前提。`audit` 查漏登和失效条目，`map sync` 让 MAP.md 里的机器区保持最新，`split` 把 LOG.md 已结束的月份切成分卷；MEMORY.md 和 INDEX.md 的拆分要你确认才执行，每次分裂都能回滚。`audit` 还会量 agent 加载的说明文件：第一次运行自动记下基线，之后超了就提示，并指出跨文件重复的规则；只报告，不拦截。另有可选的[记忆 MCP 服务器](extras/memory-mcp/)，给读不到入口文件的 agent 用同一套文件，九个工具，38 项冒烟自检。一次改动现在只要两条命令：改之前 `route --record`，改完 `verify`。`write` 往记忆文件里加一行并先做检查，已有的行一个字节都不动。`events` 把每次写入连同是哪个 agent 写的记下来；`id` 给每条决定、失败记录和回执发号，同一台机器上不会有两个 agent 拿到同一个号。从 1.4.0、1.4.1 或 1.4.2 升级只替换命令行这一个文件，其他文件都不变。
 
 **1.4.2 新增**：治理 CLI 无损升级。`upgrade` 默认只预览并拒绝降级，`--apply` 会先备份再只替换 CLI；新 CLI 必须能启动并报告预期版本，否则自动恢复旧脚本。记忆文件、配置、回执和其他项目文件均不受影响。
 
@@ -111,12 +111,12 @@ python3 scripts/memory_governance.py doctor
 
 按 Kimi K3 算笔账。健康的 `MEMORY.md` 在健康检查强制执行的约 8k 估算 token 软上限以内，整个前缀按 10k token 计；每天 100 次调用，一个月过表的前缀量是 30M token：
 
-| | Kimi 官方 API（输入统一价） | Wallaby（前缀命中缓存） |
+| 每月前缀成本 | 输入，未命中缓存 | 输入，命中缓存 |
 |---|---|---|
-| 输入价 | $3.00 / 1M token | $0.27 / 1M token（缓存命中） |
-| 每月前缀成本 | $90.00 | $8.10 |
+| 官方刊例 | $90.00（$3.00 / 1M token） | $9.00（$0.30 / 1M token） |
+| Wallaby | $76.50（$2.55 / 1M token） | $7.65（$0.255 / 1M token） |
 
-缓存命中价是我们标准输入价（$2.70 / 1M）的十分之一，比官方输入价低 91%。前缀没动就便宜重读；真改了记忆，按全价输入计一次。同模型、同权重、同 1M 上下文。
+省下来的大头来自缓存：两份价目表里，缓存命中价都是输入价的十分之一。我们的费率是官方刊例的 8.5 折。前缀没动就便宜重读；真改了记忆，按全价输入计一次。同模型、同权重、同 1M 上下文。费率截至 2026-11-05；现行费率见 [pricing.json](https://wallabytoken.com/pricing.json)。
 
 想要这个价格，迁移只有一行：把 `base_url` 指向 `https://api.wallabytoken.com/v1`，换上你的 key——OpenAI 兼容。（[wallabytoken.com](https://wallabytoken.com) 是我们自己的产品，见文末「谁在做」。）
 
@@ -126,13 +126,13 @@ python3 scripts/memory_governance.py doctor
 
 ## 路线图
 
-至今已交付：收工仪式、深度健康检查（十项扫描：漂移、预算、老化、密钥卫生、提交沉默）、对账审计、信任培养模式、工具接入、代码版本模块、中文版、文件式记忆治理。下一个开源大件是多 agent/团队记忆纪律。架构评审与托管值守仍规划为托管付费形态——watch 这个仓库。自 1.0.0 起用语义化版本号；早期迭代（v1–v4.1）已并入 1.0.0——见 [CHANGELOG.md](CHANGELOG.md)。
+至今已交付：收工仪式、深度健康检查（十项扫描：漂移、预算、老化、密钥卫生、提交沉默）、对账审计、信任培养模式、工具接入、代码版本模块、中文版、文件式记忆治理，以及带事件日志和编号计数器的受检写入通道。开源部分管的是一台机器上的一个项目：经命令行的每次写入都记下是哪个 agent 写的，编号不会撞。团队之间、跨机器的多 agent 记忆纪律属于商业层，架构评审与托管值守也在其中，见 [COMMERCIAL.md](COMMERCIAL.md)。自 1.0.0 起用语义化版本号；早期迭代（v1–v4.1）已并入 1.0.0——见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 这个仓库里还有
 
 - [`templates/`](templates/)——NOW / INDEX / LOG 模板、可选 MAP / CAPABILITIES / FAILURES 模板，以及健康检查与对账脚本，可直接复制。
 - [`templates/integrations/`](templates/integrations/)——每工具一张卡：入口文件、坑、30 秒自检。
-- [`extras/memory-governance/`](extras/memory-governance/)——通过一个零依赖 CLI 提供传导、前提检查、矛盾历史、验收回执、改动路由、登记审计、地图同步与记忆分裂。
+- [`extras/memory-governance/`](extras/memory-governance/)——通过一个零依赖 CLI 提供传导、前提检查、矛盾历史、验收回执、改动路由、登记审计、地图同步、记忆分裂、受检写入、事件日志与编号计数器。
 - [`extras/memory-mcp/`](extras/memory-mcp/)——把同一套记忆文件做成 MCP 服务器：读取、查找、提议、记日志、查能力表、为改动出路由卡；写入先脱敏，提议不进 MEMORY.md。
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/)——整套系统打包成可安装的 agent 技能（SKILL.md + 两个检查脚本），适配 Hermes 及任何认 SKILL.md 约定的工具。
 - [`extras/skill-forge/`](extras/skill-forge/)——Skill Forge：技能本身的生命周期治理。需求推导、按实测规格生成、故障台账、优化回路——MCP 服务器、提示词包、SKILL.md 技能三种形态。

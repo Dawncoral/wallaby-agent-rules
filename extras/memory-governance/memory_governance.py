@@ -2,7 +2,8 @@
 """Memory governance CLI: conduction, premises, contradictions, and receipts.
 
 Zero dependencies. Python 3.8+. The scanner is read-only; only explicit init,
-impact --record, verify, contradiction mutations, map sync, and split write.
+impact --record, route --record, verify, contradiction mutations, map sync,
+split, write, id take, and events adopt write.
 
 1.4.3 closes the loop between the registries and the memory files:
   route   one compact card per change: what to reuse, which map components,
@@ -12,6 +13,12 @@ impact --record, verify, contradiction mutations, map sync, and split write.
   map     map sync keeps a generated block in MAP.md; --check reports drift
   split   month volumes for LOG.md (automatic), topic splits for MEMORY.md and
           INDEX.md (nominated, applied only with --confirm), rollback, verify
+  write   one checked way to add a line to LOG.md, NOW.md, MEMORY.md, INDEX.md,
+          PROPOSALS.md, CAPABILITIES.md, MAP.md or FAILURES.md; existing lines
+          are never rewritten
+  events  an append-only log of what the CLI wrote and which agent asked
+  id      one counter per ID series (R, C, P, F, D or your own); numbers never repeat
+A change takes two commands: route --record before it, verify after it.
 """
 from __future__ import annotations
 
@@ -27,7 +34,7 @@ import sys
 import tempfile
 import time
 from collections import Counter, OrderedDict, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 VERSION = "1.4.3"
@@ -121,7 +128,12 @@ def atomic_json(path: Path, data):
             os.unlink(tmp)
 
 
+LOCK_STALE_SECONDS = 120
+
+
 class FileLock:
+    """One writer at a time on one machine. A lock older than two minutes belongs to a run that died, so it is removed."""
+
     def __init__(self, path: Path):
         self.path = path
         self.fd = None
@@ -133,6 +145,12 @@ class FileLock:
                 self.fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
                 return self
             except FileExistsError:
+                try:
+                    if time.time() - self.path.stat().st_mtime > LOCK_STALE_SECONDS:
+                        self.path.unlink()
+                        continue
+                except OSError:
+                    pass
                 time.sleep(0.1)
         raise GovernanceError(f"could not acquire lock {self.path}; another writer may be active")
 
@@ -255,6 +273,12 @@ def cmd_init(args):
     res = st["resident"]
     print(f"RULES baseline: {res['rules']} always-loaded rule(s) in {len(res['files'])} instruction file(s), "
           f"{res['bytes'] / 1024:.1f} KB; audit reports when this grows (report only)")
+    unregistered = unregistered_files(root)
+    if unregistered is not None and load_audit_baseline(root) is None:
+        save_audit_baseline(root, unregistered)
+        if unregistered:
+            print(f"AUDIT baseline: {len(unregistered)} script, skill or workflow file(s) are not in CAPABILITIES.md yet; "
+                  "audit reports only new ones, and map sync lists these")
     print("Next: python3 scripts/memory_governance.py doctor")
     return 0
 
@@ -362,47 +386,118 @@ def cmd_impact(args):
             "components": components or [], "capabilities": capabilities or [],
         }
         append_receipt(root, receipt)
+        record_event(root, "receipt.open", ref=receipt["receipt"], summary=f"{args.event}: {', '.join(terms)}")
         print(f"RECEIPT {receipt['receipt']} pending; run verify after reviewing the surfaces")
     return 0
 
 
 def next_receipt_id(root: Path):
-    highest = 0
-    for row in read_receipts(root):
-        rid = str(row.get("receipt", ""))
-        if rid.startswith("R-"):
-            try:
-                highest = max(highest, int(rid[2:]))
-            except ValueError:
-                continue
-    return f"R-{highest + 1:06d}"
+    """Receipt IDs come from the shared counter, which starts above every number already in use."""
+    return take_id(root, "R", record=False)
+
+
+def pending_receipts(rows):
+    verified = {r.get("receipt") for r in rows if r.get("type") == "verification"}
+    return [r for r in rows if r.get("type") == "impact" and r.get("receipt") not in verified]
+
+
+def _receipt_time(value):
+    try:
+        ts = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+
+
+def surface_path(root: Path, name: str):
+    return config_path(root, "premises.json") if name == "PREMISES" else root / name
+
+
+def surface_hashes(root: Path, surfaces):
+    """The content hash of every surface that exists as a file, taken when a receipt is opened."""
+    out = OrderedDict()
+    for name in surfaces or []:
+        digest = file_sha(surface_path(root, name))
+        if digest:
+            out[name] = digest
+    return out
+
+
+def unchanged_surfaces(root: Path, impact):
+    """Surfaces whose content is the same as when the receipt was opened."""
+    return [name for name, digest in (impact.get("surface_sha256") or {}).items()
+            if file_sha(surface_path(root, name)) == digest]
 
 
 def cmd_verify(args):
     root = Path(args.target).resolve()
     rows = read_receipts(root)
-    impacts = [r for r in rows if r.get("type") == "impact" and r.get("receipt") == args.receipt]
+    rid = args.receipt
+    if not rid:
+        pending = pending_receipts(rows)
+        if not pending:
+            print("No pending receipts.")
+            return 0
+        if len(pending) > 1:
+            for r in pending:
+                print(f"  {r.get('receipt')} {r.get('intent') or r.get('event') or ''}".rstrip())
+            raise GovernanceError(f"{len(pending)} receipts are pending; name one with --receipt")
+        rid = pending[0].get("receipt")
+    impacts = [r for r in rows if r.get("type") == "impact" and r.get("receipt") == rid]
     if not impacts:
-        raise GovernanceError(f"receipt {args.receipt} not found")
-    verified = any(r.get("type") == "verification" and r.get("receipt") == args.receipt for r in rows)
+        raise GovernanceError(f"receipt {rid} not found")
+    verified = any(r.get("type") == "verification" and r.get("receipt") == rid for r in rows)
     if verified:
-        print(f"{args.receipt} already verified")
+        print(f"{rid} already verified")
         return 0
     impact = impacts[-1]
-    matches, truncated, skipped = scan(root, impact["terms"], args.allow)
-    if matches or truncated or skipped:
-        print(f"NOT VERIFIED {args.receipt}: {len(matches)} unresolved and {len(skipped)} unread file(s)")
+    terms = impact.get("terms") or []
+    matches, truncated, skipped = scan(root, terms, args.allow) if terms else ([], False, [])
+    blocked, notes = [], []
+    if impact.get("source") == "route":   # receipts opened by route --record carry the rest of the check
+        wanted = {p.get("id") for p in impact.get("premises") or []
+                  if isinstance(p, dict) and (impact.get("premise_review") or p.get("scope") == "matched")}
+        if wanted and config_path(root, "premises.json").exists():
+            for premise, state, detail in premise_rows(root):
+                if premise["id"] not in wanted:
+                    continue
+                line = f"PREMISE {premise['id']} {premise['level']} {state.upper()}: {detail}"
+                if state == "failing" and premise["level"] in {"P0", "P1"}:
+                    blocked.append(line)
+                elif state != "ok":
+                    notes.append(line)
+        if (root / CAPS_NAME).is_file():
+            caps_text = read_text(root / CAPS_NAME)
+            for rel in impact.get("register") or []:
+                if (root / rel).exists() and not registered_in(rel, caps_text):
+                    blocked.append(f"REGISTER {rel} is not in {CAPS_NAME}")
+        quiet = unchanged_surfaces(root, impact)
+        if quiet:
+            notes.append("REVIEW unchanged since the receipt was opened: " + ", ".join(quiet)
+                         + " (confirm they need no change)")
+    if matches or truncated or skipped or blocked:
+        print(f"NOT VERIFIED {rid}: {len(matches)} unresolved and {len(skipped)} unread file(s)"
+              + (f", {len(blocked)} other finding(s)" if blocked else ""))
         for row in matches:
             print(f"  {row['path']} ({row['count']})")
         if skipped:
             print(f"  unreadable or oversized: {skipped}")
-        print("Update the references or allow intentional historical mentions with --allow <glob>.")
+        for line in blocked + notes:
+            print(f"  {line}")
+        if matches or truncated or skipped:
+            print("Update the references or allow intentional historical mentions with --allow <glob>.")
         return 1
-    append_receipt(root, {
-        "type": "verification", "receipt": args.receipt, "status": "verified",
-        "evidence": "zero unresolved matches", "ts": now_iso(),
-    })
-    print(f"VERIFIED {args.receipt}: zero unresolved matches")
+    for line in notes:
+        print(line)
+    evidence = "zero unresolved matches" if terms else "no old terms to scan"
+    entry = {"type": "verification", "receipt": rid, "status": "verified", "evidence": evidence, "ts": now_iso()}
+    if impact.get("source") == "route":
+        entry["notes"] = notes
+        if (root / MAP_NAME).is_file() and MAP_BEGIN in read_text(root / MAP_NAME):
+            entry["map"] = refresh_map(root)["status"]
+    append_receipt(root, entry)
+    record_event(root, "receipt.verify", actor=getattr(args, "actor", None), ref=rid, summary=evidence)
+    print(f"VERIFIED {rid}: {evidence}")
     return 0
 
 
@@ -494,14 +589,14 @@ def cmd_contradict(args):
     data = contradiction_data(root)
     rows = data["contradictions"]
     if args.action == "add":
-        nums = [int(r["id"].split("-")[-1]) for r in rows if r.get("id", "").startswith("C-") and r["id"].split("-")[-1].isdigit()]
-        cid = f"C-{max(nums or [0]) + 1:03d}"
+        cid = take_id(root, "C", record=False)
         row = {
             "id": cid, "old": args.old, "new": args.new, "evidence": args.evidence,
             "status": "open", "history": [{"ts": now_iso(), "status": "open", "evidence": args.evidence}],
         }
         rows.append(row)
         atomic_json(config_path(root, "contradictions.json"), data)
+        record_event(root, "contradiction.add", ref=cid, summary=f"{args.old} -> {args.new}")
         print(f"ADDED {cid} open")
         return 0
     if args.action == "resolve":
@@ -512,6 +607,7 @@ def cmd_contradict(args):
         found["status"] = "resolved"
         found["evidence"] = args.evidence
         atomic_json(config_path(root, "contradictions.json"), data)
+        record_event(root, "contradiction.resolve", ref=args.id, summary=args.evidence)
         print(f"RESOLVED {args.id}")
         return 0
     open_rows = [r for r in rows if r.get("status") != "resolved"]
@@ -536,9 +632,7 @@ def cmd_doctor(args):
     code = cmd_premise(args)
     contradictions = contradiction_data(root)["contradictions"]
     open_rows = [r for r in contradictions if r.get("status") != "resolved"]
-    receipts = read_receipts(root)
-    verified = {r.get("receipt") for r in receipts if r.get("type") == "verification"}
-    pending = [r for r in receipts if r.get("type") == "impact" and r.get("receipt") not in verified]
+    pending = pending_receipts(read_receipts(root))
     print(f"CONTRADICTIONS open={len(open_rows)}")
     print(f"RECEIPTS pending={len(pending)}")
     if open_rows or pending:
@@ -546,11 +640,19 @@ def cmd_doctor(args):
     report = audit_report(root)
     counts = " ".join(f"{k}={len(report[k])}" for k in AUDIT_KINDS)
     print(f"AUDIT {counts}" + (f" (skipped: {'; '.join(report['skipped'])})" if report["skipped"] else ""))
+    for line in baseline_lines(report):   # report only
+        print(line)
     map_state = map_sync(root, check=True)
-    print(f"MAP {map_state['status']}")
+    print(f"MAP {map_state['status']}" + (" (counts refresh on the next map sync)" if map_state.get("counts_stale") else ""))
     for line in rules_lines(rules_status(root)):   # report only: never changes the exit code
         print(line)
-    if any(report[k] for k in AUDIT_KINDS) or map_state["status"] == "drift":
+    stream = events_status(root)
+    for line in events_lines(stream):
+        print(line)
+    dupes = id_duplicates(root)
+    for line in dupes:
+        print(f"IDS {line}")
+    if any(report[k] for k in AUDIT_KINDS) or map_state["status"] == "drift" or stream["problems"] or dupes:
         code = max(code, 1)
     if code == 0:
         print("DOCTOR OK")
@@ -982,8 +1084,8 @@ def route_card(root: Path, intent: str, paths=(), events=(), reversible=False, s
     if active:
         nxt.append("reuse before building: " + ", ".join(active))
     if tier == "heavy" and names:
-        nxt.append(f"python3 scripts/memory_governance.py impact --event {names[0]} --terms \"<old name or path>\" --record, "
-                   "then verify --receipt <id>")
+        nxt.append("repeat this command with --record to open a receipt (after a rename, add --terms \"<old name>\"); "
+                   "when the change is done, run: python3 scripts/memory_governance.py verify")
     elif names:
         nxt.append("update the surfaces above; no receipt needed")
     if premise_review:
@@ -998,6 +1100,9 @@ def route_card(root: Path, intent: str, paths=(), events=(), reversible=False, s
         reuse=reuse, register=register, components=components,
         premises=shown_premises, premises_note=premises_note, next=nxt,
     )
+    card["_full"] = {"register": list(register), "components": [c["component"] for c in components],
+                     "capabilities": [r["capability"] for r in reuse],
+                     "premises": [{"id": p["id"], "scope": p["scope"]} for p in premises]}
     if not detail:
         more = {}
         for key in ("reuse", "components", "premises", "register"):
@@ -1027,6 +1132,11 @@ def render_route(card):
     out.append(f"PREMISES {card['premises_note']}")
     for p in card["premises"]:
         out.append(f"  {p['id']} {p['level']} {p['state'].upper()} {p['scope']}: {p['assertion']}")
+    if card.get("receipt"):
+        r = card["receipt"]
+        out.append(f"RECEIPT {r['id']} pending" + (f"; {r['matches']} file(s) still hold the old terms" if r.get("matches") else ""))
+    elif card.get("receipt_note"):
+        out.append(f"RECEIPT {card['receipt_note']}")
     for step in card["next"]:
         out.append(f"NEXT {step}")
     if card.get("more"):
@@ -1038,9 +1148,38 @@ def render_route(card):
     return text
 
 
+def open_route_receipt(root: Path, card, full, terms, actor=None):
+    """route --record: one pending receipt that verify can close without another command in between."""
+    if not config_path(root, "impact.json").exists():
+        raise GovernanceError("--record needs the governance files; run init first")
+    terms = [t for t in terms if t and t.strip()]
+    matches, truncated, skipped = scan(root, terms) if terms else ([], False, [])
+    names = [e["event"] for e in card["events"]]
+    receipt = OrderedDict(
+        type="impact", receipt=next_receipt_id(root), event=names[0] if names else "route", events=names, terms=terms,
+        matches=matches, truncated=truncated, skipped=skipped, surfaces=card["surfaces"], status="pending", ts=now_iso(),
+        components=full["components"], capabilities=full["capabilities"], source="route", intent=card["intent"],
+        paths=card["paths"], tier=card["tier"], premise_review=card["premise_review"], premises=full["premises"],
+        register=full["register"], surface_sha256=surface_hashes(root, card["surfaces"]),
+    )
+    append_receipt(root, receipt)
+    record_event(root, "receipt.open", actor=actor, ref=receipt["receipt"],
+                 summary=card["intent"] or ", ".join(card["paths"]))
+    return receipt
+
+
 def cmd_route(args):
     root = Path(args.target).resolve()
     card = route_card(root, args.intent, args.paths, args.event, args.reversible, args.single_area, args.detail)
+    full = card.pop("_full")
+    if args.record or args.terms:
+        if card["tier"] == "light" and not args.terms:
+            card["receipt"], card["receipt_note"] = None, "not needed: the tier is light"
+        else:
+            receipt = open_route_receipt(root, card, full, args.terms, args.actor)
+            card["receipt"] = {"id": receipt["receipt"], "matches": len(receipt["matches"])}
+            card["next"] = [n for n in card["next"] if "--record" not in n and "premise check" not in n]
+            card["next"].append(f"when the change is done: python3 scripts/memory_governance.py verify --receipt {receipt['receipt']}")
     if args.json:
         print(json.dumps(card, ensure_ascii=False))
     else:
@@ -1106,6 +1245,7 @@ def cmd_lookup(args):
 # ---------------------------------------------------------------------------
 
 AUDIT_KINDS = ("missing", "ghost", "orphan", "stub", "volume")
+AUDIT_BASELINE = "audit_baseline.json"
 STUB_MARK = "<!-- pointer-stub -->"
 STUB_LINE_RE = re.compile(r"^> Moved to `([^`]+)` on (\d{4}-\d{2}-\d{2})\. This is a pointer only; do not write here\.$")
 _HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
@@ -1154,19 +1294,64 @@ def stub_problems(root: Path):
     return stubs, ghosts
 
 
-def audit_report(root: Path):
+def unregistered_files(root: Path):
+    """Capability-like files that CAPABILITIES.md does not list; None when the project has no CAPABILITIES.md."""
+    if not (root / CAPS_NAME).is_file():
+        return None
     impact, _ = load_impact_or_default(root)
     globs, exempt = _audit_config(impact)
+    caps_text = read_text(root / CAPS_NAME)
+    return [rel for rel in walk_files(root) if capability_like(rel, globs, exempt) and not registered_in(rel, caps_text)]
+
+
+def load_audit_baseline(root: Path):
+    p = config_path(root, AUDIT_BASELINE)
+    if not p.is_file():
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data.get("missing"), list) else None
+
+
+def save_audit_baseline(root: Path, unregistered):
+    data = OrderedDict(recorded_at=now_iso(), missing=sorted(unregistered))
+    atomic_json(config_path(root, AUDIT_BASELINE), data)
+    return data
+
+
+def audit_baseline(root: Path, unregistered, record=True):
+    """The first audit records what was already unregistered; later audits report only what is new."""
+    base = load_audit_baseline(root)
+    if base is None and record and memory_dir(root).is_dir():
+        base = save_audit_baseline(root, unregistered)
+    return set(base["missing"]) if base else set()
+
+
+def baseline_lines(report):
+    n = len(report.get("baselined") or [])
+    if not n:
+        return []
+    return [f"AUDIT baseline: {n} file(s) were unregistered before the first audit and are not counted; "
+            "map sync lists them, audit --rebaseline resets (report only)"]
+
+
+def audit_report(root: Path):
     report = OrderedDict((k, []) for k in AUDIT_KINDS)
     report["skipped"] = []
+    report["baselined"] = []
     caps = load_caps(root)
     rows_map = load_map(root)
     if caps is None:
         report["skipped"].append("no CAPABILITIES.md: missing and orphan checks off")
     else:
-        caps_text = read_text(root / CAPS_NAME)
-        for rel in walk_files(root):
-            if capability_like(rel, globs, exempt) and not registered_in(rel, caps_text):
+        unregistered = unregistered_files(root) or []
+        known = audit_baseline(root, unregistered)
+        for rel in unregistered:
+            if rel in known:
+                report["baselined"].append(rel)
+            else:
                 report["missing"].append({"item": rel, "detail": "capability-like file not in CAPABILITIES.md"})
         for row in caps:
             state = clean(row.get("state", "")).lower()
@@ -1247,6 +1432,13 @@ def cmd_audit(args):
     root = Path(args.target).resolve()
     if args.rules or args.rules_answer or args.rebaseline_rules:
         return cmd_audit_rules(args, root)
+    if args.rebaseline:
+        unregistered = unregistered_files(root)
+        if unregistered is None:
+            raise GovernanceError("no CAPABILITIES.md: there is nothing to baseline")
+        data = save_audit_baseline(root, unregistered)
+        print(f"AUDIT baseline reset: {len(data['missing'])} unregistered file(s) accepted as they are")
+        return 0
     report = audit_report(root)
     total = sum(len(report[k]) for k in AUDIT_KINDS)
     if args.json:
@@ -1261,6 +1453,8 @@ def cmd_audit(args):
             print(f"  {f['item']}: {f['detail']}")
     for s in report["skipped"]:
         print(f"SKIPPED {s}")
+    for line in baseline_lines(report):
+        print(line)
     print("AUDIT OK" if not total else f"AUDIT FINDINGS {total}; run map sync for paste-ready rows")
     for line in rules_lines(rules_status(root)):
         print(line)
@@ -1621,6 +1815,16 @@ def map_suggestions(root: Path, missing):
     return out
 
 
+def _map_structure(region: str):
+    """The part of the generated block that a person would call a change of structure: directories and split files."""
+    out = []
+    for line in region.splitlines():
+        cells = _cells(line)
+        if cells and len(cells) >= 6 and cells[0].startswith("`"):
+            out.append((cells[0], cells[5]))
+    return out
+
+
 def map_sync(root: Path, check=False):
     p = root / MAP_NAME
     if not p.is_file():
@@ -1639,11 +1843,17 @@ def map_sync(root: Path, check=False):
     else:
         current, new_text = None, text.rstrip("\n") + "\n\n## Generated overview\n\n" + region
     if check:
-        status = "no_region" if current is None else "ok" if current == region else "drift"
-        return {"status": status, "missing": missing}
+        if current is None:
+            return {"status": "no_region", "missing": missing}
+        if current == region:
+            return {"status": "ok", "missing": missing}
+        if _map_structure(current) == _map_structure(region):   # same directories and split files; only counts moved
+            return {"status": "ok", "missing": missing, "counts_stale": True}
+        return {"status": "drift", "missing": missing}
     if new_text == text:
         return {"status": "unchanged", "missing": missing}
     write_text_atomic(p, new_text)
+    record_event(root, "map.sync", file=MAP_NAME, summary="generated block refreshed")
     return {"status": "updated", "missing": missing}
 
 
@@ -1663,9 +1873,11 @@ def cmd_map(args):
     result = map_sync(root, check=args.check)
     sugg = map_suggestions(root, result.get("missing", [])) if result["status"] != "skipped" else {}
     if args.json:
-        print(json.dumps(OrderedDict(status=result["status"], reason=result.get("reason"), suggestions=sugg), ensure_ascii=False))
+        print(json.dumps(OrderedDict(status=result["status"], reason=result.get("reason"),
+                                     counts_stale=bool(result.get("counts_stale")), suggestions=sugg), ensure_ascii=False))
     else:
-        print(f"MAP {result['status']}" + (f" ({result['reason']})" if result.get("reason") else ""))
+        print(f"MAP {result['status']}" + (f" ({result['reason']})" if result.get("reason") else "")
+              + (" (counts refresh on the next map sync)" if result.get("counts_stale") else ""))
         if result["status"] == "drift":
             print("The generated block in MAP.md is out of date; run: python3 scripts/memory_governance.py map sync")
         if result["status"] == "no_region":
@@ -2014,6 +2226,7 @@ def volume_apply(root: Path, rel: str, plan_sha=None, auto=False, today=None, th
                         after={r: sha256_text(read_text(root / r)) for r in sorted(set(created) | set(modified))})
         manifest["map"] = refresh_map(root)
         save_manifest(root, manifest)
+        record_files(root, "split.volume", sorted(set(created) | set(modified)), ref=rid, summary=f"{rel}: months {', '.join(sorted(moved))} cut")
         return manifest
 
 
@@ -2070,6 +2283,7 @@ def volume_rollback(root: Path, tx: str):
         manifest.update(status="rolled_back", rollback_receipt=rid, rolled_back_at=now_iso())
         manifest["map"] = refresh_map(root)
         save_manifest(root, manifest)
+        record_files(root, "split.volume.rollback", [rel] + sorted(new_vols), ref=rid, summary=f"{rel}: split {tx} rolled back")
         return manifest
 
 
@@ -2366,6 +2580,7 @@ def topic_apply(root: Path, plan_sha: str, confirm=False, file=None, section=Non
         manifest.update(status="applied", receipt=rid)
         manifest["map"] = refresh_map(root)
         save_manifest(root, manifest)
+        record_files(root, "split.topic", [target] + modified, ref=rid, summary=f"{rel}: \"{nom['section']}\" moved to {target}")
         return manifest
 
 
@@ -2402,7 +2617,973 @@ def topic_rollback(root: Path, tx: str):
         manifest.update(status="rolled_back", rollback_receipt=rid, rolled_back_at=now_iso())
         manifest["map"] = refresh_map(root)
         save_manifest(root, manifest)
+        record_files(root, "split.topic.rollback", [rel, target] + ([INDEX_NAME] if new_index is not None else []),
+                     ref=rid, summary=f"{rel}: split {tx} merged back")
         return manifest
+
+
+# ---------------------------------------------------------------------------
+# 1.4.3 · events: an append-only log of what the CLI wrote and which agent asked
+# ---------------------------------------------------------------------------
+
+EVENTS_NAME = "events.jsonl"
+ACTOR_ENV = "WALLABY_MEMORY_ACTOR"
+TZ_ENV = "WALLABY_MEMORY_TZ_OFFSET"
+_ACTOR_BAD = re.compile(r"[^A-Za-z0-9_.:@/-]")
+_FENCE = re.compile(r"^\s*(```|~~~)")
+
+
+def resolve_actor(value=None):
+    """--actor, else $WALLABY_MEMORY_ACTOR, else "cli". The operating-system user name is never used."""
+    raw = str(value or os.environ.get(ACTOR_ENV) or "").strip()
+    return _ACTOR_BAD.sub("", raw)[:64] or "cli"
+
+
+def events_path(root: Path):
+    return config_path(root, EVENTS_NAME)
+
+
+def file_sha(path: Path):
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def _tail_line(path: Path):
+    """The last non-empty line of a file, read from its end."""
+    try:
+        with path.open("rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - 65536))
+            data = f.read()
+    except OSError:
+        return None
+    lines = [ln for ln in data.split(b"\n") if ln.strip()]
+    return lines[-1].decode("utf-8", "replace").rstrip("\r") if lines else None
+
+
+def record_event(root: Path, event: str, actor=None, file=None, summary="", ref=None):
+    """Append one event. A no-op in a project without .memory/: the pack is not installed there.
+
+    seq is the line's position in the log. prev ties each line to the one before it, so a removed or edited line shows."""
+    if not memory_dir(root).is_dir():
+        return None
+    path = events_path(root)
+    with FileLock(Path(str(path) + ".lock")):
+        seq, prev = 1, ""
+        last = _tail_line(path) if path.is_file() else None
+        if last:
+            try:
+                seq = int(json.loads(last)["seq"]) + 1
+            except (KeyError, TypeError, ValueError):
+                raise GovernanceError(".memory/events.jsonl does not end with a valid event; run events verify")
+            prev = sha256_text(last)[:16]
+        row = OrderedDict(seq=seq, ts=now_iso(), actor=resolve_actor(actor), event=event)
+        if file:
+            row["file"] = norm_path(file)
+            sha = file_sha(root / row["file"])
+            if sha:
+                row["sha256"] = sha
+        if ref:
+            row["ref"] = ref
+        if summary:
+            row["summary"] = " ".join(str(summary).split())[:200]
+        row["prev"] = prev
+        with path.open("a", encoding="utf-8", newline="") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    return row
+
+
+def record_files(root: Path, event: str, files, actor=None, ref=None, summary=""):
+    """One event per file a command changed. It never raises: the change is already on disk."""
+    out = []
+    for rel in files:
+        try:
+            row = record_event(root, event, actor=actor, file=rel, ref=ref, summary=summary)
+        except GovernanceError as e:
+            print(f"WARNING event not recorded for {rel}: {e}", file=sys.stderr)
+            continue
+        if row:
+            out.append(row)
+    return out
+
+
+def read_events(root: Path):
+    path = events_path(root)
+    if not path.is_file():
+        return []
+    rows = []
+    with path.open(encoding="utf-8", newline="") as f:
+        for n, line in enumerate(f, 1):
+            raw = line.rstrip("\r\n")
+            if not raw.strip():
+                continue
+            try:
+                row = json.loads(raw)
+                if not isinstance(row, dict) or not isinstance(row.get("seq"), int):
+                    row = {"_bad": True}
+            except json.JSONDecodeError:
+                row = {"_bad": True}
+            row["_raw"], row["_line"] = raw, n
+            rows.append(row)
+    return rows
+
+
+def events_status(root: Path):
+    """Is the log whole, and which logged files changed without the CLI?"""
+    rows = read_events(root)
+    problems, expect, before = [], 1, None
+    for r in rows:
+        if r.get("_bad"):
+            problems.append(f"line {r['_line']} is not a valid event")
+            expect, before = None, r["_raw"]
+            continue
+        if expect is not None and r["seq"] != expect:
+            problems.append(f"line {r['_line']} has seq {r['seq']}; expected {expect}")
+        if r.get("prev", "") != (sha256_text(before)[:16] if before is not None else ""):
+            problems.append(f"seq {r['seq']} does not follow the line above it (a line was edited, removed, or merged in)")
+        expect, before = r["seq"] + 1, r["_raw"]
+    good = [r for r in rows if not r.get("_bad")]
+    latest = OrderedDict()
+    for r in good:
+        if r.get("file"):
+            latest[r["file"]] = r
+    outside = []
+    for rel, r in latest.items():
+        if not r.get("sha256"):
+            continue  # the last event removed this file
+        now = file_sha(root / rel)
+        if now != r["sha256"]:
+            outside.append({"file": rel, "seq": r["seq"], "state": "missing" if now is None else "changed"})
+    return OrderedDict(events=len(good), last_seq=good[-1]["seq"] if good else 0, problems=problems[:20],
+                       outside=outside, actors=dict(Counter(r.get("actor", "") for r in good)))
+
+
+def events_lines(status):
+    """Text for doctor and events verify. Silent until the log has its first event."""
+    if not status["events"] and not status["problems"]:
+        return []
+    out = [f"EVENTS {status['events']} recorded, last seq {status['last_seq']}"]
+    for p in status["problems"][:5]:
+        out.append(f"  broken: {p}")
+    if status["outside"]:
+        names = ", ".join(o["file"] for o in status["outside"][:5])
+        out.append(f"  {len(status['outside'])} logged file(s) changed outside the write command: {names} "
+                   "(events adopt records them; report only)")
+    return out
+
+
+def cmd_events(args):
+    root = Path(args.target).resolve()
+    if args.action == "verify":
+        st = events_status(root)
+        if args.json:
+            print(json.dumps(st, ensure_ascii=False))
+        elif not st["events"] and not st["problems"]:
+            print("No events yet. The log starts with the first write, id take, or receipt.")
+        else:
+            for line in events_lines(st):
+                print(line)
+            print("EVENTS OK" if not st["problems"] else f"EVENTS BROKEN {len(st['problems'])}")
+        return 1 if st["problems"] else 0
+    if args.action == "adopt":
+        st = events_status(root)
+        if st["problems"]:
+            raise GovernanceError("the event log is broken; restore it from git or a backup before adopting changes")
+        rows = []
+        for o in st["outside"]:
+            note = args.note or ("removed" if o["state"] == "missing" else "changed") + " outside the write command"
+            rows.append(record_event(root, "adopt", actor=args.actor, file=o["file"], summary=note))
+        _emit([{"seq": r["seq"], "file": r["file"]} for r in rows], args.json,
+              [f"ADOPTED seq={r['seq']} {r['file']}" for r in rows] or ["Nothing to adopt: every logged file matches its last event."])
+        return 0
+    rows = [r for r in read_events(root) if not r.get("_bad")]
+    if args.since is not None:
+        rows = [r for r in rows if r["seq"] > args.since]
+    if args.actor:
+        rows = [r for r in rows if r.get("actor") == args.actor]
+    if args.file:
+        rows = [r for r in rows if r.get("file") == norm_path(args.file)]
+    total, limit = len(rows), max(1, args.limit)
+    rows = rows[:limit] if args.since is not None else rows[-limit:]
+    clean_rows = [OrderedDict((k, v) for k, v in r.items() if not k.startswith("_")) for r in rows]
+    lines = [f"{r['seq']}  {r.get('ts', '')}  {r.get('actor', '')}  {r.get('event', '')}"
+             + (f"  {r['file']}" if r.get("file") else "") + (f"  {r['ref']}" if r.get("ref") else "")
+             + (f"  {r['summary']}" if r.get("summary") else "") for r in clean_rows]
+    if total > len(rows):
+        lines.append(f"{total - len(rows)} more; raise --limit" + ("" if args.since is None else f" or continue with --since {rows[-1]['seq']}"))
+    _emit(OrderedDict(total=total, events=clean_rows), args.json, lines or ["No events match."])
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# 1.4.3 · id: one counter per series, so two agents never hand out the same number
+# ---------------------------------------------------------------------------
+
+IDS_NAME = "ids.json"
+DEFAULT_SERIES = OrderedDict([
+    ("R", {"width": 6, "what": "receipts"}),
+    ("C", {"width": 3, "what": "contradictions"}),
+    ("P", {"width": 3, "what": "premises"}),
+    ("F", {"width": 3, "what": "failures"}),
+    ("D", {"width": 3, "what": "decisions"}),
+])
+SERIES_RE = re.compile(r"^[A-Z]{1,4}$")
+ID_HOME_FILES = (MEMORY_NAME, "NOW.md", LOG_NAME, "PROPOSALS.md", "FAILURES.md")
+ID_HOME_CONFIG = ("receipts.jsonl", "contradictions.json", "premises.json")
+UNUSED_ID_DAYS = 7
+
+
+def _hidden_lines(lines):
+    """Indices of lines inside an HTML comment or a fenced code block: examples, not entries."""
+    out, fence, comment = set(), False, False
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if comment:
+            out.add(i)
+            if "-->" in s:
+                comment = False
+            continue
+        if _FENCE.match(ln):
+            out.add(i)
+            fence = not fence
+            continue
+        if fence:
+            out.add(i)
+            continue
+        if s.startswith("<!--"):
+            out.add(i)
+            if "-->" not in s:
+                comment = True
+    return out
+
+
+def _visible_text(text: str):
+    lines = text.splitlines(keepends=True)
+    hidden = _hidden_lines(lines)
+    return "".join(ln for i, ln in enumerate(lines) if i not in hidden)
+
+
+def _id_numbers(text: str, series: str):
+    return [int(n) for n in re.findall(r"(?<![A-Za-z0-9-])" + re.escape(series) + r"-(\d{1,9})(?![0-9])", text)]
+
+
+def id_home_files(root: Path):
+    """Where an ID may already be written: the memory files, their volumes and topic files, and the pack's own records."""
+    files = [root / n for n in ID_HOME_FILES] + volume_files(root / LOG_NAME)
+    topics = root / "MEMORY"
+    if topics.is_dir():
+        files += sorted(p for p in topics.iterdir() if p.suffix == ".md")
+    return [(p, True) for p in files if p.is_file()] + [(config_path(root, n), False) for n in ID_HOME_CONFIG
+                                                        if config_path(root, n).is_file()]
+
+
+def highest_in_use(root: Path, series: str):
+    high = 0
+    for p, markdown in id_home_files(root):
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        nums = _id_numbers(_visible_text(text) if markdown else text, series)
+        if nums:
+            high = max(high, max(nums))
+    return high
+
+
+def load_ids(root: Path):
+    p = config_path(root, IDS_NAME)
+    if not p.is_file():
+        return {"version": 1, "series": {}}
+    data = load_json(p)
+    if data.get("version") != 1 or not isinstance(data.get("series"), dict):
+        raise GovernanceError("ids.json needs version=1 and a series object")
+    return data
+
+
+def _series_name(series):
+    series = str(series or "").strip().upper()
+    if not SERIES_RE.match(series):
+        raise GovernanceError("a series is one to four capital letters, for example D")
+    return series
+
+
+def take_id(root: Path, series: str, actor=None, note="", record=True):
+    """The next free ID of a series: above the counter and above every number already written in the memory files."""
+    series = _series_name(series)
+    if not memory_dir(root).is_dir():
+        raise GovernanceError("no .memory/ directory here; run init first")
+    with FileLock(config_path(root, "ids.lock")):
+        data = load_ids(root)
+        cfg = data["series"].get(series)
+        if cfg is None:
+            cfg = data["series"][series] = dict(DEFAULT_SERIES.get(series, {"width": 3, "what": ""}))
+        number = max(int(cfg.get("next", 1)), highest_in_use(root, series) + 1)
+        cfg["next"] = number + 1
+        atomic_json(config_path(root, IDS_NAME), data)
+    ident = f"{series}-{number:0{int(cfg.get('width', 3))}d}"
+    if record:
+        record_event(root, "id.take", actor=actor, ref=ident, summary=note)
+    return ident
+
+
+def id_duplicates(root: Path):
+    """IDs defined twice where each ID has one definition. Receipts written by 1.4.0 to 1.4.2 are listed by id audit, not here."""
+    out = []
+
+    def dup(items, where):
+        for ident, n in sorted(Counter(i for i in items if i).items()):
+            if n > 1:
+                out.append(f"duplicate {ident}: defined {n} times in {where}")
+
+    for name, key in (("contradictions.json", "contradictions"), ("premises.json", "premises")):
+        p = config_path(root, name)
+        if not p.is_file():
+            continue
+        try:
+            rows = json.loads(p.read_text(encoding="utf-8")).get(key) or []
+        except (OSError, json.JSONDecodeError, AttributeError):
+            continue
+        dup([r.get("id") for r in rows if isinstance(r, dict)], f".memory/{name}")
+    failures = root / "FAILURES.md"
+    if failures.is_file():
+        heads = _headings(read_text(failures).splitlines(keepends=True))
+        dup([t.split(" ")[0] for _, level, t in heads if level == 3 and re.match(r"^F-\d+", t)], "FAILURES.md")
+    return out
+
+
+def unused_ids(root: Path):
+    """IDs taken more than a week ago that no memory file mentions."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=UNUSED_ID_DAYS)
+    taken = [(r["ref"], _receipt_time(r.get("ts"))) for r in read_events(root)
+             if r.get("event") == "id.take" and r.get("ref")]
+    old = [ref for ref, ts in taken if ts and ts < cutoff]
+    if not old:
+        return []
+    blob = ""
+    for p, _ in id_home_files(root):
+        try:
+            blob += p.read_text(encoding="utf-8", errors="replace") + "\n"
+        except OSError:
+            continue
+    return [ref for ref in old if ref not in blob]
+
+
+def cmd_id(args):
+    root = Path(args.target).resolve()
+    if args.action == "take":
+        if not args.series:
+            raise GovernanceError("id take needs a series, for example: id take D")
+        ident = take_id(root, args.series, actor=args.actor, note=args.note or "")
+        _emit({"id": ident}, args.json, [ident])
+        return 0
+    data = load_ids(root)
+    if args.action == "list":
+        rows = []
+        for s in list(OrderedDict.fromkeys(list(DEFAULT_SERIES) + sorted(data["series"]))):
+            cfg = data["series"].get(s) or DEFAULT_SERIES.get(s, {})
+            high = highest_in_use(root, s)
+            nxt = max(int(cfg.get("next", 1)), high + 1)
+            rows.append(OrderedDict(series=s, what=cfg.get("what", ""), next=f"{s}-{nxt:0{int(cfg.get('width', 3))}d}",
+                                    highest_in_files=high))
+        _emit(rows, args.json, [f"{r['series']}  next {r['next']}  {r['what']}".rstrip() for r in rows])
+        return 0
+    dupes = id_duplicates(root)
+    repeated = Counter(r.get("receipt") for r in read_receipts(root) if r.get("type") == "impact")
+    legacy = sorted(k for k, n in repeated.items() if k and n > 1)
+    unused = unused_ids(root)
+    lines = [f"DUPLICATE {d}" for d in dupes]
+    if legacy:
+        lines.append(f"NOTE {len(legacy)} receipt ID(s) were issued more than once by 1.4.0 to 1.4.2 and stay as they are: "
+                     + ", ".join(legacy[:5]) + "; new receipts start above them")
+    if unused:
+        lines.append(f"NOTE taken more than {UNUSED_ID_DAYS} days ago and not written anywhere: " + ", ".join(unused[:10]))
+    lines.append("IDS OK" if not dupes else f"IDS FINDINGS {len(dupes)}")
+    _emit(OrderedDict(duplicates=dupes, repeated_receipts=legacy, unused=unused), args.json, lines)
+    return 1 if dupes else 0
+
+
+# ---------------------------------------------------------------------------
+# 1.4.3 · write: one checked way to add a line to a memory file
+# ---------------------------------------------------------------------------
+
+REDACT_RULES = [
+    (re.compile(r"sk-[A-Za-z0-9_\-]{16,}"), "[REDACTED_KEY]"),
+    (re.compile(r"Bearer\s+[A-Za-z0-9._\-]{10,}"), "[REDACTED_TOKEN]"),
+    (re.compile(r"(?i)(token|apikey|api_key|secret|password)\s*[:=]\s*\S+"), r"\1=[REDACTED]"),
+    (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "[REDACTED_EMAIL]"),
+    (re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"), "[REDACTED_IP]"),
+    (re.compile(r"/(?:Users|home)/[A-Za-z0-9_\-]+/"), "~/"),
+]
+DATED_LINE = re.compile(r"^- \[(\d{4}-\d{2}-\d{2})\]\s+(.*)$")
+LOG_HEADER = "# LOG.md — dated log\n\n> Append-only. Newest entry on top. One line per thing that happened.\n\n"
+PROPOSALS_HEADER = ("# PROPOSALS.md — trust-building queue\n\n> New durable facts wait here until a human (or an approving tool) moves them\n"
+                    "> into MEMORY.md. One dated, sourced line per proposal.\n\n")
+FAILURE_FIELDS = (("trigger", "Trigger"), ("observed", "Observed"), ("expected", "Expected"),
+                  ("root_cause", "Root cause"), ("fix", "Fix"), ("check", "Regression check"))
+INDEX_HEAD_WORDS = ("file", "path", "文件", "路径")
+WRITE_FACES = ("log", "now", "close", "propose", "promote", "reject", "fact", "index", "capability", "map", "failure")
+
+
+def redact(text):
+    text = str(text)
+    for rx, repl in REDACT_RULES:
+        text = rx.sub(repl, text)
+    return text
+
+
+def one_line(text, limit=500):
+    return " ".join(str(text or "").split())[:limit]
+
+
+def local_today(value=None):
+    if value:
+        try:
+            return datetime.strptime(str(value), "%Y-%m-%d").strftime("%Y-%m-%d")
+        except ValueError:
+            raise GovernanceError(f"--date needs YYYY-MM-DD, got {value!r}")
+    tz = os.environ.get(TZ_ENV)
+    try:
+        now = datetime.now(timezone(timedelta(hours=float(tz)))) if tz else datetime.now()
+    except ValueError:
+        raise GovernanceError(f"${TZ_ENV} needs a number of hours, got {tz!r}")
+    return now.strftime("%Y-%m-%d")
+
+
+class Edit:
+    """A pending change to one text file. It keeps every existing line as it is and can prove it."""
+
+    def __init__(self, root: Path, rel: str, header=""):
+        self.root, self.rel = root, norm_path(rel)
+        self.path = root / self.rel
+        self.existed = self.path.is_file()
+        self.old_text = read_text(self.path) if self.existed else header
+        self.nl = "\r\n" if "\r\n" in self.old_text else "\n"
+        self.old = self.old_text.splitlines(keepends=True)
+        self.lines = list(self.old)
+        self.origin = list(range(len(self.old)))   # index in the old file, or None for a new line
+        self.gone = []                               # old indices that leave
+        self.added, self.removed = [], []            # what the report shows
+
+    def add(self, pos, texts, show=True):
+        """Insert whole lines at pos. Returns the 1-based number of the first one."""
+        if pos > 0 and not self.lines[pos - 1].endswith(("\n", "\r")):
+            self.lines[pos - 1] += self.nl          # the file had no final newline
+        self.lines[pos:pos] = [t + self.nl for t in texts]
+        self.origin[pos:pos] = [None] * len(texts)
+        if show:
+            self.added += [{"line": pos + 1 + i, "text": t} for i, t in enumerate(texts) if t]
+        return pos + 1
+
+    def remove(self, idx):
+        self.removed.append(self.lines[idx].rstrip("\r\n"))
+        if self.origin[idx] is not None:
+            self.gone.append(self.origin[idx])
+        del self.lines[idx]
+        del self.origin[idx]
+
+    def text(self):
+        return "".join(self.lines)
+
+    def changed(self):
+        return self.text() != self.old_text or not self.existed
+
+    def check(self):
+        """Every old line that was not removed is still there, byte for byte and in order."""
+        gone = set(self.gone)
+        kept_old = "".join(ln for i, ln in enumerate(self.old) if i not in gone)
+        kept_new = "".join(ln for ln, o in zip(self.lines, self.origin) if o is not None)
+        if kept_new != kept_old and kept_new != kept_old + self.nl:   # the one allowance: a missing final newline
+            raise GovernanceError(f"self-check failed for {self.rel}: the edit would change existing lines; nothing was written")
+
+    def report(self):
+        return OrderedDict(file=self.rel, created=not self.existed, added=self.added, removed=self.removed)
+
+
+def _headings(lines):
+    """(index, level, title) of every Markdown heading outside comments and fenced code."""
+    hidden = _hidden_lines(lines)
+    out = []
+    for i, ln in enumerate(lines):
+        if i in hidden:
+            continue
+        m = _HEADING.match(ln.rstrip("\r\n"))
+        if m:
+            out.append((i, len(m.group(1)), m.group(2).strip()))
+    return out
+
+
+def _section_span(lines, head, level):
+    return next((j for j, lvl, _ in _headings(lines) if j > head and lvl <= level), len(lines))
+
+
+def _find_section(lines, title, rel):
+    """(heading index, end index) of the one section the title names. Anything else is a clear error, not a guess."""
+    want = str(title).strip().lstrip("#").strip().lower()
+    heads = _headings(lines)
+    cand = [h for h in heads if h[2].lower() == want] or [h for h in heads if want and want in h[2].lower()]
+    if len(cand) != 1:
+        names = ", ".join(f'"{h[2]}"' for h in heads if h[1] >= 2) or "none"
+        why = "no heading matches" if not cand else f"{len(cand)} headings match"
+        raise GovernanceError(f"{rel}: {why} \"{title}\"; headings here: {names}")
+    return cand[0][0], _section_span(lines, cand[0][0], cand[0][1])
+
+
+def _content_start(lines, head, end, skip_comment=True):
+    """Where a new entry goes under a heading: after blank lines and one leading comment block, above older entries."""
+    pos = head + 1
+    while pos < end and not lines[pos].strip():
+        pos += 1
+    if skip_comment and pos < end and lines[pos].lstrip().startswith("<!--"):
+        while pos < end and "-->" not in lines[pos]:
+            pos += 1
+        pos = min(pos + 1, end)
+    return pos
+
+
+def _add_entry(ed: Edit, pos, texts):
+    """Insert entry lines; keep a blank line between them and a heading that follows directly."""
+    block = list(texts)
+    nxt = ed.lines[pos] if pos < len(ed.lines) else ""
+    if nxt.strip() and _HEADING.match(nxt.rstrip("\r\n")):
+        block.append("")
+    if pos > 0 and ed.lines[pos - 1].strip() and _HEADING.match(block[0]):
+        block.insert(0, "")
+    first = ed.add(pos, block, show=False)
+    offset = 1 if block[0] == "" else 0
+    ed.added += [{"line": first + offset + i, "text": t} for i, t in enumerate(texts) if t]
+    return first + offset
+
+
+def _tables(lines):
+    """Markdown tables outside fenced code: header, rows, end, and the `## ` area above each."""
+    out, area, i, hidden = [], "", 0, _hidden_lines(lines)
+    while i < len(lines):
+        ln = lines[i]
+        if i in hidden:
+            i += 1
+            continue
+        if ln.startswith("## "):
+            area = ln[3:].strip()
+        head = _cells(ln)
+        nxt = _cells(lines[i + 1]) if i + 1 < len(lines) else None
+        if head and nxt and _is_sep(nxt):
+            j, rows = i + 2, []
+            while j < len(lines) and _cells(lines[j]) is not None:
+                rows.append(j)
+                j += 1
+            out.append({"head": i, "cells": head, "rows": rows, "end": j, "area": area})
+            i = j
+            continue
+        i += 1
+    return out
+
+
+def _row(cells):
+    return "| " + " | ".join(cells) + " |"
+
+
+def _cell(value, what):
+    value = redact(one_line(value, 400))
+    if "|" in value:
+        raise GovernanceError(f"{what} cannot contain a | character: it would break the table")
+    return value
+
+
+def _log_edit(root: Path, line: str, day: str, rel=LOG_NAME):
+    """Put one line on top of its month in a newest-first log (at the end of its month in an oldest-first one)."""
+    ed = Edit(root, rel, header=LOG_HEADER)
+    month = day[:7]
+    months = [(i, t[:7]) for i, level, t in _headings(ed.lines) if level == 2 and re.match(r"^\d{4}-\d{2}(?![0-9])", t)]
+    order = toc_order(ed.old_text)
+    if order is None:
+        keys = [k for _, k in months]
+        order = "asc" if len(set(keys)) > 1 and keys == sorted(keys) else "desc"
+    found = next((i for i, k in months if k == month), None)
+    if found is not None:
+        end = _section_span(ed.lines, found, 2)
+        if order == "desc":
+            pos = _content_start(ed.lines, found, end)
+        else:
+            pos = end
+            while pos > found + 1 and not ed.lines[pos - 1].strip():
+                pos -= 1
+        _add_entry(ed, pos, [line])
+        return ed
+    if any(p.stem == month for p in volume_files(root / rel)):
+        raise GovernanceError(f"{month} is a closed volume of {rel}; date the entry in a month that is still in {rel}")
+    if order == "desc":
+        pos = next((i for i, k in months if k < month), len(ed.lines))
+    else:
+        pos = next((i for i, k in months if k > month), len(ed.lines))
+    block = [f"## {month}", "", line] + ([""] if pos < len(ed.lines) else [])
+    if pos > 0 and ed.lines[pos - 1].strip():
+        block.insert(0, "")
+    first = ed.add(pos, block, show=False)
+    ed.added.append({"line": first + block.index(line), "text": line})
+    return ed
+
+
+def _section_edit(root: Path, rel: str, line: str, section, default_section=None, create_section=False):
+    """Add one dated line on top of a section of NOW.md, MEMORY.md, or a topic file."""
+    ed = Edit(root, rel)
+    if not ed.existed:
+        raise GovernanceError(f"{rel} does not exist; install the memory files first (see PROMPT.md)")
+    twos = [h for h in _headings(ed.lines) if h[1] == 2]
+    if section:
+        head, end = _find_section(ed.lines, section, rel)
+    elif default_section and any(h[2].lower() == default_section.lower() for h in twos):
+        head, end = _find_section(ed.lines, default_section, rel)
+    elif default_section and create_section:
+        block = ([""] if ed.lines and ed.lines[-1].strip() else []) + [f"## {default_section}", "", line]
+        first = ed.add(len(ed.lines), block, show=False)
+        ed.added.append({"line": first + block.index(line), "text": line})
+        return ed
+    elif len(twos) == 1:
+        head, end = twos[0][0], len(ed.lines)
+    elif not twos:
+        _add_entry(ed, len(ed.lines), [line])
+        return ed
+    else:
+        raise GovernanceError(f"{rel} has {len(twos)} sections; name one with --section: " + ", ".join(f'"{t}"' for _, _, t in twos))
+    body = "".join(ed.lines[head:end])
+    if STUB_MARK in body:
+        moved = re.search(r"Moved to `([^`]+)`", body)
+        where = moved.group(1) if moved else "a topic file"
+        raise GovernanceError(f"that section of {rel} moved to {where}; write there with --file {where}")
+    _add_entry(ed, _content_start(ed.lines, head, end), [line])
+    return ed
+
+
+def _dated_texts(root: Path, rel: str):
+    path = root / rel
+    if not path.is_file():
+        return []
+    lines = read_text(path).splitlines(keepends=True)
+    hidden = _hidden_lines(lines)
+    return [m.group(2) for i, ln in enumerate(lines) if i not in hidden for m in [DATED_LINE.match(ln.strip())] if m]
+
+
+def _one_match(ed: Edit, lo, hi, match, what):
+    """The index of the single entry line in [lo, hi) that contains the words; anything else is an error that lists the candidates."""
+    hidden = _hidden_lines(ed.lines)
+    entries = [i for i in range(lo, hi) if i not in hidden and ed.lines[i].lstrip().startswith("- ")]
+    hits = [i for i in entries if match in ed.lines[i].lower()]
+    if len(hits) != 1:
+        listed = "; ".join(ed.lines[i].strip() for i in entries[:8]) or "nothing"
+        raise GovernanceError(f"{'no' if not hits else len(hits)} line(s) {what} match \"{match}\"; there now: {listed}")
+    return hits[0]
+
+
+def _build(root: Path, face: str, a, day: str, ident):
+    """The edits one face makes. Nothing is written here."""
+    tag = f"{ident} · " if ident else ""
+    text = redact(one_line(a.get("text")))
+    if face == "log":
+        if not text:
+            raise GovernanceError("log needs the text of what happened")
+        source = redact(one_line(a.get("source"), 200))
+        return [_log_edit(root, f"- [{day}] {tag}{text}" + (f" — {source}" if source else ""), day)]
+    if face == "now":
+        pointer = redact(one_line(a.get("pointer"), 200))
+        if not text:
+            raise GovernanceError("now needs the item that moved")
+        if not pointer:
+            raise GovernanceError("now needs --pointer: where the detail lives (a path or a link)")
+        return [_section_edit(root, "NOW.md", f"- [{day}] {tag}{text}; details: {pointer}", a.get("section"),
+                              default_section="In flight", create_section=True)]
+    if face == "close":
+        match = one_line(a.get("match"), 200).lower()
+        if not match or not text:
+            raise GovernanceError("close needs --match (words from the NOW.md line) and the text of what happened")
+        now = Edit(root, "NOW.md")
+        if not now.existed:
+            raise GovernanceError("NOW.md does not exist; install the memory files first (see PROMPT.md)")
+        head, end = _find_section(now.lines, a.get("section") or "In flight", "NOW.md")
+        now.remove(_one_match(now, head + 1, end, match, "in flight"))
+        twos = [h for h in _headings(now.lines) if h[1] == 2 and h[2].lower().startswith("recently")]
+        if twos:
+            h2 = twos[0][0]
+            _add_entry(now, _content_start(now.lines, h2, _section_span(now.lines, h2, 2)), [f"- [{day}] {text} → LOG.md"])
+        pointer = redact(one_line(a.get("pointer"), 200))
+        return [_log_edit(root, f"- [{day}] {tag}{text}" + (f" — {pointer}" if pointer else ""), day), now]
+    if face == "propose":
+        source = redact(one_line(a.get("source"), 200))
+        if not text:
+            raise GovernanceError("propose needs the fact")
+        if not source:
+            raise GovernanceError("propose needs --source: where the fact comes from (a path, a commit, the user's words)")
+        for rel in (MEMORY_NAME, "PROPOSALS.md"):
+            if any(text.lower() == t.split(" — source:")[0].strip().lower() for t in _dated_texts(root, rel)):
+                return f"already in {rel}: nothing added"
+        origin = re.sub(r"[^A-Za-z0-9_.:-]", "", str(a.get("origin") or ""))[:64]
+        ed = Edit(root, "PROPOSALS.md", header=PROPOSALS_HEADER)
+        ed.add(len(ed.lines), [f"- [{day}] {text} — source: {source} (proposed" + (f" · from {origin}" if origin else "") + ")"])
+        return [ed]
+    if face in ("promote", "reject"):
+        match = one_line(a.get("match"), 200).lower()
+        if not match:
+            raise GovernanceError(f"{face} needs --match: words from the proposal")
+        queue = Edit(root, "PROPOSALS.md")
+        if not queue.existed:
+            raise GovernanceError("PROPOSALS.md does not exist: nothing is waiting")
+        idx = _one_match(queue, 0, len(queue.lines), match, "in PROPOSALS.md")
+        m = DATED_LINE.match(queue.lines[idx].strip())
+        if not m:
+            raise GovernanceError("that line is not a dated proposal; edit PROPOSALS.md by hand")
+        fact = re.sub(r"\s*\(proposed[^)]*\)\s*$", "", m.group(2))
+        queue.remove(idx)
+        if face == "promote":
+            return [_section_edit(root, a.get("file") or MEMORY_NAME, f"- [{m.group(1)}] {fact}", a.get("section")), queue]
+        reason = redact(one_line(a.get("reason"), 200))
+        return [_log_edit(root, f"- [{day}] Rejected proposal: {fact}" + (f" — {reason}" if reason else ""), day), queue]
+    if face == "fact":
+        source = redact(one_line(a.get("source"), 200))
+        if not text:
+            raise GovernanceError("fact needs the fact")
+        if not source:
+            raise GovernanceError("fact needs --source: where the fact comes from (a path, a commit, the user's words)")
+        rel = a.get("file") or MEMORY_NAME
+        if any(text.lower() == t.split(" — source:")[0].strip().lower() for t in _dated_texts(root, rel)):
+            return f"already in {rel}: nothing added"
+        return [_section_edit(root, rel, f"- [{day}] {tag}{text} — source: {source}", a.get("section"))]
+    if face == "index":
+        rel = norm_path(one_line(a.get("path"), 300))
+        note = _cell(a.get("text"), "the note")
+        if not rel or not note:
+            raise GovernanceError("index needs --path and a few words on what the file is")
+        for name, body in index_texts(root):
+            for n, ln in enumerate(body.splitlines(keepends=True)):
+                s = ln.strip()
+                if not (s.startswith("|") or s.startswith("- ")) or _is_sep(_cells(s) or []):
+                    continue
+                found = cell_paths(s.split("|")[1] if s.startswith("|") else s)
+                if not found or norm_path(found[0]) != rel:
+                    continue
+                if not a.get("update"):
+                    raise GovernanceError(f"{rel} is already registered at {name}:{n + 1}; pass --update to change its note")
+                ed = Edit(root, name)
+                cells = _cells(ed.lines[n])
+                if cells is None or len(cells) < 2:
+                    raise GovernanceError(f"{name}:{n + 1} is not a table row; edit that line by hand")
+                cells[1] = note
+                ed.remove(n)
+                ed.add(n, [_row(cells)])
+                return [ed]
+        ed = Edit(root, INDEX_NAME)
+        if not ed.existed:
+            raise GovernanceError("INDEX.md does not exist; install the memory files first (see PROMPT.md)")
+        tables = [t for t in _tables(ed.lines) if any(w in t["cells"][0].lower() for w in INDEX_HEAD_WORDS)] or _tables(ed.lines)
+        if a.get("section"):
+            want = str(a["section"]).strip().lstrip("#").strip().lower()
+            tables = [t for t in tables if want in t["area"].lower()]
+            if not tables:
+                raise GovernanceError(f"INDEX.md has no table under a heading that matches \"{a['section']}\"")
+        if tables:
+            top = rel.split("/", 1)[0] if "/" in rel else ""
+
+            def same_top(t):
+                paths = [p for i in t["rows"] for p in cell_paths((_cells(ed.lines[i]) or [""])[0])]
+                return sum(1 for p in paths if (p.split("/", 1)[0] if "/" in p else "") == top)
+
+            table = max(tables, key=same_top)
+            ed.add(table["end"], [_row([f"`{rel}`", note] + [""] * max(0, len(table["cells"]) - 2))])
+        else:
+            hidden = _hidden_lines(ed.lines)
+            rows = [i for i, ln in enumerate(ed.lines) if i not in hidden and ln.startswith("- ") and cell_paths(ln[2:].split("|")[0])]
+            ed.add(rows[-1] + 1 if rows else len(ed.lines), [f"- `{rel}` | {note}"])
+        return [ed]
+    if face in ("capability", "map"):
+        rel, columns, first = (CAPS_NAME, CAP_COLUMNS, "name") if face == "capability" else (MAP_NAME, MAP_COLUMNS, "component")
+        name = _cell(a.get("text"), "the name")
+        if not name:
+            raise GovernanceError(f"{face} needs a name")
+        if face == "capability":
+            entry = norm_path(_cell(a.get("entry"), "--entry"))
+            if not entry:
+                raise GovernanceError("capability needs --entry: the path to start from")
+            values = {"name": f"`{name}`", "form": _cell(a.get("form"), "--form"), "entry": f"`{entry}`",
+                      "triggers": _cell(a.get("triggers"), "--triggers"), "state": _cell(a.get("state"), "--state") or "incubating",
+                      "call": _cell(a.get("call"), "--call")}
+            for row in load_caps(root) or []:
+                if clean(row["name"]).lower() == name.lower() or entry in cell_paths(row["entry"]):
+                    raise GovernanceError(f"{name} is already registered at {CAPS_NAME}:{row['line']}")
+            required = ("name", "entry")
+        else:
+            keywords_cell = _cell(a.get("keywords"), "--keywords")
+            if not keywords_cell:
+                raise GovernanceError("map needs --keywords: the words that should lead to this component")
+            details = norm_path(_cell(a.get("details"), "--details"))
+            values = {"component": f"`{name}`", "job": _cell(a.get("job"), "--job"), "keywords": keywords_cell,
+                      "details": f"`{details}`" if details else ""}
+            for row in load_map(root) or []:
+                if clean(row["component"]).lower() == name.lower():
+                    raise GovernanceError(f"{name} is already on the map at {MAP_NAME}:{row['line']}")
+            required = ("component", "keywords")
+        ed = Edit(root, rel)
+        if not ed.existed:
+            raise GovernanceError(f"{rel} does not exist; copy templates/{rel} from wallaby-agent-rules first")
+        found = []
+        for t in _tables(ed.lines):
+            keys = {}
+            for idx, cell in enumerate(t["cells"]):
+                low = cell.lower()
+                for key, aliases in columns:
+                    if key not in keys and any(alias in low for alias in aliases):
+                        keys[key] = idx
+                        break
+            if all(k in keys for k in required):
+                t["keys"] = keys
+                found.append(t)
+        if a.get("area"):
+            want = str(a["area"]).strip().lstrip("#").strip().lower()
+            found = [t for t in found if want in t["area"].lower()]
+        if not found:
+            raise GovernanceError(f"{rel} has no table with the expected columns" + (f" under \"{a['area']}\"" if a.get("area") else ""))
+        if len(found) > 1:
+            raise GovernanceError(f"{rel} has {len(found)} such tables; name one with --area: " + ", ".join(f'"{t["area"]}"' for t in found))
+        table = found[0]
+        cells = [""] * len(table["cells"])
+        for key, value in values.items():
+            if key in table["keys"]:
+                cells[table["keys"][key]] = value
+        pos = table["end"]
+        for i in table["rows"]:
+            existing = _cells(ed.lines[i]) or []
+            k = table["keys"][first]
+            if k < len(existing) and _placeholder(existing[k]):
+                pos = i   # keep the template's placeholder row last
+                break
+        ed.add(pos, [_row(cells)])
+        return [ed]
+    if face == "failure":
+        kind = one_line(a.get("kind"), 40) or "missing"
+        vals = {k: redact(one_line(a.get(k), 600)) for k, _ in FAILURE_FIELDS}
+        if not (vals["observed"] and vals["expected"]):
+            raise GovernanceError("failure needs --observed (what happened) and --expected (what should have happened)")
+        block = [f"### {ident} · {day} · {kind}"] + [f"- **{label}**: {vals[k]}" for k, label in FAILURE_FIELDS if vals[k]]
+        block += ["- **Status**: open", ""]
+        ed = Edit(root, "FAILURES.md")
+        if not ed.existed:
+            raise GovernanceError("FAILURES.md does not exist; copy templates/FAILURES.md from wallaby-agent-rules first")
+        heads = [h for h in _headings(ed.lines) if h[2].lower() == "regression entries"]
+        pos = _content_start(ed.lines, heads[0][0], _section_span(ed.lines, heads[0][0], heads[0][1]), skip_comment=False) \
+            if heads else len(ed.lines)
+        if pos > 0 and ed.lines[pos - 1].strip():
+            block.insert(0, "")
+        first = ed.add(pos, block, show=False)
+        ed.added.append({"line": first + (1 if block[0] == "" else 0), "text": block[1] if block[0] == "" else block[0]})
+        return [ed]
+    raise GovernanceError(f"unknown write face {face!r}; choose from {', '.join(WRITE_FACES)}")
+
+
+def write_entry(root: Path, face: str, a, actor=None, dry_run=False):
+    """Check, write, and log one entry. Either every file of the entry is written or none is."""
+    day = local_today(a.get("date"))
+    series = a.get("take") or ("F" if face == "failure" else None)
+    result = OrderedDict(face=face, id=None, dry_run=bool(dry_run), files=[], events=[])
+    lock = FileLock(config_path(root, "write.lock")) if memory_dir(root).is_dir() else None
+    if lock:
+        lock.__enter__()
+    try:
+        placeholder = f"{_series_name(series)}-?" if series else None
+        edits = _build(root, face, a, day, placeholder)          # every error surfaces before an ID is taken
+        if isinstance(edits, str):
+            result["skipped"] = edits
+            return result
+        if series and not dry_run:
+            result["id"] = take_id(root, series, actor=actor, record=False)
+            edits = _build(root, face, a, day, result["id"])
+        elif series:
+            result["id"] = placeholder
+        for ed in edits:
+            ed.check()
+        result["files"] = [ed.report() for ed in edits]
+        if dry_run:
+            return result
+        done = []
+        try:
+            for ed in edits:
+                write_text_atomic(ed.path, ed.text())
+                done.append(ed)
+        except OSError as e:
+            for ed in done:   # put back what this entry already wrote
+                if ed.existed:
+                    write_text_atomic(ed.path, ed.old_text)
+                else:
+                    ed.path.unlink()
+            raise GovernanceError(f"write failed and was undone: {e}")
+    finally:
+        if lock:
+            lock.__exit__(None, None, None)
+    for ed in edits:
+        summary = ed.added[0]["text"] if ed.added else "removed: " + (ed.removed[0] if ed.removed else "")
+        result["events"] += [r["seq"] for r in record_files(root, f"write.{face}", [ed.rel], actor=actor, ref=result["id"], summary=summary)]
+    if not memory_dir(root).is_dir():
+        result["note"] = "event log off: this project has no .memory/ directory (init turns it on)"
+    elif face in ("fact", "promote"):
+        memory = root / MEMORY_NAME
+        if memory.is_file():
+            body = read_text(memory)
+            dated = len(_dated_texts(root, MEMORY_NAME))
+            if dated > MEMORY_SOFT_LINES or est_tokens(body) > MEMORY_MAX_TOKENS:
+                result["note"] = (f"MEMORY.md is past its soft wall ({dated} dated lines, about {est_tokens(body)} tokens); "
+                                  "at the next closeout, move facts idle 30+ days to LOG.md")
+    return result
+
+
+def write_lines(result):
+    verb = "WOULD WRITE" if result["dry_run"] else "WROTE"
+    out = []
+    if result.get("skipped"):
+        return [f"SKIPPED {result['skipped']}"]
+    for f in result["files"]:
+        for row in f["added"]:
+            out.append(f"{verb} {f['file']}:{row['line']}  {row['text']}")
+        for text in f["removed"]:
+            out.append(f"{'WOULD REMOVE' if result['dry_run'] else 'REMOVED'} {f['file']}  {text}")
+    if result.get("id"):
+        out.append(f"ID {result['id']}")
+    if result["events"]:
+        out.append("EVENT seq=" + ",".join(str(s) for s in result["events"]))
+    if result.get("note"):
+        out.append(f"NOTE {result['note']}")
+    return out
+
+
+def cmd_write(args):
+    root = Path(args.target).resolve()
+    if args.face == "batch":
+        try:
+            raw = sys.stdin.read() if args.file == "-" else Path(args.file).read_text(encoding="utf-8")
+        except OSError as e:
+            raise GovernanceError(f"cannot read {args.file}: {e}")
+        results = []
+        for n, line in enumerate(raw.splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                item = json.loads(line)
+                face = item.pop("face")
+            except (json.JSONDecodeError, KeyError, AttributeError, TypeError):
+                raise GovernanceError(f"batch line {n} needs a JSON object with a \"face\"; {len(results)} entry(ies) before it were written")
+            try:
+                results.append(write_entry(root, face, item, actor=args.actor, dry_run=args.dry_run))
+            except GovernanceError as e:
+                raise GovernanceError(f"batch line {n} ({face}): {e}; {len(results)} entry(ies) before it were written")
+        _emit(results, args.json, [ln for r in results for ln in write_lines(r)] or ["Nothing to write."])
+        return 0
+    keys = ("text", "source", "pointer", "match", "reason", "section", "file", "date", "take", "origin", "path", "update",
+            "entry", "form", "triggers", "state", "call", "job", "keywords", "details", "area", "kind", "trigger",
+            "observed", "expected", "root_cause", "fix", "check")
+    a = {k: getattr(args, k) for k in keys if getattr(args, k, None) not in (None, "", False)}
+    if not a.get("text") and getattr(args, "words", None):
+        a["text"] = " ".join(args.words)
+    result = write_entry(root, args.face, a, actor=args.actor, dry_run=args.dry_run)
+    _emit(result, args.json, write_lines(result))
+    return 0
 
 
 def _emit(data, as_json, lines):
@@ -2484,9 +3665,10 @@ def build_parser():
     impact.add_argument("--event", required=True)
     impact.add_argument("--terms", action="append", required=True, help="old name/path/claim; repeat as needed")
     impact.add_argument("--record", action="store_true", help="append a pending impact receipt")
-    verify = sub.add_parser("verify", help="verify an impact receipt after references are updated")
-    verify.add_argument("--receipt", required=True)
+    verify = sub.add_parser("verify", help="close a receipt after the change: old terms, premises, registrations, surfaces")
+    verify.add_argument("--receipt", help="defaults to the one pending receipt")
     verify.add_argument("--allow", action="append", default=[], help="glob for intentional historical mentions; repeatable")
+    verify.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
     premise = sub.add_parser("premise", help="evaluate active premise signals")
     premise.add_argument("action", choices=["check", "list"], nargs="?", default="check")
     contradiction = sub.add_parser("contradict", help="add, resolve, list, or check contradictions")
@@ -2507,6 +3689,9 @@ def build_parser():
     route.add_argument("--reversible", action="store_true", help="declare the change reversible inside the project")
     route.add_argument("--single-area", action="store_true", help="declare the change stays in one map area")
     route.add_argument("--detail", action="store_true", help="no 2 KB budget: every row, full text")
+    route.add_argument("--record", action="store_true", help="open a pending receipt for a heavy change; verify closes it")
+    route.add_argument("--terms", action="append", default=[], help="an old name or path that should disappear; implies --record")
+    route.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
     route.add_argument("--json", action="store_true")
     lookup_p = sub.add_parser("lookup", help="read rows from CAPABILITIES.md or MAP.md")
     lookup_p.add_argument("--registry", choices=["capability", "map"], required=True)
@@ -2521,6 +3706,7 @@ def build_parser():
                        "duplicates, and a compact list of every rule")
     audit.add_argument("--rebaseline-rules", action="store_true", help="accept the current always-loaded instructions as the baseline")
     audit.add_argument("--rules-answer", help="record the user's answer once, e.g. guardrails=no")
+    audit.add_argument("--rebaseline", action="store_true", help="accept the files that are unregistered today; report only new ones")
     map_p = sub.add_parser("map", help="keep the generated block in MAP.md current")
     map_p.add_argument("action", choices=["sync"])
     map_p.add_argument("--check", action="store_true", help="report drift (exit 1) without writing")
@@ -2548,6 +3734,72 @@ def build_parser():
     stub = split_sub.add_parser("stub", help="check that pointer stubs hold only their pointer")
     stub.add_argument("cmd", choices=["check"])
     stub.add_argument("--json", action="store_true")
+    events = sub.add_parser("events", help="the log of what the CLI wrote: list, verify, adopt")
+    events.add_argument("action", choices=["list", "verify", "adopt"], nargs="?", default="list")
+    events.add_argument("--since", type=int, help="list events after this seq, oldest first")
+    events.add_argument("--actor", help="list: only this actor; adopt: who records the change")
+    events.add_argument("--file", help="list: only events for this file")
+    events.add_argument("--limit", type=int, default=20)
+    events.add_argument("--note", help="adopt: why the file changed outside the write command")
+    events.add_argument("--json", action="store_true")
+    ids = sub.add_parser("id", help="one counter per ID series: take, list, audit")
+    ids.add_argument("action", choices=["take", "list", "audit"])
+    ids.add_argument("series", nargs="?", help="one to four capital letters, e.g. D for decisions")
+    ids.add_argument("--note", help="take: what the ID is for")
+    ids.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
+    ids.add_argument("--json", action="store_true")
+    write = sub.add_parser("write", help="add one checked line to a memory file; existing lines are never rewritten")
+    faces = write.add_subparsers(dest="face", required=True)
+
+    def face(name, help_text, text=None, **options):
+        fp = faces.add_parser(name, help=help_text)
+        if text:
+            fp.add_argument("words", nargs="*", help=text)
+            fp.add_argument("--text", help="the same text as an option, for text that starts with a dash")
+        for opt, opt_help in options.items():
+            flag = "--" + opt.replace("_", "-")
+            if opt == "update":
+                fp.add_argument(flag, action="store_true", help=opt_help)
+            else:
+                fp.add_argument(flag, help=opt_help)
+        fp.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
+        fp.add_argument("--dry-run", action="store_true", help="show the line and where it would go; write nothing")
+        fp.add_argument("--json", action="store_true")
+        return fp
+
+    day, take = "YYYY-MM-DD; defaults to today", "take the next ID of this series and put it in front, e.g. D"
+    face("log", "LOG.md: one dated line on top of its month", text="what happened",
+         source="a pointer or who says so", date=day, take=take)
+    face("now", "NOW.md: one dated line under In flight", text="the item that moved",
+         pointer="where the detail lives (required)", section="a heading other than In flight", date=day, take=take)
+    face("close", "finish tracked work in one action: the NOW.md line leaves, LOG.md gets the entry", text="what happened",
+         match="words from the NOW.md line (required)", pointer="where the detail lives", date=day, take=take)
+    face("propose", "PROPOSALS.md: queue a fact for a person to approve", text="the fact",
+         source="where it comes from (required)", origin="the work that produced it, e.g. a task id", date=day)
+    face("promote", "move one approved proposal from PROPOSALS.md into MEMORY.md",
+         match="words from the proposal (required)", section="the MEMORY.md heading to put it under",
+         file="a MEMORY/ topic file instead of MEMORY.md")
+    face("reject", "remove one proposal from PROPOSALS.md and log why",
+         match="words from the proposal (required)", reason="why it was turned down", date=day)
+    face("fact", "MEMORY.md: one dated, sourced line", text="the fact", source="where it comes from (required)",
+         section="the heading to put it under", file="a MEMORY/ topic file instead of MEMORY.md", date=day, take=take)
+    face("index", "INDEX.md: register a file", text="what the file is, in a few words", path="the file (required)",
+         section="the heading whose table gets the row", update="replace the note of a file that is already registered")
+    face("capability", "CAPABILITIES.md: register a script, skill, template, or job", text="its name",
+         entry="the path to start from (required)", form="script, skill, template, job",
+         triggers="the words someone would search for", state="incubating (default), active, or retired",
+         call="the shortest call and what it returns")
+    face("map", "MAP.md: add a component", text="its name", keywords="words that should lead here (required)",
+         job="what it does, in one sentence", details="the file that holds the detail", area="the heading whose table gets the row")
+    face("failure", "FAILURES.md: record a memory failure as a regression case (takes the next F ID)",
+         kind="stale, invented, missing, or not-loaded", trigger="what exposed it", observed="what happened (required)",
+         expected="what should have happened (required)", root_cause="where the chain failed", fix="the change that prevents it",
+         check="the next similar situation and its pass condition", date=day)
+    batch = faces.add_parser("batch", help="several entries from a JSON Lines file; each line names its face")
+    batch.add_argument("--file", required=True, help="path to the file, or - for standard input")
+    batch.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
+    batch.add_argument("--dry-run", action="store_true")
+    batch.add_argument("--json", action="store_true")
     return p
 
 
@@ -2582,6 +3834,12 @@ def main(argv=None):
             return cmd_map(args)
         if args.command == "split":
             return cmd_split(args)
+        if args.command == "events":
+            return cmd_events(args)
+        if args.command == "id":
+            return cmd_id(args)
+        if args.command == "write":
+            return cmd_write(args)
         return 2
     except GovernanceError as e:
         print(f"ERROR {e}", file=sys.stderr)

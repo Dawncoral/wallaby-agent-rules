@@ -71,7 +71,7 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
 
-**New in 1.4.3**: the [governance pack](extras/memory-governance/) closes the loop. `route` prints a card of about 2 KB for a change: what to reuse, which map components it touches, which surfaces to update, the tier, and only the premises the changed paths depend on. `audit` finds unregistered capabilities and dead entries, `map sync` keeps a generated block in MAP.md current, and `split` moves finished LOG.md months into volumes. MEMORY.md and INDEX.md splits wait for your confirmation, and every split can be rolled back. `audit` also measures the instructions your agents load against a baseline it records on the first run, and points out rules repeated across files; it only reports. An optional [memory MCP server](extras/memory-mcp/) opens the same files to agents that never load the entry file, with nine tools and 32 smoke checks.
+**New in 1.4.3**: the [governance pack](extras/memory-governance/) closes the loop. `route` prints a card of about 2 KB for a change: what to reuse, which map components it touches, which surfaces to update, the tier, and only the premises the changed paths depend on. `audit` finds unregistered capabilities and dead entries, `map sync` keeps a generated block in MAP.md current, and `split` moves finished LOG.md months into volumes. MEMORY.md and INDEX.md splits wait for your confirmation, and every split can be rolled back. `audit` also measures the instructions your agents load against a baseline it records on the first run, and points out rules repeated across files; it only reports. An optional [memory MCP server](extras/memory-mcp/) opens the same files to agents that never load the entry file, with nine tools and 38 smoke checks. A change now takes two commands: `route --record` before it and `verify` after it. `write` adds one checked line to a memory file and leaves every existing line as it is. `events` logs each write with the agent that made it, and `id` gives each decision, failure, and receipt a number that no other agent on the machine can take. The upgrade from 1.4.0, 1.4.1, or 1.4.2 replaces the CLI and leaves every other file as it was.
 
 **New in 1.4.2**: lossless governance CLI upgrades. `upgrade` defaults to a dry run, refuses downgrades, and `--apply` replaces only the CLI after a backup. The new CLI must start and report the expected version, or the original is restored. Memory files, configs, receipts, and all other project files stay untouched.
 
@@ -123,12 +123,12 @@ A memory system is a fixed prefix: `MEMORY.md` and `NOW.md` ride along on every 
 
 The worked example, on Kimi K3. A healthy `MEMORY.md` sits under the ~8k-est-token soft wall the health check enforces, so call the whole prefix 10k tokens. 100 calls a day puts 30M prefix tokens through the meter each month:
 
-| | Official Kimi API (flat input) | Wallaby, prefix cached |
+| Monthly prefix cost | Input, no cache | Input, cache hit |
 |---|---|---|
-| Input price | $3.00 / 1M tokens | $0.27 / 1M tokens (cache hit) |
-| Monthly prefix cost | $90.00 | $8.10 |
+| Official list | $90.00 at $3.00 / 1M tokens | $9.00 at $0.30 / 1M tokens |
+| Wallaby | $76.50 at $2.55 / 1M tokens | $7.65 at $0.255 / 1M tokens |
 
-Cache hits bill at one tenth of our standard input rate ($2.70 / 1M), 91% below official list. An unchanged prefix re-reads cheap; an actual memory edit bills at full input, once. Same model, same weights, same 1M context.
+Caching does most of the work: on both lists a cache hit bills at one tenth of the input rate. Our rates are 15% off the official list. An unchanged prefix re-reads cheap; an actual memory edit bills at full input, once. Same model, same weights, same 1M context. Rates as of 2026-11-05; the current ones are in [pricing.json](https://wallabytoken.com/pricing.json).
 
 If you want those rates, the migration is one line: point `base_url` at `https://api.wallabytoken.com/v1` and use your key — OpenAI-compatible. ([wallabytoken.com](https://wallabytoken.com) is us — see [Who built this](#who-built-this).)
 
@@ -138,13 +138,13 @@ Already using this? Paste the **L2 — Upgrade check** prompt from [PROMPT.md](P
 
 ## Roadmap
 
-Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, budgets, aging, secrets hygiene, commit silence), the reconcile audit, trust-building mode, tool integrations, the code-version module, the Chinese edition, and file-based memory governance. Next open drop is multi-agent / team memory discipline. Architecture review and managed oversight remain hosted offerings; watch the repo. Numbering is semantic from 1.0.0 on; earlier iterations (v1–v4.1) are folded into it. See [CHANGELOG.md](CHANGELOG.md).
+Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, budgets, aging, secrets hygiene, commit silence), the reconcile audit, trust-building mode, tool integrations, the code-version module, the Chinese edition, file-based memory governance, and a checked write path with an event log and ID counters. The open drop covers one project on one machine: a write through the CLI names the agent that made it, and IDs do not collide. Memory discipline for teams and for agents on several machines belongs to the commercial layer, along with architecture review and managed oversight; see [COMMERCIAL.md](COMMERCIAL.md). Numbering is semantic from 1.0.0 on; earlier iterations (v1–v4.1) are folded into it. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Also in this repo
 
 - [`templates/`](templates/) — NOW / INDEX / LOG templates, optional MAP / CAPABILITIES / FAILURES templates, and the health check and reconcile scripts, ready to copy.
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
-- [`extras/memory-governance/`](extras/memory-governance/) — conduction, premise checks, contradiction history, verification receipts, change routing, registry audits, map sync, and memory splits through one zero-dependency CLI.
+- [`extras/memory-governance/`](extras/memory-governance/) — conduction, premise checks, contradiction history, verification receipts, change routing, registry audits, map sync, memory splits, checked writes, an event log, and ID counters through one zero-dependency CLI.
 - [`extras/memory-mcp/`](extras/memory-mcp/) — the same memory files as an MCP server: read, look up, propose, log, search capabilities, and route a change, with writes redacted and proposals kept out of MEMORY.md.
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/) — the whole system packaged as an installable agent skill (SKILL.md + both check scripts), for Hermes and any SKILL.md-compatible tool.
 - [`extras/skill-forge/`](extras/skill-forge/) — Skill Forge: lifecycle governance for the skills themselves. Requirement derivation, generation to a measured spec, a failure ledger, an optimize loop — as an MCP server, a prompt pack, or a SKILL.md-compatible skill.

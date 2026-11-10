@@ -38,6 +38,8 @@ python3 scripts/memory_governance.py upgrade \
 
 The preview shows the current and available versions and the backup path. If you approve it, run the same command with `--apply`. Only the CLI is replaced, after a backup is written to `.memory/backups/`. The new CLI must start and report the expected version, or the original is restored automatically. `MEMORY.md`, `NOW.md`, `.memory/` configs, receipts, and all other project files stay untouched. Downgrades are refused.
 
+The 1.4.3 commands create their own files under `.memory/` when you first use them, and they never rewrite an existing one. The test suite installs the published 1.4.0 and 1.4.2 CLIs, upgrades each, and compares every file.
+
 ## Your first change
 
 Tell the CLI what changed and which old name, path, or claim should no longer appear:
@@ -65,6 +67,8 @@ python3 scripts/memory_governance.py verify \
 ```
 
 The receipt stays append-only: the impact scan and the later verification are separate records.
+
+From 1.4.3, `route --record` and `verify` cover the same ground in two commands. See [Two commands for one change](#two-commands-for-one-change).
 
 ## Conduction events
 
@@ -150,6 +154,26 @@ A premise with `depends_on` globs appears only when a changed path matches them.
 
 Each event in `.memory/impact.json` can take three optional keys: `match`, `light`, and `always_heavy`. A `match` block lists words and paths, for example `{"words": ["handbook"], "paths": ["docs/"]}`. A top-level `risk` block replaces the default risk words and paths. Without these keys, the built-in defaults apply. Path patterns work like `.gitignore`: no slash matches a file name anywhere, a trailing slash matches a directory, and `**` matches any depth.
 
+### Two commands for one change
+
+```bash
+python3 scripts/memory_governance.py route "rename old-plan to starter" --paths docs/pricing.md --terms old-plan
+# make the change
+python3 scripts/memory_governance.py verify
+```
+
+`--record` opens a pending receipt when the tier is heavy. `--terms` opens one too and scans for an old name or path. The card then ends with the receipt ID. A light change with no `--terms` gets no receipt.
+
+`verify` closes the receipt after the change. It passes when three things hold:
+
+- no file still contains the old terms; allow a historical mention with `--allow "archive/**"`;
+- no P0 or P1 premise that depends on the changed paths is failing;
+- every script, skill, or workflow the card listed under `REGISTER` is in CAPABILITIES.md.
+
+`verify` also prints a `REVIEW` line with the surfaces whose content is the same as when the receipt was opened. That line does not block, because a surface may need no change. With one receipt pending, `verify` takes no argument. With several, name one with `--receipt`.
+
+The longer path still works: `impact --record` opens a receipt for one event and a list of terms, and `verify --receipt <id>` closes it.
+
 ### Look a row up
 
 ```bash
@@ -173,6 +197,8 @@ python3 scripts/memory_governance.py audit
 
 `doctor` runs the audit and fails while any finding remains. An optional `audit` block in `impact.json`, with `capability_globs` and `exempt` lists, replaces the default file patterns.
 
+Files that were unregistered when the audit first ran are a baseline. `init` records it in `.memory/audit_baseline.json`; in a project that adds CAPABILITIES.md later, the first `audit` does. `audit` and `doctor` count only files added after the baseline and print one line about the rest, and `map sync` still prints a row for each. An entry leaves the baseline when you register or delete the file. `audit --rebaseline` accepts the files that are unregistered today.
+
 ### Keep MAP.md current
 
 ```bash
@@ -180,7 +206,7 @@ python3 scripts/memory_governance.py map sync
 python3 scripts/memory_governance.py map sync --check
 ```
 
-`map sync` writes a generated block between `<!-- map:auto:begin -->` and `<!-- map:auto:end -->`, with one row per top-level directory: files, INDEX rows, registered capabilities, unregistered files, and split files. Rows you wrote outside the block stay as they are. It also prints paste-ready rows: new CAPABILITIES.md entries marked `incubating`, CAPABILITIES.md retirements, and new MAP.md components. It never writes them for you. `--check` exits 1 when the block is out of date; `doctor` runs the check.
+`map sync` writes a generated block between `<!-- map:auto:begin -->` and `<!-- map:auto:end -->`, with one row per top-level directory: files, INDEX rows, registered capabilities, unregistered files, and split files. Rows you wrote outside the block stay as they are. It also prints paste-ready rows: new CAPABILITIES.md entries marked `incubating`, CAPABILITIES.md retirements, and new MAP.md components. It never writes them for you. `--check` exits 1 when the block lacks a top-level directory or a split file; `doctor` runs the check. A change in the counts alone is not drift: `doctor` stays green, and the next `map sync` refreshes them.
 
 ### Split memory files that grew too large
 
@@ -231,6 +257,80 @@ The first run records the always-loaded part in `.memory/rules_baseline.json`. Y
 
 `audit --rules` prints JSON for the agent's weekly review: the numbers above, the baseline, every near-verbatim repeat, a compact list of all rules, and the user's recorded answer about guardrails. `audit --rebaseline-rules` accepts the current always-loaded instructions as the new baseline. `audit --rules-answer guardrails=no` or `guardrails=yes` records the user's answer, so the agent asks only once. See [the rules review](WEEKLY_RECONCILE.md#the-rules-review).
 
+## Write, events, and IDs (1.4.3)
+
+Agents can still edit the memory files directly. Use these three commands when you want each write checked and recorded.
+
+### Write one checked line
+
+```bash
+python3 scripts/memory_governance.py write log "Shipped the pricing page" --source docs/pricing.md
+python3 scripts/memory_governance.py write now "Checkout redesign" --pointer docs/checkout.md
+python3 scripts/memory_governance.py write close "Checkout live" --match "checkout" --pointer docs/checkout.md
+```
+
+| Form | File | What it does |
+|---|---|---|
+| `log` | LOG.md | Adds one dated line on top of its month. A month that is not in the file yet goes above the older months of a newest-first log. |
+| `now` | NOW.md | Adds one dated line under In flight. `--pointer` is required. |
+| `close` | NOW.md, LOG.md | Takes the matching line out of In flight, adds a pointer under Recently touched, and writes the LOG.md entry, in one action. |
+| `propose` | PROPOSALS.md | Queues a fact with its source. It skips a fact that is already in MEMORY.md or in the queue. |
+| `promote` | PROPOSALS.md, MEMORY.md | Moves one approved proposal into the MEMORY.md section you name. |
+| `reject` | PROPOSALS.md, LOG.md | Removes one proposal and logs the reason. |
+| `fact` | MEMORY.md | Adds one dated, sourced line under the section you name. |
+| `index` | INDEX.md | Registers a file. `--update` changes the note of a file that is already registered. |
+| `capability` | CAPABILITIES.md | Adds a row above the template's placeholder row. The state defaults to `incubating`. |
+| `map` | MAP.md | Adds a component to the table under `--area`. |
+| `failure` | FAILURES.md | Adds an entry in the template's format with the next `F` ID, newest first. |
+
+Every form works the same way:
+
+- It redacts API keys, bearer tokens, `token=` and `password=` values, email addresses, IPv4 addresses, and home-directory user names.
+- It finds its place by heading or table header. When it cannot, it stops, lists the headings it found, and writes nothing.
+- Before it writes, it checks that every existing line is still there, byte for byte and in order. The only lines that leave are the ones `close`, `promote`, `reject`, and `index --update` are asked to move or replace.
+- It keeps the file's line endings.
+- `--dry-run` prints the line and where it would go. `--json` prints the result for tools.
+- `--take D` puts the next ID of a series in front of the line, as in `- [2026-11-10] D-001 · Keep prices in USD`.
+
+`write batch --file entries.jsonl` writes several entries. Each line is a JSON object with a `"face"` key that names the form, plus that form's options. It stops at the first entry that fails and says how many were written.
+
+In a project without `.memory/`, `write` still edits the file and skips the event log.
+
+### See what was written, and by whom
+
+```bash
+python3 scripts/memory_governance.py events
+python3 scripts/memory_governance.py events list --since 41
+python3 scripts/memory_governance.py events verify
+```
+
+`.memory/events.jsonl` gets one line for each write, receipt, contradiction, split, map sync, and ID:
+
+```json
+{"seq": 42, "ts": "2026-11-10T13:38:25+00:00", "actor": "claude-code", "event": "write.log", "file": "LOG.md", "sha256": "9d1c…", "summary": "- [2026-11-10] Shipped the pricing page — docs/pricing.md", "prev": "3f6c1d0a9b2e4c57"}
+```
+
+- `actor` is `--actor`, else the `WALLABY_MEMORY_ACTOR` environment variable, else `cli`. Set the variable once for each agent. The operating-system user name is never recorded.
+- `seq` counts up by one. `events list --since <seq>` shows what happened after a point you noted, oldest first, so an agent can ask what changed while it worked.
+- `prev` ties each line to the one before it. `events verify` exits 1 when a line was edited, removed, or merged in from another copy.
+- `sha256` is the file's hash after the write. When a logged file changes without the CLI, `events verify` and `doctor` say so in one line and keep their exit codes. `events adopt` records the current state; add `--note` to say why.
+
+The log describes one working copy on one machine. It does not merge across branches or across machines.
+
+### Take an ID
+
+```bash
+python3 scripts/memory_governance.py id take D --note "currency for prices"
+python3 scripts/memory_governance.py id list
+python3 scripts/memory_governance.py id audit
+```
+
+A series is one to four capital letters. Five are built in: `R` for receipts, `C` for contradictions, `P` for premises, `F` for failures, and `D` for decisions. Any other name starts a series of your own at 001.
+
+`take` returns the next free ID and records it. The number is above the counter in `.memory/ids.json`. It is also above every number of that series already written in MEMORY.md, NOW.md, LOG.md and its volumes, PROPOSALS.md, FAILURES.md, and the pack's own records. Examples inside comments and code blocks do not count. Two agents that ask at the same moment get different numbers: a lock file makes them take turns, and a lock left by a run that died is removed after two minutes.
+
+`audit` exits 1 when a contradiction, premise, or failure ID is defined twice. It also notes receipt IDs that 1.4.0 to 1.4.2 issued more than once, and IDs taken more than seven days ago that no file mentions.
+
 ## What the scanner does and does not do
 
 - It reads text files and reports paths and match counts, not file contents.
@@ -249,6 +349,9 @@ The first run records the always-loaded part in `.memory/rules_baseline.json`. Y
 | `.memory/receipts.jsonl` | Pending impact scans, later verifications, and split receipts |
 | `.memory/splits/` | One manifest per split, plus backups of every file a split changed |
 | `.memory/rules_baseline.json` | The always-loaded instructions at first run, plus the user's guardrails answer |
+| `.memory/audit_baseline.json` | Files that were unregistered before the first audit |
+| `.memory/events.jsonl` | One line for each write, receipt, contradiction, split, map sync, and ID |
+| `.memory/ids.json` | The next number of each ID series |
 | `scripts/memory_governance.py` | The installed CLI |
 
 Run the complete check after any change:

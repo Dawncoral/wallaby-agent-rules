@@ -69,7 +69,7 @@ These cover different failure modes:
 
 - `health_check.py`: file and memory hygiene, index drift, stale entries, budgets, secrets hygiene, and commit silence.
 - `reconcile.py`: completion claims that conflict with current state or lack evidence.
-- `doctor`: premise failures, open contradictions, pending impact receipts, registry audit findings, and drift in the generated MAP.md block.
+- `doctor`: premise failures, open contradictions, pending impact receipts, registry audit findings, drift in the generated MAP.md block, a broken event log, and IDs defined twice.
 - `split volume auto` moves finished months of LOG.md into volumes. `split topic propose` only nominates; a person reviews each nomination before `apply --confirm`.
 
 A nonzero exit is a finding to inspect, not a failure to hide. A zero exit is evidence only within the checks' coverage.

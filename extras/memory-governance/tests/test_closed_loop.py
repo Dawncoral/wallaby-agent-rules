@@ -308,6 +308,11 @@ class MapTests(Base):
         self.assertEqual(self.cli("map", "sync", "--check").returncode, 0)
         self.assertIn("MAP unchanged", self.cli("map", "sync").stdout)
         self.write("scripts/restore.py", "print(1)\n")
+        # a new file only moves the counts: that is not drift, and it does not turn doctor red
+        state = self.js("map", "sync", "--check")
+        self.assertEqual((state["status"], state["counts_stale"]), ("ok", True))
+        # a new top-level directory changes the structure: that is drift
+        self.write("api/handler.py", "pass\n")
         self.assertEqual(self.cli("map", "sync", "--check", ok=1).returncode, 1)
         self.assertIn("MAP drift", self.cli("doctor", ok=1).stdout)
 
@@ -534,8 +539,8 @@ class ClosedLoopTest(Base):
         self.write("docs/backup.md", "# Backups\n\nRun backup.py nightly; restore.py restores the latest snapshot.\n")
         self.cli("verify", "--receipt", receipt)
 
-        # 3. audit is clean, the map block catches up, doctor is green
-        self.assertEqual(self.cli("map", "sync", "--check", ok=1).returncode, 1)
+        # 3. audit is clean, the map block's counts catch up, doctor is green
+        self.assertTrue(self.js("map", "sync", "--check")["counts_stale"])
         self.cli("map", "sync")
         self.assertEqual(self.js("audit")["total"], 0)
         self.assertIn("DOCTOR OK", self.cli("doctor").stdout)

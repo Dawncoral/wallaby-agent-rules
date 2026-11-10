@@ -71,7 +71,7 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
 
-**New in 1.4.3**: an optional [memory MCP server](extras/memory-mcp/) for agents that never load the entry file. It reads, looks up, and logs through the same four files, and new facts wait in `PROPOSALS.md` until a person approves them. One Python file, no dependencies, 24 smoke checks.
+**New in 1.4.3**: the [governance pack](extras/memory-governance/) closes the loop. `route` prints a card of about 2 KB for a change: what to reuse, which map components it touches, which surfaces to update, the tier, and only the premises the changed paths depend on. `audit` finds unregistered capabilities and dead entries, `map sync` keeps a generated block in MAP.md current, and `split` moves finished LOG.md months into volumes. MEMORY.md and INDEX.md splits wait for your confirmation, and every split can be rolled back. An optional [memory MCP server](extras/memory-mcp/) opens the same files to agents that never load the entry file, with nine tools and 32 smoke checks.
 
 **New in 1.4.2**: lossless governance CLI upgrades. `upgrade` defaults to a dry run, refuses downgrades, and `--apply` replaces only the CLI after a backup. The new CLI must start and report the expected version, or the original is restored. Memory files, configs, receipts, and all other project files stay untouched.
 
@@ -144,8 +144,8 @@ Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, 
 
 - [`templates/`](templates/) — NOW / INDEX / LOG templates, optional MAP / CAPABILITIES / FAILURES templates, and the health check and reconcile scripts, ready to copy.
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
-- [`extras/memory-governance/`](extras/memory-governance/) — conduction, premise checks, contradiction history, and verification receipts through one zero-dependency CLI.
-- [`extras/memory-mcp/`](extras/memory-mcp/) — the same memory files as an MCP server: read, look up, propose, and log, with writes redacted and proposals kept out of MEMORY.md.
+- [`extras/memory-governance/`](extras/memory-governance/) — conduction, premise checks, contradiction history, verification receipts, change routing, registry audits, map sync, and memory splits through one zero-dependency CLI.
+- [`extras/memory-mcp/`](extras/memory-mcp/) — the same memory files as an MCP server: read, look up, propose, log, search capabilities, and route a change, with writes redacted and proposals kept out of MEMORY.md.
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/) — the whole system packaged as an installable agent skill (SKILL.md + both check scripts), for Hermes and any SKILL.md-compatible tool.
 - [`extras/skill-forge/`](extras/skill-forge/) — Skill Forge: lifecycle governance for the skills themselves. Requirement derivation, generation to a measured spec, a failure ledger, an optimize loop — as an MCP server, a prompt pack, or a SKILL.md-compatible skill.
 - [`upgrade/`](upgrade/) — one-page upgrade cards between versions.

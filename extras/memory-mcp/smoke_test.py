@@ -63,8 +63,9 @@ def main():
         r = s.call("initialize", {"protocolVersion": "2024-11-05"})
         check("initialize", r["result"]["serverInfo"]["name"] == "wallaby-memory-mcp")
         names = {t["name"] for t in s.call("tools/list")["result"]["tools"]}
-        check("seven tools", names == {"memory_read", "memory_locate", "memory_propose", "memory_note",
-                                       "memory_now", "memory_check", "memory_status"}, names)
+        check("nine tools", names == {"memory_read", "memory_locate", "memory_propose", "memory_note",
+                                      "memory_now", "memory_check", "memory_status", "memory_lookup",
+                                      "memory_route"}, names)
         text, err = s.tool("memory_read")
         check("read: MEMORY + NOW + conflict rule", not err and "USD" in text and "=== NOW.md ===" in text
               and "Conflict order" in text)
@@ -146,9 +147,51 @@ def main():
         check("propose: IP and home-directory user redacted", "[REDACTED_IP]" in props and "~/app" in props
               and "alice" not in props, props)
         shutil.rmtree(work, ignore_errors=True)
+        reg = tempfile.mkdtemp(prefix="memmcp-reg-")
+        os.makedirs(os.path.join(reg, "INDEX"))
+        os.makedirs(os.path.join(reg, "scripts"))
+        with open(os.path.join(reg, "INDEX.md"), "w", encoding="utf-8") as f:
+            f.write("# INDEX.md\n\n| File | What it is |\n|---|---|\n| `README.md` | Overview |\n\n## ops/\n"
+                    "<!-- pointer-stub -->\n> Moved to `INDEX/ops.md` on 2026-11-09. This is a pointer only; do not write here.\n")
+        with open(os.path.join(reg, "INDEX", "ops.md"), "w", encoding="utf-8") as f:
+            f.write("# INDEX.md · ops/\n\n<!-- split:body -->\n## ops/\n\n| File | What it is |\n|---|---|\n"
+                    "| `ops/restore.md` | Restore from the nightly backup |\n")
+        with open(os.path.join(reg, "CAPABILITIES.md"), "w", encoding="utf-8") as f:
+            f.write("# CAPABILITIES.md\n\n| Capability | Form | Entry point | Trigger words | State | Call / output |\n"
+                    "|---|---|---|---|---|---|\n| `backup.py` | Script | `scripts/backup.py` | backup, snapshot | active "
+                    "| `python3 scripts/backup.py` |\n| `old_dump.sh` | Script | `scripts/old_dump.sh` | dump | retired "
+                    "| use backup.py |\n")
+        with open(os.path.join(reg, "MAP.md"), "w", encoding="utf-8") as f:
+            f.write("# MAP.md\n\n## Operations\n\n| Component | Job | Change keywords | Details |\n|---|---|---|---|\n"
+                    "| `backups` | Nightly backups | backup, restore | `ops/restore.md` |\n")
+        with open(os.path.join(reg, "scripts", "backup.py"), "w", encoding="utf-8") as f:
+            f.write("print('ok')\n")
+        s5 = Server(reg)
+        s5.call("initialize")
+        text, _ = s5.tool("memory_locate", query="restore")
+        check("locate: follows INDEX.md one hop into an INDEX/ part", "ops/restore.md" in text, text)
+        out = json.loads(s5.tool("memory_lookup", registry="capability", query="snapshot")[0])
+        check("lookup: capability rows by trigger word", out["total"] == 1 and out["rows"][0]["entry"] == "scripts/backup.py", out)
+        out = json.loads(s5.tool("memory_lookup", registry="capability", query="backup")[0])
+        check("lookup: a retired row that names the replacement is found too", out["total"] == 2, out)
+        out = json.loads(s5.tool("memory_lookup", registry="capability", status="retired")[0])
+        check("lookup: status filter", [r["capability"] for r in out["rows"]] == ["old_dump.sh"], out)
+        out = json.loads(s5.tool("memory_lookup", registry="map", query="restore")[0])
+        check("lookup: map rows", out["rows"] and out["rows"][0]["area"] == "Operations", out)
+        text, err = s5.tool("memory_lookup", registry="docs")
+        check("lookup: unknown registry is an error", err)
+        raw, err = s5.tool("memory_route", intent="change the nightly backup", paths=["scripts/backup.py"])
+        card = json.loads(raw)
+        check("route: card names reuse, component and tier", not err and card["reuse"][0]["capability"] == "backup.py"
+              and card["components"][0]["component"] == "backups" and card["tier"] in ("light", "heavy")
+              and len(raw.encode("utf-8")) <= 2048, raw)
+        text, err = s5.tool("memory_route")
+        check("route: empty call is an error", err)
+        s5.close()
+        shutil.rmtree(reg, ignore_errors=True)
         ver = subprocess.run([sys.executable, SERVER, "--version"], capture_output=True, text=True, timeout=10)
         check("--version names server, release and core format",
-              ver.stdout.strip() == "wallaby-memory-mcp 0.2.0 (wallaby-agent-rules 1.4.3, core format 1.0.1)",
+              ver.stdout.strip() == "wallaby-memory-mcp 0.3.0 (wallaby-agent-rules 1.4.3, core format 1.0.1)",
               ver.stdout)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

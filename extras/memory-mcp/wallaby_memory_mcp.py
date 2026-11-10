@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wallaby_memory_mcp.py — the file memory as an MCP server (0.2.0, ships with wallaby-agent-rules 1.4.3).
+"""wallaby_memory_mcp.py — the file memory as an MCP server (0.3.0, ships with wallaby-agent-rules 1.4.3).
 
 The memory stays what it is: MEMORY.md, NOW.md, INDEX.md, LOG.md (and PROPOSALS.md for the trust-
 building queue) as plain Markdown in the project. This server is an optional second door to the same
@@ -8,13 +8,22 @@ It adds no store of its own: the files are the single source; nothing here is ca
 
 The tools follow the protocol, not a free search:
   memory_read     — the session-start read: MEMORY.md + NOW.md, with versions and the conflict rule
-  memory_locate   — "look it up, don't search": rows of INDEX.md whose path or note match
+  memory_locate   — "look it up, don't search": rows of INDEX.md (and the INDEX/ parts it points to)
+                    whose path or note match
   memory_propose  — a new durable fact goes to PROPOSALS.md, dated and sourced, never into MEMORY.md;
                     a person (or an approving tool) promotes it
   memory_note     — "note this": one dated line on top of this month in LOG.md
   memory_now      — tracked work moved: one dated line under "In flight" in NOW.md
   memory_check    — run scripts/health_check.py and scripts/reconcile.py when they are installed
   memory_status   — installed version vs this server's, counts, budget, upgrade hint
+  memory_lookup   — rows of CAPABILITIES.md (registry=capability) or MAP.md (registry=map): search
+                    before building; same name and arguments as the central lookup tool it mirrors
+  memory_route    — the reflex card for a change: what to reuse, which map components, event types and
+                    surfaces, the tier, and only the premises the changed paths touch (about 2 KB)
+
+memory_lookup and memory_route hold no logic of their own: they run the governance CLI
+(scripts/memory_governance.py, 1.4.3 or newer; else the copy beside this server in the repo) with
+--json and return its output. Both are read-only.
 
 `--tools` limits what a client sees (a workbench may expose only read/locate/propose). Every write is
 redacted (keys, tokens, emails, IPs, home-dir user names) before it touches a file.
@@ -36,7 +45,7 @@ import subprocess
 import sys
 
 SERVER_NAME = "wallaby-memory-mcp"
-SERVER_VERSION = "0.2.0"
+SERVER_VERSION = "0.3.0"
 ORIGIN = ""  # --origin: the work this session does (for example a task id); added to every proposal
 RULES_VERSION = "1.4.3"  # the wallaby-agent-rules release this server ships with
 CORE_FORMAT = "1.0.1"    # newest first-line marker on MEMORY.md / NOW.md / INDEX.md / LOG.md in that release
@@ -161,13 +170,49 @@ def t_read(mem, args):
     return "\n".join(head) + "\n\n=== MEMORY.md ===\n" + memory.strip() + "\n\n=== NOW.md ===\n" + now.strip(), False
 
 
+INDEX_PART_RE = re.compile(r"`(INDEX/[^`\s]+\.md)`")
+GOVERNANCE_BUNDLED = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir,
+                                                   "memory-governance", "memory_governance.py"))
+
+
+def index_text(mem):
+    """INDEX.md plus the parts it points to (INDEX/<part>.md after a topic split): one hop, no deeper."""
+    main = mem.read("INDEX")
+    texts = [main]
+    for rel in sorted(set(INDEX_PART_RE.findall(main))):
+        part = os.path.join(mem.root, rel)
+        if os.path.isfile(part):
+            with open(part, encoding="utf-8") as f:
+                texts.append(f.read())
+    return "\n".join(texts)
+
+
+def run_governance(mem, argv):
+    """Run the project's governance CLI (else the bundled copy) with --target; None when neither has the command."""
+    tried = []
+    for cli in (os.path.join(mem.root, "scripts", "memory_governance.py"), GOVERNANCE_BUNDLED):
+        if not os.path.isfile(cli) or cli in tried:
+            continue
+        tried.append(cli)
+        r = subprocess.run([sys.executable, cli, "--target", mem.root] + argv, capture_output=True, text=True, timeout=60)
+        if r.returncode == 2 and "invalid choice" in r.stderr:
+            continue  # a CLI older than 1.4.3 has no route/lookup
+        return r
+    return None
+
+
+NO_GOVERNANCE = ("The governance CLI (1.4.3 or newer) is not installed under this root. Install it with "
+                 "`python3 extras/memory-governance/memory_governance.py --target . init` from wallaby-agent-rules "
+                 "(or update an older copy with its `upgrade --apply`), or read CAPABILITIES.md and MAP.md directly.")
+
+
 def t_locate(mem, args):
     q = one_line(args.get("query"), 200).lower()
     if not q:
         return "query is empty: say what you are looking for (a file, a topic, a name).", True
     terms = [t for t in re.split(r"\s+", q) if t]
     rows = []
-    for ln in mem.read("INDEX").splitlines():
+    for ln in index_text(mem).splitlines():
         s = ln.strip()
         if not (s.startswith("|") or s.startswith("- ")) or set(s) <= set("|-: "):
             continue
@@ -241,6 +286,47 @@ def t_check(mem, args):
     return "\n\n".join(out), False
 
 
+def t_lookup(mem, args):
+    registry = one_line(args.get("registry") or "capability", 20).lower()
+    if registry not in ("capability", "map"):
+        return "registry must be 'capability' (CAPABILITIES.md) or 'map' (MAP.md).", True
+    argv = ["lookup", "--json", "--registry", registry, "--query", one_line(args.get("query"), 200)]
+    if args.get("status"):
+        argv += ["--status", one_line(args.get("status"), 40)]
+    try:
+        limit = max(1, min(50, int(args.get("limit") or 10)))
+    except (TypeError, ValueError):
+        return "limit must be a number from 1 to 50.", True
+    argv += ["--limit", str(limit)] + (["--detail"] if args.get("detail") else [])
+    r = run_governance(mem, argv)
+    if r is None:
+        return NO_GOVERNANCE, True
+    return (r.stdout.strip(), False) if r.returncode == 0 else ((r.stderr or r.stdout).strip()[:2000], True)
+
+
+def t_route(mem, args):
+    intent = one_line(args.get("intent"), 500)
+    paths = [one_line(p, 300) for p in (args.get("paths") or []) if str(p).strip()][:50]
+    if not intent and not paths:
+        return "say what the change is (intent) or list the paths it touches.", True
+    argv = ["route", "--json"]
+    for e in (args.get("events") or [])[:9]:
+        argv += ["--event", one_line(e, 40)]
+    if args.get("reversible"):
+        argv.append("--reversible")
+    if args.get("single_area"):
+        argv.append("--single-area")
+    if args.get("detail"):
+        argv.append("--detail")
+    if paths:
+        argv += ["--paths"] + paths
+    argv += ["--", intent]
+    r = run_governance(mem, argv)
+    if r is None:
+        return NO_GOVERNANCE, True
+    return (r.stdout.strip(), False) if r.returncode == 0 else ((r.stderr or r.stdout).strip()[:2000], True)
+
+
 def t_status(mem, args):
     installed = mem.installed_version()
     memory = mem.read("MEMORY")
@@ -264,7 +350,7 @@ def t_status(mem, args):
 TOOLS = {
     "memory_read": (t_read, "Read the project memory at the start of a session: MEMORY.md and NOW.md, with the conflict rule. Call this before taking work.",
                     {"type": "object", "properties": {}}),
-    "memory_locate": (t_locate, "Find a file or topic in INDEX.md (the project map). A lookup, not a search: returns the matching index rows.",
+    "memory_locate": (t_locate, "Find a file or topic in INDEX.md (the project map) and the INDEX/ parts it points to. A lookup, not a search: returns the matching index rows.",
                       {"type": "object", "properties": {"query": {"type": "string", "description": "words to look up, e.g. 'pricing spec'"}},
                        "required": ["query"]}),
     "memory_propose": (t_propose, "Propose a new durable fact or rule. It is queued in PROPOSALS.md for a person to approve; it does not become memory by itself.",
@@ -279,6 +365,21 @@ TOOLS = {
                      {"type": "object", "properties": {}}),
     "memory_status": (t_status, "Versions, counts and the memory budget; says when an upgrade is due.",
                       {"type": "object", "properties": {}}),
+    "memory_lookup": (t_lookup, "Look up rows in CAPABILITIES.md (registry=capability) or MAP.md (registry=map). Search the capabilities before building something new. Read-only; returns JSON.",
+                      {"type": "object", "properties": {
+                          "registry": {"type": "string", "enum": ["capability", "map"], "description": "capability (default) or map"},
+                          "query": {"type": "string", "description": "words that must all appear in a row, e.g. 'backup restore'"},
+                          "status": {"type": "string", "description": "capability state filter: active, incubating or retired"},
+                          "limit": {"type": "integer", "description": "rows to return, 1-50 (default 10)"},
+                          "detail": {"type": "boolean", "description": "every column, untruncated"}}}),
+    "memory_route": (t_route, "Before or after a change: one compact card (about 2 KB) with what to reuse, the map components it touches, event types and surfaces to update, the tier (light or heavy), and only the premises the changed paths depend on. Read-only; returns JSON.",
+                     {"type": "object", "properties": {
+                         "intent": {"type": "string", "description": "the change in plain words"},
+                         "paths": {"type": "array", "items": {"type": "string"}, "description": "paths the change touches"},
+                         "events": {"type": "array", "items": {"type": "string"}, "description": "event types to include, e.g. feature"},
+                         "reversible": {"type": "boolean", "description": "the change can be undone inside the project"},
+                         "single_area": {"type": "boolean", "description": "the change stays inside one map area"},
+                         "detail": {"type": "boolean", "description": "lift the 2 KB budget"}}}),
 }
 
 

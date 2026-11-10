@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# wallaby-agent-rules 1.4.0
+# wallaby-agent-rules 1.4.3
 """health_check.py — weekly tidy-up check for projects using the memory system.
 
 Zero dependencies, Python 3.8+. Ten scans:
@@ -64,6 +64,7 @@ SKIP_DIRS = {
     ".git", ".hg", ".svn", "node_modules", ".venv", "venv", "env",
     "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
     "dist", "build", ".next", ".nuxt", "out", "target", ".idea", ".vscode",
+    ".memory",  # governance data and split backups (memory_governance.py)
 }
 
 # Generated-artifact extensions that should not sit loose inside the project.
@@ -146,13 +147,40 @@ def scan_artifacts(root):
     return findings
 
 
-def scan_unregistered_md(root):
-    """Scan 3: .md files not mentioned in INDEX.md."""
+_INDEX_PART_RX = re.compile(r"`(INDEX/[^`\s]+\.md)`")
+_VOLUME_RX = re.compile(r"^\d{4}-\d{2}\.md$")
+
+
+def index_files(root):
+    """INDEX.md plus the parts it points to (INDEX/<part>.md after a topic split)."""
     index_path = os.path.join(root, "INDEX.md")
     if not os.path.isfile(index_path):
-        return None  # no index — reported separately by the caller
+        return []
     with open(index_path, "r", encoding="utf-8", errors="replace") as f:
-        index_text = f.read()
+        main = f.read()
+    paths = [index_path]
+    for rel in sorted(set(_INDEX_PART_RX.findall(main))):
+        part = os.path.join(root, rel)
+        if os.path.isfile(part):
+            paths.append(part)
+    return paths
+
+
+def _is_volume(root, rel):
+    """LOG/2026-09.md beside LOG.md is a month volume: LOG.md's volume list registers it."""
+    parent, name = os.path.split(rel)
+    return bool(parent) and bool(_VOLUME_RX.match(name)) and os.path.isfile(os.path.join(root, parent + ".md"))
+
+
+def scan_unregistered_md(root):
+    """Scan 3: .md files not mentioned in INDEX.md (or its parts)."""
+    paths = index_files(root)
+    if not paths:
+        return None  # no index — reported separately by the caller
+    index_text = ""
+    for path in paths:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            index_text += f.read() + "\n"
     findings = []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
@@ -160,6 +188,8 @@ def scan_unregistered_md(root):
             if not name.lower().endswith(".md") or name in INDEX_EXEMPT:
                 continue
             rel = os.path.relpath(os.path.join(dirpath, name), root)
+            if _is_volume(root, rel.replace(os.sep, "/")):
+                continue
             # Registered if the index mentions the filename or the full path.
             if name not in index_text and rel not in index_text:
                 findings.append(rel)
@@ -195,23 +225,24 @@ _TOKEN_RX = re.compile(r"`([^`\s]+)`")
 
 
 def scan_broken_index_entries(root):
-    """Scan 5: INDEX.md registrations whose files no longer exist."""
-    index_path = os.path.join(root, "INDEX.md")
-    if not os.path.isfile(index_path):
+    """Scan 5: INDEX.md (and INDEX part) registrations whose files no longer exist."""
+    paths = index_files(root)
+    if not paths:
         return None
     findings = []
-    with open(index_path, "r", encoding="utf-8", errors="replace") as f:
-        for line in f:
-            if line.lstrip().startswith("#"):
-                continue
-            for token in _TOKEN_RX.findall(line):
-                cand = token.strip()
-                if not cand or cand.startswith(("http://", "https://", "#", "<")):
+    for path in paths:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.lstrip().startswith("#"):
                     continue
-                if "/" not in cand and "." not in os.path.basename(cand):
-                    continue  # plain word, not a path
-                if not os.path.exists(os.path.join(root, cand)):
-                    findings.append(cand)
+                for token in _TOKEN_RX.findall(line):
+                    cand = token.strip()
+                    if not cand or cand.startswith(("http://", "https://", "#", "<")):
+                        continue
+                    if "/" not in cand and "." not in os.path.basename(cand):
+                        continue  # plain word, not a path
+                    if not os.path.exists(os.path.join(root, cand)):
+                        findings.append(cand)
     return findings
 
 

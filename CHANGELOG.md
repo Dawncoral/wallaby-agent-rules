@@ -5,11 +5,30 @@ All notable changes to wallaby-agent-rules. This project versions by marker comm
 
 ## 1.4.3 — 2026-11-09
 
-**Optional memory MCP server.** New `extras/memory-mcp/`: one zero-dependency stdio server that opens the memory files to agents that do not load the entry file. Seven tools cover the session-start read, INDEX lookup, proposals, log notes, in-flight updates, the weekly checks, and version status. `memory_propose` queues facts in `PROPOSALS.md` and never writes `MEMORY.md`. Every write is redacted first. `--tools` limits what a client sees, and `--origin` tags each proposal with the task that made it. No installed file changes.
+**The registries, the change check, and the memory files now work as one loop.** The release checklist counts new commands as a minor version; this one keeps a patch number by maintainer decision.
+
+- **Governance CLI 1.4.3** in `extras/memory-governance/` adds five commands. None needs a dependency or a model, and each skips the checks for files your project does not have.
+  - `route "<change>" --paths …` prints one card of about 2 KB: capabilities to reuse, files to register first, the MAP.md components and areas the change touches, event types and surfaces, a light or heavy tier with reasons, and the premises to review. A premise with `depends_on` appears only when a changed path matches it; a premise without one appears every time.
+  - `lookup` returns rows of CAPABILITIES.md or MAP.md.
+  - `audit` reports unregistered scripts, skills, and workflows; entries and map paths that lead to missing files; active capabilities that nothing mentions; pointer stubs that hold extra text; and edited month volumes. `doctor` runs it.
+  - `map sync` keeps a generated block in MAP.md, one row per top-level directory, and prints paste-ready rows to add or retire. Rows you wrote stay as they are. `--check` exits 1 on drift, and `doctor` runs the check.
+  - `split volume` moves finished months of LOG.md into `LOG/YYYY-MM.md` automatically. `split topic` nominates MEMORY.md sections or INDEX.md parts once a file passes its budget and applies a nomination only with `--confirm`. Every split checks that the merged text matches the original byte for byte. It keeps a manifest, a backup, and a receipt, and it can be rolled back.
+- `impact` also lists the MAP.md components and capabilities the scan touched and records both in the receipt.
+- Receipt IDs now increase: `R-000001`, then `R-000002`, and so on. Versions 1.4.0 to 1.4.2 gave every receipt `R-000001`. The upgrade leaves existing receipts as they are.
+- **Memory MCP server 0.3.0**, new in this release under `extras/memory-mcp/`: one zero-dependency stdio server that opens the memory files to agents that do not load the entry file. Nine tools cover the session-start read, INDEX lookup, proposals, log notes, in-flight updates, the weekly checks, version status, capability lookup, and change routing. The last two, `memory_lookup` and `memory_route`, are read-only and call the governance CLI. `memory_locate` also reads the INDEX parts that INDEX.md points to. `memory_propose` queues facts in `PROPOSALS.md` and never writes `MEMORY.md`. Every write is redacted first. `--tools` limits what a client sees, and `--origin` tags each proposal with the task that made it.
+- **health_check.py and reconcile.py 1.4.3**: health_check.py counts month volumes as registered through their volume list and reads INDEX parts as part of INDEX.md. reconcile.py reads the volumes. Both skip `.memory/`.
+- **Entry-file rules**: two optional lines — search CAPABILITIES.md before you build, and run `route` or `impact` after you change a component listed in MAP.md. Added to PROMPT.md L0 and L1, PROMPT.zh-CN.md, AGENTS.md, and the installable skill, now skill version 1.2.0. The L2 upgrade check recognizes 1.4.3.
+- MEMORY.md, NOW.md, INDEX.md, and LOG.md keep their 1.0.1 format.
 
 ### Migrating from 1.4.2
 
-Nothing is required. To try the server, add it to your MCP client as shown in `extras/memory-mcp/README.md`, then run `python3 extras/memory-mcp/smoke_test.py` (24 checks on a temporary project).
+Nothing is required. To use the new commands:
+
+1. Preview the CLI upgrade with `python3 scripts/memory_governance.py upgrade --source /path/to/wallaby-agent-rules/extras/memory-governance/memory_governance.py`, then add `--apply`.
+2. Replace `scripts/health_check.py` and `scripts/reconcile.py` with the 1.4.3 templates before your first split, so the weekly checks read volumes and INDEX parts.
+3. Run `python3 scripts/memory_governance.py doctor`. If MAP.md or CAPABILITIES.md exists, the new audit may report problems that already existed; `map sync` prints rows to paste.
+
+To try the MCP server, add it to your MCP client as shown in `extras/memory-mcp/README.md`, then run `python3 extras/memory-mcp/smoke_test.py` (32 checks on a temporary project). The governance tests run with `python3 -m unittest discover -s extras/memory-governance/tests` (56 tests).
 
 ## 1.4.2 — 2026-10-30
 

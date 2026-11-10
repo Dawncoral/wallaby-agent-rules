@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.1 -->
+<!-- wallaby-agent-rules 1.4.3 -->
 # Weekly reconciliation: a creation guide
 
 A weekly reconciliation compares what your project says happened with the evidence available now. It finds stale state, unsupported completion claims, broken references, failing premises, open contradictions, and checks that cannot see their own blind spots.
@@ -61,13 +61,16 @@ For a project using the core memory system and the governance pack:
 python3 scripts/health_check.py
 python3 scripts/reconcile.py
 python3 scripts/memory_governance.py doctor
+python3 scripts/memory_governance.py split volume auto
+python3 scripts/memory_governance.py split topic propose
 ```
 
 These cover different failure modes:
 
 - `health_check.py`: file and memory hygiene, index drift, stale entries, budgets, secrets hygiene, and commit silence.
 - `reconcile.py`: completion claims that conflict with current state or lack evidence.
-- `doctor`: premise failures, open contradictions, and pending impact receipts.
+- `doctor`: premise failures, open contradictions, pending impact receipts, registry audit findings, and drift in the generated MAP.md block.
+- `split volume auto` moves finished months of LOG.md into volumes. `split topic propose` only nominates; a person reviews each nomination before `apply --confirm`.
 
 A nonzero exit is a finding to inspect, not a failure to hide. A zero exit is evidence only within the checks' coverage.
 

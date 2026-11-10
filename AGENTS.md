@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.0 -->
+<!-- wallaby-agent-rules 1.4.3 -->
 # AGENTS.md — token-budget starter template
 # Source: Wallaby Token engineering practice — https://www.wallabytoken.com/blog/p/agents-md-token-budget
 # License: MIT — adapt freely, attribution appreciated.
@@ -34,6 +34,8 @@ Maintenance rules:
   ages. Never write state into this file, and never write rules into
   MEMORY.md.
 - Conflict order: this file > MEMORY.md > your own recollection.
+- If `CAPABILITIES.md` exists, search it before you build a script, skill, template, or scheduled job, and reuse what it lists.
+- If you change a component listed in `MAP.md`, run `python3 scripts/memory_governance.py route "<the change>" --paths <files>` or `impact` before you call the work done. Without the governance pack, read that component's row and check every file it links to.
 
 ## Stakeholder check (before writing about any person or org)
 

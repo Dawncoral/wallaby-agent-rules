@@ -63,7 +63,7 @@ python3 scripts/memory_governance.py doctor
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
 
-**1.4.3 新增**：可选的[记忆 MCP 服务器](extras/memory-mcp/)，给读不到入口文件的 agent 用。它通过同样四个文件读取、查找、记日志；新事实先进 `PROPOSALS.md`，等人批准。单个 Python 文件，零依赖，24 项冒烟自检。
+**1.4.3 新增**：[记忆治理包](extras/memory-governance/)把能力表、地图、传导检查和记忆文件接到一起。`route` 为一次改动出一张约 2 KB 的卡：能复用什么、碰到地图上哪些组件、要同步哪些面、走轻档还是重档，以及只列改动路径所依赖的前提。`audit` 查漏登和失效条目，`map sync` 让 MAP.md 里的机器区保持最新，`split` 把 LOG.md 已结束的月份切成分卷；MEMORY.md 和 INDEX.md 的拆分要你确认才执行，每次分裂都能回滚。另有可选的[记忆 MCP 服务器](extras/memory-mcp/)，给读不到入口文件的 agent 用同一套文件，九个工具，32 项冒烟自检。
 
 **1.4.2 新增**：治理 CLI 无损升级。`upgrade` 默认只预览并拒绝降级，`--apply` 会先备份再只替换 CLI；新 CLI 必须能启动并报告预期版本，否则自动恢复旧脚本。记忆文件、配置、回执和其他项目文件均不受影响。
 
@@ -132,8 +132,8 @@ python3 scripts/memory_governance.py doctor
 
 - [`templates/`](templates/)——NOW / INDEX / LOG 模板、可选 MAP / CAPABILITIES / FAILURES 模板，以及健康检查与对账脚本，可直接复制。
 - [`templates/integrations/`](templates/integrations/)——每工具一张卡：入口文件、坑、30 秒自检。
-- [`extras/memory-governance/`](extras/memory-governance/)——通过一个零依赖 CLI 提供传导、前提检查、矛盾历史与验收回执。
-- [`extras/memory-mcp/`](extras/memory-mcp/)——把同一套记忆文件做成 MCP 服务器：读取、查找、提议、记日志；写入先脱敏，提议不进 MEMORY.md。
+- [`extras/memory-governance/`](extras/memory-governance/)——通过一个零依赖 CLI 提供传导、前提检查、矛盾历史、验收回执、改动路由、登记审计、地图同步与记忆分裂。
+- [`extras/memory-mcp/`](extras/memory-mcp/)——把同一套记忆文件做成 MCP 服务器：读取、查找、提议、记日志、查能力表、为改动出路由卡；写入先脱敏，提议不进 MEMORY.md。
 - [`skills/agent-memory-rules/`](skills/agent-memory-rules/)——整套系统打包成可安装的 agent 技能（SKILL.md + 两个检查脚本），适配 Hermes 及任何认 SKILL.md 约定的工具。
 - [`extras/skill-forge/`](extras/skill-forge/)——Skill Forge：技能本身的生命周期治理。需求推导、按实测规格生成、故障台账、优化回路——MCP 服务器、提示词包、SKILL.md 技能三种形态。
 - [`upgrade/`](upgrade/)——版本间的一页升级卡。

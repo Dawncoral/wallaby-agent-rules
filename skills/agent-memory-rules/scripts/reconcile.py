@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# wallaby-agent-rules 1.0.0
+# wallaby-agent-rules 1.4.3
 """reconcile.py — weekly consistency audit between the dated log and current state.
 
 Zero dependencies, Python 3.8+. Two scans:
@@ -20,6 +20,10 @@ Usage:
   python3 reconcile.py [target_dir] [--days N]   # default: cwd, 30 days
 
 Exit code: 0 when clean, 1 when any scan reports findings.
+
+Month volumes: when LOG.md has been split (`memory_governance.py split volume`), finished
+months live in LOG/YYYY-MM.md beside it. The audit reads those volumes too, so a window that
+reaches into last month still sees last month.
 Tune the constants below to your project — they are configuration, not law.
 """
 
@@ -69,12 +73,26 @@ LOG_ENTRY = re.compile(r"^[-*]\s*\[(\d{4})-(\d{2})-(\d{2})\]\s*(.*)$")
 
 # --- Parsing -----------------------------------------------------------------
 
+VOLUME_NAME = re.compile(r"^\d{4}-\d{2}\.md$")
+
+
+def log_texts(path):
+    """LOG.md plus its month volumes (LOG/YYYY-MM.md), if any."""
+    texts = [path.read_text(encoding="utf-8", errors="replace")]
+    vdir = path.with_name(path.stem)
+    if vdir.is_dir():
+        for vol in sorted(vdir.iterdir()):
+            if vol.is_file() and VOLUME_NAME.match(vol.name):
+                texts.append(vol.read_text(encoding="utf-8", errors="replace"))
+    return texts
+
+
 def parse_log(path):
-    """Return [(date, text)] for dated bullet entries in LOG.md."""
+    """Return [(date, text)] for dated bullet entries in LOG.md and its month volumes."""
     if not path.is_file():
         return None
     out = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in "\n".join(log_texts(path)).splitlines():
         m = LOG_ENTRY.match(line.strip())
         if not m:
             continue

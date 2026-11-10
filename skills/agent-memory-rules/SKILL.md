@@ -1,7 +1,7 @@
 ---
 name: agent-memory-rules
 description: Build and maintain a file-based long-term memory system in any project — entry file (AGENTS.md or per-tool variant), tiered MEMORY.md with aging, session closeout ritual, weekly health-check scripts. Use when project context gets re-explained every session, files are hard to locate, or the user says "remember this".
-version: 1.1.0
+version: 1.2.0
 author: Wallaby Token
 license: MIT
 metadata:
@@ -48,6 +48,8 @@ Six pieces, all inside the project:
 ## Standing Rules (what goes into the entry file)
 
 - At the start of every session, read `MEMORY.md` and `NOW.md` before taking work. Before searching for any file, check `INDEX.md` first.
+- If `CAPABILITIES.md` exists, search it before you build a script, skill, template, or scheduled job, and reuse what it lists.
+- If you change a component listed in `MAP.md`, run `python3 scripts/memory_governance.py route "<the change>" --paths <files>` or `impact` before you call the work done. Without the governance pack, read that component's row and check every file it links to.
 - Conflict order: what the memory files say > what you remember > what you infer. On conflict, follow the file and flag it to the user.
 - Update `NOW.md` the moment tracked work moves; register new files in `INDEX.md` the moment they are created; delete process scratch; git history already holds the trace.
 - Aging: when MEMORY.md passes its soft wall (~150 dated lines or ~8k estimated tokens, CJK-weighted), facts untouched for 30+ days move to `LOG.md` at the next closeout. Git keeps the history.

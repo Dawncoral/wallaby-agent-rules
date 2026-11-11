@@ -37,7 +37,7 @@ from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-VERSION = "1.4.4"
+VERSION = "1.4.5"
 SKIP_DIRS = {
     ".git", ".hg", ".svn", ".credentials", ".memory", "node_modules",
     ".venv", "venv", "env", "__pycache__", ".pytest_cache", "dist",
@@ -676,7 +676,7 @@ def cmd_doctor(args):
     for line in dupes:
         print(f"IDS {line}")
     prof = profile_check(root)
-    if prof["exists"]:
+    if prof["recognized"]:
         print(f"PROFILE lines={prof['entries']} errors={len(prof['errors'])} due={len(prof['due'])}"
               + (" (profile check lists them)" if prof["errors"] or prof["due"] else ""))
         if prof["errors"]:
@@ -3747,6 +3747,16 @@ GOAL_LINE = re.compile(r"^- (?:\[\d{4}-\d{2}-\d{2}\]\s+)?\**([GV]\d{1,3})\**\s+Â
 GOAL_REF = re.compile(r"(?<![A-Za-z0-9])goal:\s*([GV]\d{1,3})\b")
 
 
+def goals_adopted(root: Path):
+    """True once MEMORY.md has a heading that starts with Goals: only then do goal pointers get checked."""
+    path = root / MEMORY_NAME
+    if not path.is_file():
+        return False
+    lines = read_text(path).splitlines(keepends=True)
+    hidden = _hidden_lines(lines)
+    return any(re.match(r"^#{1,6}\s+goals", ln.strip(), re.I) for i, ln in enumerate(lines) if i not in hidden)
+
+
 def goal_list(root: Path):
     path = root / MEMORY_NAME
     if not path.is_file():
@@ -3783,6 +3793,8 @@ def goals_report(root: Path):
     goals = goal_list(root)
     known = {g["id"] for g in goals}
     refs, ghosts = {g["id"]: [] for g in goals}, []
+    if not goals_adopted(root):   # text like "goal: G2" in a project that never adopted goal IDs is not a pointer
+        return {"goals": [], "ghosts": []}
     files = [root / "NOW.md", root / LOG_NAME] + volume_files(root / LOG_NAME)
     for path in files:
         if not path.is_file():
@@ -3822,11 +3834,15 @@ def _profile_key(title):
 def profile_check(root: Path, today=None):
     path = root / PROFILE_NAME
     if not path.is_file():
-        return {"file": PROFILE_NAME, "exists": False, "entries": 0, "errors": [], "due": [],
+        return {"file": PROFILE_NAME, "exists": False, "recognized": False, "entries": 0, "errors": [], "due": [],
                 "note": "no PROFILE.md: copy templates/PROFILE.md to start one"}
     day = datetime.strptime(local_today(today), "%Y-%m-%d").date()
     lines = read_text(path).splitlines(keepends=True)
     hidden = _hidden_lines(lines)
+    heads = [re.match(r"^##\s+(.*)$", ln.strip()) for i, ln in enumerate(lines) if i not in hidden]
+    if not any(h and _profile_key(h.group(1)) for h in heads):
+        return {"file": PROFILE_NAME, "exists": True, "recognized": False, "entries": 0, "errors": [], "due": [],
+                "note": "PROFILE.md has none of the five profile headings, so it is not checked as a profile"}
     errors, due, seen, entries, section = [], [], {}, 0, None
     for i, ln in enumerate(lines):
         if i in hidden:
@@ -3864,7 +3880,7 @@ def profile_check(root: Path, today=None):
         if limit is not None and age > limit:
             due.append({"line": i + 1, "section": section, "date": m.group(1), "age": age, "limit": limit,
                         "text": re.sub(r"\s+â€” source:.*$", "", body)})
-    return {"file": PROFILE_NAME, "exists": True, "entries": entries, "errors": errors, "due": due}
+    return {"file": PROFILE_NAME, "exists": True, "recognized": True, "entries": entries, "errors": errors, "due": due}
 
 
 def profile_export(root: Path, out: Path):
@@ -3872,6 +3888,8 @@ def profile_export(root: Path, out: Path):
     if not src.is_file():
         raise GovernanceError("no PROFILE.md to export")
     res = profile_check(root)
+    if not res["recognized"]:
+        raise GovernanceError(res["note"] + "; nothing to export")
     if res["errors"]:
         raise GovernanceError(f"PROFILE.md has {len(res['errors'])} format error(s); run profile check first")
     if out.exists() and (not out.is_dir() or any(out.iterdir())):
@@ -3922,7 +3940,7 @@ def cmd_profile(args):
         if args.json:
             print(json.dumps(res, ensure_ascii=False))
             return rc
-        if not res["exists"]:
+        if not res["recognized"]:
             print(res["note"])
             return 0
         print(f"PROFILE.md: {res['entries']} line(s), {len(res['errors'])} format error(s), {len(res['due'])} due for a check with the user")

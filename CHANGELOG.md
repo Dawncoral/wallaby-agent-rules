@@ -1,7 +1,20 @@
-<!-- wallaby-agent-rules 1.4.4 -->
+<!-- wallaby-agent-rules 1.4.5 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.4.5 — 2026-11-12
+
+A fix for projects that upgrade from an earlier version. After 1.4.4, `doctor` could turn red without any change to the project's data, in two cases:
+
+- **A PROFILE.md of another kind**: 1.4.4 checked any PROFILE.md as a user profile. Now `doctor` and `profile check` treat it as one only when it has at least one of the five profile headings. Otherwise they leave it alone and say so.
+- **The words "goal: G2" in a log**: 1.4.4 read any such text as a pointer to a goal. Now pointers are checked only once MEMORY.md has a Goals section.
+
+Upgrade tests now start from every published CLI, 1.4.0 through 1.4.4, and check that `doctor` gives the same result before and after on a project with files like these.
+
+### Migrating from 1.4.4
+
+Run `python3 extras/memory-governance/memory_governance.py --target . upgrade`, read the dry run, then add `--apply`. Nothing else changes.
 
 ## 1.4.4 — 2026-11-12
 

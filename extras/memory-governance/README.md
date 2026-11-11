@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.4 -->
+<!-- wallaby-agent-rules 1.4.5 -->
 # Memory governance: from a change to a verified update
 
 One Python CLI connects four jobs that are often skipped: impact mapping, premise checks, contradiction history, and verification receipts. It has no dependencies and does not call a model.
@@ -383,7 +383,7 @@ python3 scripts/memory_governance.py profile export --path ~/profile-pack
 python3 scripts/memory_governance.py profile import --path ~/profile-pack --replace
 ```
 
-- `profile check` exits 1 on a format error: an unknown heading, an undated line, a line with no source, or the same preference twice. It needs no model. It also lists lines past their review age: 90 days for judging work and for boundaries, 60 for pace, and 180 for what drives the user. Lines under Always ask me first never age.
+- `profile check` and `doctor` treat PROFILE.md as a profile only when it has at least one of the five headings; a file of another kind is left alone. `profile check` exits 1 on a format error: an unknown heading, an undated line, a line with no source, or the same preference twice. It needs no model. It also lists lines past their review age: 90 days for judging work and for boundaries, 60 for pace, and 180 for what drives the user. Lines under Always ask me first never age.
 - For a line that is due, ask the user. On a yes, `write confirm` gives the line today's date and adds a line to LOG.md. On a no, edit or remove the line by hand.
 - `profile export` writes `PROFILE.md` and a SHA-256 manifest to a new or empty directory. `profile import` checks the manifest first and refuses a package that was changed. It copies the file byte for byte. With `--replace`, it keeps the old file under `.memory/` and records the import in the event log.
 
@@ -405,7 +405,7 @@ python3 scripts/memory_governance.py write now "Billing page" --pointer docs/bil
 python3 scripts/memory_governance.py lookup --registry goal
 ```
 
-`--goal` works with `write log`, `now`, and `close`. It checks that the ID is listed and adds `· goal: G1` to the line. `lookup --registry goal` lists every goal and value with how many NOW.md and LOG.md lines point to it; the MCP tool `memory_lookup` takes the same registry. `audit` and `doctor` report a line that points to a goal that is not listed, for example after a goal was renamed.
+`--goal` works with `write log`, `now`, and `close`. It checks that the ID is listed and adds `· goal: G1` to the line. `lookup --registry goal` lists every goal and value with how many NOW.md and LOG.md lines point to it; the MCP tool `memory_lookup` takes the same registry. `audit` and `doctor` report a line that points to a goal that is not listed, for example after a goal was renamed. They check pointers only once MEMORY.md has a Goals section, so the same words in a project without goal IDs are not flagged.
 
 ## What the scanner does and does not do
 

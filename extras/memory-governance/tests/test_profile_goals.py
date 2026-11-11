@@ -63,6 +63,15 @@ class ProfileTests(Base):
         self.assertIn("already confirmed", self.js("write", "confirm", "--match", "numbers before", "--date", "2026-11-11")["skipped"])
         self.assertEqual(self.cli("write", "confirm", "--match", "nothing like this", ok=2).returncode, 2)
 
+    def test_a_profile_md_of_another_kind_is_left_alone(self):
+        self.project()
+        self.write("PROFILE.md", "# My profile\n\nI like tea.\n- some note\n")
+        res = self.js("profile", "check")
+        self.assertEqual((res["recognized"], res["errors"]), (False, []))
+        self.assertIn("not checked", self.cli("profile", "check").stdout)
+        self.assertNotIn("PROFILE", self.cli("doctor", ok=None).stdout)
+        self.assertIn("nothing to export", self.cli("profile", "export", "--path", str(self.root / "pkg"), ok=2).stderr)
+
     def test_harvest_promotes_into_profile(self):
         self.setup_profile()
         self.cli("write", "propose", "--text", "One currency per page", "--source", 'user: "never mix currencies"',
@@ -120,6 +129,11 @@ class GoalTests(Base):
         ghosts = self.js("audit", ok=1)["ghost"]
         self.assertTrue(any("goal: G7" in g["item"] for g in ghosts), ghosts)
         self.assertIn("ghost=1", self.cli("doctor", ok=1).stdout)                   # doctor counts; audit lists
+
+    def test_goal_text_without_a_goals_section_is_not_a_pointer(self):
+        self.project()
+        self.write("LOG.md", self.read("LOG.md") + "- [2026-11-01] Hit the Q4 goal: G2 milestone\n")
+        self.assertFalse(any("goal:" in g["item"] for g in self.js("audit", ok=None)["ghost"]))
 
     def test_no_goals_section(self):
         self.project()

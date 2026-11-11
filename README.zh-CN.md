@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.3 -->
+<!-- wallaby-agent-rules 1.4.4 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
@@ -62,6 +62,8 @@ python3 scripts/memory_governance.py doctor
 | 代码与版本节（代码项目） | 当前发布版本=带日期的记忆事实，一变就更新；每次发布/迁移/回滚都带 commit 号落日志 |
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
+
+**1.4.4 新增**：入口更少，一次查询就能看到最新状态。`doctor` 一条命令跑完所有检查，包括每周脚本。`memory_locate` 会带回一个主题在 NOW.md、MEMORY.md、LOG.md 里最新的几行，agent 说做完了之前先查一下。可选的 PROFILE.md 记录怎么和用户合作，只收用户自己说的话，并且要用户点头。目标可以编号，工作记录可以指向它。详见[更新日志](CHANGELOG.md)。
 
 **1.4.3 新增**：[记忆治理包](extras/memory-governance/)把能力表、地图、传导检查和记忆文件接到一起。`route` 为一次改动出一张约 2 KB 的卡：能复用什么、碰到地图上哪些组件、要同步哪些面、走轻档还是重档，以及只列改动路径所依赖的前提。`audit` 查漏登和失效条目，`map sync` 让 MAP.md 里的机器区保持最新，`split` 把 LOG.md 已结束的月份切成分卷；MEMORY.md 和 INDEX.md 的拆分要你确认才执行，每次分裂都能回滚。`audit` 还会量 agent 加载的说明文件：第一次运行自动记下基线，之后超了就提示，并指出跨文件重复的规则；只报告，不拦截。另有可选的[记忆 MCP 服务器](extras/memory-mcp/)，给读不到入口文件的 agent 用同一套文件，九个工具，38 项冒烟自检。一次改动现在只要两条命令：改之前 `route --record`，改完 `verify`。`write` 往记忆文件里加一行并先做检查，已有的行一个字节都不动。`events` 把每次写入连同是哪个 agent 写的记下来；`id` 给每条决定、失败记录和回执发号，同一台机器上不会有两个 agent 拿到同一个号。从 1.4.0、1.4.1 或 1.4.2 升级只替换命令行这一个文件，其他文件都不变。
 

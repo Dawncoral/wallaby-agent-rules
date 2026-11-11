@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.3 -->
+<!-- wallaby-agent-rules 1.4.4 -->
 # PROMPT.md — paste-in prompts for your AI
 
 Four self-contained prompts. Pick one, copy the whole fenced block, and paste it to the AI that works in your project (Kimi Code, Claude Code, Cursor, Codex, or any agent that can read and write files). No install, no dependencies — the AI builds everything itself.
@@ -157,6 +157,7 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, GEMINI
 
 - A first-line comment states the version directly: `<!-- wallaby-agent-rules 1.0.0 -->` style (semantic) from 1.0.0 on; `<!-- wallaby-agent-rules vX -->` (v1–v4.1) on earlier installs.
 - No marker → infer from fingerprints:
+  - **1.4.4**: the entry file's `## Verify` section has a line saying to check NOW.md, the newest LOG.md lines, and MEMORY.md before calling anything done; an optional PROFILE.md; the governance CLI gains `profile` with check, harvest, export, and import, plus `write confirm` and goal IDs through `--goal` and `lookup --registry goal`; `doctor` runs the weekly scripts; the MCP server has ten tools, adding `memory_changes`, and `memory_locate` returns the latest state.
   - **1.4.3**: the optional `extras/memory-mcp/` server (nine tools); the governance CLI gains `route` (with `--record`), `lookup`, `audit` (including the always-loaded instructions against a baseline), `map sync`, `split`, `write`, `events`, and `id`; scripts/health_check.py and scripts/reconcile.py carry the 1.4.3 marker and read month volumes (`LOG/YYYY-MM.md`) and INDEX parts (`INDEX/<part>.md`); the entry file may carry two optional lines for CAPABILITIES.md and MAP.md. MEMORY.md, NOW.md, INDEX.md, and LOG.md are unchanged from 1.4.2.
   - **1.4.2**: the governance CLI gains a lossless `upgrade` command with a dry run, backup, post-replacement validation, and automatic restore on failure; other installed files otherwise match 1.4.1.
   - **1.4.1**: documentation-only patch adding `extras/memory-governance/WEEKLY_RECONCILE.md`; installed files otherwise match 1.4.0.
@@ -175,12 +176,12 @@ Find every memory/instruction file in this project (AGENTS.md, CLAUDE.md, GEMINI
 
 ## Step 2: Propose an incremental upgrade list
 
-Compare what exists against the 1.4.3 layout (core files keep the 1.1.0 structure, with the 1.4.0 closeout wording; optional templates, the memory-governance pack, and the memory MCP server are repo-side additions). Output a numbered checklist:
+Compare what exists against the 1.4.4 layout (core files keep the 1.1.0 structure, with the 1.4.0 closeout wording; optional templates, the memory-governance pack, and the memory MCP server are repo-side additions). Output a numbered checklist:
 
 - **Add** — files that do not exist yet. For INDEX.md, scan the project and show me the first full version you would write.
-- **Optional add** — offer MAP.md, CAPABILITIES.md, and FAILURES.md separately; do not make them required for a working install.
+- **Optional add** — offer MAP.md, CAPABILITIES.md, FAILURES.md, and PROFILE.md separately; do not make them required for a working install.
 - **Optional governance** — offer to run `python3 extras/memory-governance/memory_governance.py --target . init`, then `python3 scripts/memory_governance.py doctor`. If scripts/memory_governance.py already exists, offer `python3 extras/memory-governance/memory_governance.py --target . upgrade` (a dry run) and apply it only on my yes. Never make it a required upgrade.
-- **Suggest change** — for each existing file, show a diff: what you would add (for example the `## Ritual words` section, the optional `## Trust-building mode` section, the optional `## Code & releases` section for code projects, the current version marker) and, if anything looks redundant, what you *recommend* moving — clearly marked as optional, never executed without my explicit yes per item.
+- **Suggest change** — for each existing file, show a diff: what you would add (for example the `## Ritual words` section, the optional `## Trust-building mode` section, the optional `## Code & releases` section for code projects, the status check line under `## Verify`, the current version marker) and, if anything looks redundant, what you *recommend* moving — clearly marked as optional, never executed without my explicit yes per item.
 - **Replace (scaffolding only)** — if scripts/health_check.py or scripts/reconcile.py exists with a marker older than 1.4.3 (or health_check.py runs fewer than ten scans, or reconcile.py fewer than two), offer to swap in the current version from the wallaby-agent-rules repo. These are the only files you may replace outright.
 - **Point** — if my tool has a card in `templates/integrations/` in the wallaby-agent-rules repo, point me to it.
 

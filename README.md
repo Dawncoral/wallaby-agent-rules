@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.3 -->
+<!-- wallaby-agent-rules 1.4.4 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
@@ -70,6 +70,8 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 | Code & releases (code projects) | The current released version is a dated memory fact, updated the moment it changes; every release, migration, or rollback gets logged with its commit reference |
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
+
+**New in 1.4.4**: fewer entry points and the latest state in one lookup. `doctor` runs every check, including the weekly scripts. `memory_locate` returns a topic's newest lines from NOW.md, MEMORY.md, and LOG.md, so an agent checks before it calls anything done. An optional PROFILE.md keeps how to work with the user, filled only with the user's own words and their yes. Goals get IDs that work can point to. See the [changelog](CHANGELOG.md).
 
 **New in 1.4.3**: the [governance pack](extras/memory-governance/) closes the loop. `route` prints a card of about 2 KB for a change: what to reuse, which map components it touches, which surfaces to update, the tier, and only the premises the changed paths depend on. `audit` finds unregistered capabilities and dead entries, `map sync` keeps a generated block in MAP.md current, and `split` moves finished LOG.md months into volumes. MEMORY.md and INDEX.md splits wait for your confirmation, and every split can be rolled back. `audit` also measures the instructions your agents load against a baseline it records on the first run, and points out rules repeated across files; it only reports. An optional [memory MCP server](extras/memory-mcp/) opens the same files to agents that never load the entry file, with nine tools and 38 smoke checks. A change now takes two commands: `route --record` before it and `verify` after it. `write` adds one checked line to a memory file and leaves every existing line as it is. `events` logs each write with the agent that made it, and `id` gives each decision, failure, and receipt a number that no other agent on the machine can take. The upgrade from 1.4.0, 1.4.1, or 1.4.2 replaces the CLI and leaves every other file as it was.
 

@@ -1,15 +1,28 @@
-<!-- wallaby-agent-rules 1.4.3 -->
+<!-- wallaby-agent-rules 1.4.4 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
 
-## Unreleased
+## 1.4.4 — 2026-11-12
 
-- **`harvest`** in the governance CLI lists the user's own words from LOG.md, FAILURES.md, and their month volumes as candidates for lasting preferences. It writes nothing. Short approvals and replies marked `(answering "…")` count as picks of the agent's own suggestions and are left out by default. Quotes already proposed, kept, or rejected do not come back. A cursor in `.memory/` limits each run to new records. The person approves each candidate through the existing `write propose` → `write promote` / `write reject` queue. `--json` gives tools a stable list. See [Harvest the user's own words](extras/memory-governance/README.md#harvest-the-users-own-words-unreleased).
-- `write log`, `fact`, and `propose` explain in their help how to record the user's exact words: `user: "…"`.
-- **User profile**: `templates/PROFILE.md` holds how to work with this user under five headings, one dated and sourced line per preference. `profile check` validates the format and lists lines past their review age, with no model. `write confirm` refreshes a line after the user says it still holds. `profile export` and `profile import` move the file with a SHA-256 manifest, byte for byte, and refuse a changed package. See [The user profile](extras/memory-governance/README.md#the-user-profile-unreleased).
-- **Numbered goals**: goals such as `G1` and values such as `V1`, listed under a `Goals` heading in MEMORY.md. `write log|now|close --goal G1` checks the ID and adds it to the line. `goals` lists who points where, and exits 1 on a pointer to a goal that is not there. See [Numbered goals](extras/memory-governance/README.md#numbered-goals-unreleased).
-- **`memory_changes`** joins the MCP server, which now has ten tools. `memory_read` returns each file's fingerprint. Before delivering, an agent hands back the files it read and learns which changed since, so it does not act on a stale read. Paths outside the project are refused.
+**Fewer entry points, the latest state in one lookup, and a profile of how to work with the user.** The release checklist counts new commands as a minor version; this one keeps a patch number by maintainer decision.
+
+- **One check**: `doctor` also runs `scripts/health_check.py` and `scripts/reconcile.py` when they are installed, and checks PROFILE.md. Each script shows as one line and keeps its own exit code. The MCP tool `memory_check` runs `doctor` when the project has `.memory/`.
+- **The latest state in `memory_locate`**: besides the INDEX.md rows, it returns the newest lines about the topic from NOW.md, MEMORY.md, LOG.md with its volumes, and PROPOSALS.md. That is at most five lines per file and about 1.5 KB in all. It marks lines that say the work is done, and it warns when NOW.md still lists as in flight what LOG.md calls done. The entry file template gets one line under `## Verify`: look it up before you call anything done.
+- **User profile**: `templates/PROFILE.md` keeps how to work with this user under five headings, one dated and sourced line per preference. `profile check` validates the format and lists lines past their review age, with no model. `profile harvest` lists the user's own words from LOG.md and FAILURES.md as candidates and leaves out short approvals and replies marked `(answering "…")`, since those are picks of the agent's own suggestions. Candidates reach the profile only through `write propose` and the user's yes. `write confirm` refreshes a line the user confirmed. `profile export` and `profile import` move the file with a SHA-256 manifest, byte for byte. See [The user profile](extras/memory-governance/README.md#the-user-profile).
+- **Goal IDs**: goals such as `G1` and values such as `V1` under a `Goals` heading in MEMORY.md. `write log`, `now`, and `close` take `--goal G1`, check the ID, and add it to the line. `lookup --registry goal` lists them with the lines that point to each, through `memory_lookup` too. `audit` and `doctor` report a line that points to a goal that is not listed. See [Goal IDs](extras/memory-governance/README.md#goal-ids).
+- **`memory_changes`**: `memory_read` now returns each file's fingerprint. Before it delivers, an agent hands back the files it read and learns which changed since. Paths outside the project are refused. The server has ten tools.
+- **Help an agent can act on**: `--help` groups the commands by how often you need them, and every command and write form ends with an example you can copy. A test parses every example, so none goes stale.
+- **Size**: the ten tool descriptions take 3,942 bytes, and a smoke test fails if they pass 4,274. The entry file template is 5,554 bytes, 5 fewer than in 1.4.3.
+- **Fixes**: the old-term scan skips the installed CLI, whose help examples are not project content. A test keeps the two copies of the weekly scripts identical.
+
+### Migrating from 1.4.3
+
+1. Run `python3 extras/memory-governance/memory_governance.py --target . upgrade`, read the dry run, then add `--apply`. Only `scripts/memory_governance.py` changes, and the old copy is kept under `.memory/backups/`.
+2. Replace `wallaby_memory_mcp.py` with the new copy. Tool names did not change, so agent configs stay as they are.
+3. Optional: add the `## Verify` line to your entry file, copy `templates/PROFILE.md`, and add a Goals section to MEMORY.md. The upgrade prompt in PROMPT.md proposes all three.
+
+Your memory files need no migration.
 
 ## 1.4.3 — 2026-11-10
 

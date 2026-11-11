@@ -102,7 +102,7 @@ def main():
         st = json.loads(s.tool("memory_status")[0])
         check("status: current install is not told to upgrade", st["files_version"] == "1.0.1"
               and "upgrade" not in st and st["pending_proposals"] == 1 and st["facts"] == 1
-              and st["rules_release"] == "1.4.3" and st["writes_format"] == "1.0.1")
+              and st["rules_release"] == "1.4.4" and st["writes_format"] == "1.0.1")
         text, _ = s.tool("memory_read")
         prints = dict(re.findall(r"(MEMORY\.md|NOW\.md)=([0-9a-f]{16})", text))
         check("read: gives fingerprints", set(prints) == {"MEMORY.md", "NOW.md"}, text[:300])
@@ -254,8 +254,46 @@ def main():
                       listing == ["LOG.md", "MEMORY.md", "NOW.md", "PROPOSALS.md"], listing)
         ver = subprocess.run([sys.executable, SERVER, "--version"], capture_output=True, text=True, timeout=10)
         check("--version names server, release and core format",
-              ver.stdout.strip() == "wallaby-memory-mcp 0.4.0 (wallaby-agent-rules 1.4.3, core format 1.0.1)",
+              ver.stdout.strip() == "wallaby-memory-mcp 0.5.0 (wallaby-agent-rules 1.4.4, core format 1.0.1)",
               ver.stdout)
+        # 1.4.4: latest state in memory_locate, goals in memory_lookup, doctor in memory_check, the size budget
+        st = tempfile.mkdtemp(prefix="memmcp-state-")
+        try:
+            files = {
+                "MEMORY.md": "# Memory\n\n## Active\n\n- [2026-10-01] Pricing page quotes USD only\n\n## Goals\n\n- G1 · Pricing in one currency\n",
+                "NOW.md": "# NOW.md\n\n## In flight\n\n- [2026-10-05] Pricing page rewrite; details: docs/p.md\n"
+                          "<!-- - [2026-10-06] Pricing example in a comment -->\n\n## Recently touched\n",
+                "LOG.md": "# LOG.md\n\n## 2026-10\n\n- [2026-10-09] Pricing page rewrite shipped\n"
+                          + "".join(f"- [2026-10-0{i}] pricing note {i}\n" for i in range(1, 9)),
+                "LOG/2026-09.md": "# LOG.md — 2026-09\n\n- [2026-09-20] Pricing draft started\n",
+                "PROPOSALS.md": "# PROPOSALS.md\n\n- [2026-10-07] Pricing in EUR too — source: x (proposed)\n",
+                "INDEX.md": "# INDEX.md\n\n| File | What it is |\n|---|---|\n| `docs/p.md` | Pricing spec |\n"}
+            for rel, body in files.items():
+                os.makedirs(os.path.dirname(os.path.join(st, rel)), exist_ok=True)
+                with open(os.path.join(st, rel), "w", encoding="utf-8") as f:
+                    f.write(body)
+            s4 = Server(st)
+            s4.call("initialize", {"protocolVersion": "2024-11-05"})
+            raw = json.dumps(s4.call("tools/list")["result"])
+            check("tool descriptions stay within 4,274 bytes", len(raw.encode()) <= 4274, len(raw.encode()))
+            text, err = s4.tool("memory_locate", query="pricing")
+            state = text.split("Latest state", 1)[-1]
+            check("locate: index row and latest state by source",
+                  not err and "docs/p.md" in text and all(x in state for x in ("NOW.md:", "MEMORY.md:", "LOG.md:", "PROPOSALS.md:")), text)
+            check("locate: month volumes are read", "LOG/2026-09.md:" in s4.tool("memory_locate", query="pricing draft")[0])
+            check("locate: flags done and the NOW/LOG conflict", "[says done]" in state and "still lists it in flight" in state, state)
+            check("locate: five lines per source, comments skipped, within budget",
+                  state.count("LOG.md:") <= 5 and "comment" not in state
+                  and len(state.encode()) <= 1600, len(state.encode()))
+            res = json.loads(s4.tool("memory_lookup", registry="goal")[0])
+            check("lookup: goals from MEMORY.md", [r["goal"] for r in res["rows"]] == ["G1"], res)
+            subprocess.run([sys.executable, os.path.join(HERE, os.pardir, "memory-governance", "memory_governance.py"),
+                            "--target", st, "init"], capture_output=True, text=True)
+            text, err = s4.tool("memory_check")
+            check("check: runs doctor when the project has .memory/", not err and text.startswith("== doctor"), text[:200])
+            s4.close()
+        finally:
+            shutil.rmtree(st, ignore_errors=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print(f"\n{PASS} passed, {FAIL} failed")

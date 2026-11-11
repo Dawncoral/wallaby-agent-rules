@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.3 -->
+<!-- wallaby-agent-rules 1.4.4 -->
 # Memory governance: from a change to a verified update
 
 One Python CLI connects four jobs that are often skipped: impact mapping, premise checks, contradiction history, and verification receipts. It has no dependencies and does not call a model.
@@ -272,11 +272,12 @@ python3 scripts/memory_governance.py write close "Checkout live" --match "checko
 | Form | File | What it does |
 |---|---|---|
 | `log` | LOG.md | Adds one dated line on top of its month. A month that is not in the file yet goes above the older months of a newest-first log. |
-| `now` | NOW.md | Adds one dated line under In flight. `--pointer` is required. |
+| `now` | NOW.md | Adds one dated line under In flight. `--pointer` is required. `log`, `now`, and `close` take `--goal G1`. |
 | `close` | NOW.md, LOG.md | Takes the matching line out of In flight, adds a pointer under Recently touched, and writes the LOG.md entry, in one action. |
 | `propose` | PROPOSALS.md | Queues a fact with its source. It skips a fact that is already in MEMORY.md or in the queue. |
 | `promote` | PROPOSALS.md, MEMORY.md | Moves one approved proposal into the MEMORY.md section you name. |
 | `reject` | PROPOSALS.md, LOG.md | Removes one proposal and logs the reason. |
+| `confirm` | PROFILE.md, LOG.md | Gives one line today's date after the user confirmed it still holds, and logs it. |
 | `fact` | MEMORY.md | Adds one dated, sourced line under the section you name. |
 | `index` | INDEX.md | Registers a file. `--update` changes the note of a file that is already registered. |
 | `capability` | CAPABILITIES.md | Adds a row above the template's placeholder row. The state defaults to `incubating`. |
@@ -331,9 +332,9 @@ A series is one to four capital letters. Five are built in: `R` for receipts, `C
 
 `audit` exits 1 when a contradiction, premise, or failure ID is defined twice. It also notes receipt IDs that 1.4.0 to 1.4.2 issued more than once, and IDs taken more than seven days ago that no file mentions.
 
-## Harvest the user's own words (unreleased)
+## Harvest the user's own words
 
-Preferences should not depend on one model noticing them during one session. Every agent already writes down what the user decided, so the user's words are in the records. `harvest` reads them back later, and the person still decides what becomes memory.
+New in 1.4.4. Preferences should not depend on one model noticing them during one session. Every agent already writes down what the user decided, so the user's words are in the records. `profile harvest` reads them back later, and the person still decides what becomes memory.
 
 Write the user's words exactly, as the source of a line:
 
@@ -341,11 +342,11 @@ Write the user's words exactly, as the source of a line:
 python3 scripts/memory_governance.py write log "Moved pricing to USD" --source 'user: "Always quote prices in USD"'
 ```
 
-If the user only picked one of the options you offered, add `(answering "<your question>")` after their words. A pick is an approval of your idea. It is not the user's own view, and `harvest` keeps the two apart.
+If the user only picked one of the options you offered, add `(answering "<your question>")` after their words. A pick is an approval of your idea. It is not the user's own view, and `profile harvest` keeps the two apart.
 
 ```bash
-python3 scripts/memory_governance.py harvest              # since the saved cursor, else everything
-python3 scripts/memory_governance.py harvest --advance    # list, then move the cursor to today
+python3 scripts/memory_governance.py profile harvest              # since the saved cursor, else everything
+python3 scripts/memory_governance.py profile harvest --advance    # list, then move the cursor to today
 ```
 
 It reads LOG.md, FAILURES.md, and their month volumes. It finds a quote that follows `user` or `the user`. Straight quotes, curly quotes, and Chinese corner brackets all work, and so do records written in Chinese. A second quote chained right after the first counts too, as in `user: "A", then "B"`. The command writes nothing. Only `--advance` saves a file, `.memory/harvest_cursor.json`. Three kinds of quote are left out:
@@ -359,13 +360,13 @@ Use `--speaker` when your records name the user another way, and `--source` for 
 The review goes through the trust-building queue:
 
 1. The agent reads the candidates. It drops one-off instructions and turns each lasting preference into one sentence: `write propose --text "<the rule>" --source 'user: "<their words>", LOG.md 2026-11-02' --origin harvest`.
-2. The person reads PROPOSALS.md. For each line, the agent runs `write promote --match … --file PROFILE.md --section "<heading>"` on a yes, or `write reject --match … --reason …` on a no. See [The user profile](#the-user-profile-unreleased) below.
+2. The person reads PROPOSALS.md. For each line, the agent runs `write promote --match … --file PROFILE.md --section "<heading>"` on a yes, or `write reject --match … --reason …` on a no. See [The user profile](#the-user-profile) below.
 
 Nothing reaches memory without the person's yes. A good time to run this is the weekly review.
 
-## The user profile (unreleased)
+## The user profile
 
-`PROFILE.md` says how to work with this user: what to ask before acting, how they judge work, their boundaries, their pace, and what drives them. Copy `templates/PROFILE.md` to the project root to start one. It has five headings, with one dated line per preference and the user's own words as the source:
+New in 1.4.4. `PROFILE.md` says how to work with this user: what to ask before acting, how they judge work, their boundaries, their pace, and what drives them. Copy `templates/PROFILE.md` to the project root to start one. It has five headings, with one dated line per preference and the user's own words as the source:
 
 ```markdown
 ## How I judge work
@@ -386,9 +387,9 @@ python3 scripts/memory_governance.py profile import --path ~/profile-pack --repl
 - For a line that is due, ask the user. On a yes, `write confirm` gives the line today's date and adds a line to LOG.md. On a no, edit or remove the line by hand.
 - `profile export` writes `PROFILE.md` and a SHA-256 manifest to a new or empty directory. `profile import` checks the manifest first and refuses a package that was changed. It copies the file byte for byte. With `--replace`, it keeps the old file under `.memory/` and records the import in the event log.
 
-## Numbered goals (unreleased)
+## Goal IDs
 
-Give each goal and value an ID in MEMORY.md, under a heading that starts with `Goals`:
+New in 1.4.4. Give each goal and value an ID in MEMORY.md, under a heading that starts with `Goals`:
 
 ```markdown
 ## Goals
@@ -401,10 +402,10 @@ Give each goal and value an ID in MEMORY.md, under a heading that starts with `G
 
 ```bash
 python3 scripts/memory_governance.py write now "Billing page" --pointer docs/billing.md --goal G1
-python3 scripts/memory_governance.py goals
+python3 scripts/memory_governance.py lookup --registry goal
 ```
 
-`--goal` works with `write log`, `now`, and `close`. It checks that the ID is listed and adds `· goal: G1` to the line. `goals` lists every goal and value with the NOW.md and LOG.md lines that point to it. It exits 1 when a line points to a goal that is not listed, for example after a goal was renamed.
+`--goal` works with `write log`, `now`, and `close`. It checks that the ID is listed and adds `· goal: G1` to the line. `lookup --registry goal` lists every goal and value with how many NOW.md and LOG.md lines point to it; the MCP tool `memory_lookup` takes the same registry. `audit` and `doctor` report a line that points to a goal that is not listed, for example after a goal was renamed.
 
 ## What the scanner does and does not do
 
@@ -431,7 +432,7 @@ python3 scripts/memory_governance.py goals
 | `PROFILE.md` | How to work with this user; optional, from `templates/PROFILE.md` |
 | `scripts/memory_governance.py` | The installed CLI |
 
-Run the complete check after any change:
+Run the complete check after any change. From 1.4.4 it also runs `scripts/health_check.py` and `scripts/reconcile.py` when they are installed, and checks PROFILE.md:
 
 ```bash
 python3 scripts/memory_governance.py doctor

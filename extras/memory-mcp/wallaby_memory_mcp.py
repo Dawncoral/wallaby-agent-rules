@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wallaby_memory_mcp.py — the file memory as an MCP server (0.4.0, ships with wallaby-agent-rules 1.4.3).
+"""wallaby_memory_mcp.py — the file memory as an MCP server (0.5.0, ships with wallaby-agent-rules 1.4.4).
 
 The memory stays what it is: MEMORY.md, NOW.md, INDEX.md, LOG.md (and PROPOSALS.md for the trust-
 building queue) as plain Markdown in the project. This server is an optional second door to the same
@@ -9,19 +9,22 @@ It adds no store of its own: the files are the single source; nothing here is ca
 The tools follow the protocol, not a free search:
   memory_read     — the session-start read: MEMORY.md + NOW.md, with versions and the conflict rule
   memory_locate   — "look it up, don't search": rows of INDEX.md (and the INDEX/ parts it points to)
-                    whose path or note match
+                    whose path or note match, plus the topic's latest state in NOW.md, MEMORY.md, LOG.md
+                    and PROPOSALS.md (newest first, about 1.5 KB at most)
   memory_propose  — a new durable fact goes to PROPOSALS.md, dated and sourced, never into MEMORY.md;
                     a person (or an approving tool) promotes it
   memory_note     — "note this": one dated line on top of this month in LOG.md
   memory_now      — tracked work moved: one dated line under "In flight" in NOW.md
-  memory_check    — run scripts/health_check.py and scripts/reconcile.py when they are installed
+  memory_check    — run doctor when the governance CLI and .memory/ are there, else
+                    scripts/health_check.py and scripts/reconcile.py when they are installed
   memory_status   — installed version vs this server's, counts, budget, upgrade hint
-  memory_lookup   — rows of CAPABILITIES.md (registry=capability) or MAP.md (registry=map): search
+  memory_lookup   — rows of CAPABILITIES.md (registry=capability), MAP.md (registry=map), or the Goals
+                    in MEMORY.md (registry=goal): search
                     before building; same name and arguments as the central lookup tool it mirrors
   memory_route    — the reflex card for a change: what to reuse, which map components, event types and
                     surfaces, the tier, and only the premises the changed paths touch (about 2 KB)
   memory_changes  — before you deliver: hand back the files you read with the fingerprints you saw;
-                    it says which changed since (unreleased). With `files` alone it takes the fingerprints.
+                    it says which changed since. With `files` alone it takes the fingerprints.
 
 memory_lookup and memory_route hold no logic of their own: they run the governance CLI
 (scripts/memory_governance.py, 1.4.3 or newer; else the copy beside this server in the repo) with
@@ -53,10 +56,10 @@ import subprocess
 import sys
 
 SERVER_NAME = "wallaby-memory-mcp"
-SERVER_VERSION = "0.4.0"
+SERVER_VERSION = "0.5.0"
 ORIGIN = ""  # --origin: the work this session does (for example a task id); added to every proposal
 CLIENT = ""  # the MCP client's name from `initialize`; the event log records it as the actor of each write
-RULES_VERSION = "1.4.3"  # the wallaby-agent-rules release this server ships with
+RULES_VERSION = "1.4.4"  # the wallaby-agent-rules release this server ships with
 CORE_FORMAT = "1.0.1"    # newest first-line marker on MEMORY.md / NOW.md / INDEX.md / LOG.md in that release
 PROTOCOL = "2024-11-05"
 
@@ -280,6 +283,86 @@ NO_GOVERNANCE = ("The governance CLI (1.4.3 or newer) is not installed under thi
                  "(or update an older copy with its `upgrade --apply`), or read CAPABILITIES.md and MAP.md directly.")
 
 
+STATE_BUDGET = 1536   # bytes for the latest-state part of memory_locate
+STATE_PER_SOURCE = 5
+DONE_WORDS = re.compile(r"\b(shipped|done|merged|released|closed|fixed|deployed|launched|completed|finished)\b|已上线|已发布|已完成|已合并|已修", re.I)
+STATE_RULE = ("Current state comes from NOW.md and MEMORY.md; LOG.md explains how it changed; PROPOSALS.md is not a fact yet. "
+              "A live check (git log, the running system) beats every file.")
+
+
+def _log_files(mem):
+    vols = os.path.join(mem.root, "LOG")
+    extra = sorted((os.path.join(vols, n) for n in os.listdir(vols) if re.fullmatch(r"\d{4}-\d{2}\.md", n)),
+                   reverse=True) if os.path.isdir(vols) else []
+    return [mem.path("LOG")] + extra
+
+
+def _dated_hits(path, terms):
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return []
+    out, section, fence, comment = [], "", False, False
+    for n, ln in enumerate(text.splitlines(), 1):
+        if ln.lstrip().startswith(("```", "~~~")):
+            fence = not fence
+        if "<!--" in ln and "-->" not in ln.split("<!--", 1)[1]:
+            comment = True
+            continue
+        if comment:
+            comment = "-->" not in ln
+            continue
+        if fence or ln.lstrip().startswith("<!--"):
+            continue
+        if ln.startswith("## "):
+            section = ln[3:].strip()
+        m = LINE_RE.match(ln.strip())
+        if m and all(t in m.group(2).lower() for t in terms):
+            out.append({"date": m.group(1), "text": m.group(2), "section": section, "line": n})
+    return out
+
+
+def state_hits(mem, terms):
+    """The newest dated lines about a topic, by source, for 'what is its state now'."""
+    res = {}
+    for key, label in (("NOW", "NOW.md"), ("MEMORY", "MEMORY.md"), ("PROPOSALS", "PROPOSALS.md")):
+        hits = _dated_hits(mem.path(key), terms)
+        if hits:
+            res[label] = sorted(hits, key=lambda h: h["date"], reverse=True)[:STATE_PER_SOURCE]
+    logs = []
+    for path in _log_files(mem):
+        rel = os.path.relpath(path, mem.root).replace(os.sep, "/")
+        logs += [{**h, "file": rel} for h in _dated_hits(path, terms)]
+    if logs:
+        res["LOG.md"] = sorted(logs, key=lambda h: h["date"], reverse=True)[:STATE_PER_SOURCE]
+    return res
+
+
+def state_text(hits):
+    if not hits:
+        return ""
+    lines = ["Latest state (newest first; " + STATE_RULE + ")"]
+    for label in ("NOW.md", "MEMORY.md", "LOG.md", "PROPOSALS.md"):
+        for h in hits.get(label, []):
+            where = f"{h.get('file', label)}:{h['line']}"
+            flag = " [says done]" if DONE_WORDS.search(h["text"]) else ""
+            lines.append(f"- {where} [{h['date']}] {h['section'] or '-'}{flag}: {h['text'][:160]}")
+    now_open = [h for h in hits.get("NOW.md", []) if h["section"].lower().startswith("in flight")]
+    done_log = [h for h in hits.get("LOG.md", []) if DONE_WORDS.search(h["text"])]
+    if now_open and done_log and done_log[0]["date"] >= now_open[0]["date"]:
+        lines.append(f"! NOW.md still lists it in flight, but {done_log[0]['file']} says it is done on {done_log[0]['date']}: "
+                     "check before you say either.")
+    out, size = [], 0
+    for ln in lines:
+        size += len(ln.encode()) + 1
+        if size > STATE_BUDGET:
+            out.append("… more lines: use more specific words")
+            break
+        out.append(ln)
+    return "\n".join(out)
+
+
 def t_locate(mem, args):
     q = one_line(args.get("query"), 200).lower()
     if not q:
@@ -294,10 +377,12 @@ def t_locate(mem, args):
             continue
         if all(t in s.lower() for t in terms):
             rows.append(s)
+    state = state_text(state_hits(mem, terms))
     if not rows:
-        return (f"Nothing in INDEX.md matches \"{q}\". If the file exists, register it in INDEX.md the moment "
-                "you find it; do not guess a path."), False
-    return "INDEX.md rows (a lookup, not a search):\n" + "\n".join(rows[:30]), False
+        miss = (f"Nothing in INDEX.md matches \"{q}\". If the file exists, register it in INDEX.md the moment "
+                "you find it; do not guess a path.")
+        return miss + ("\n\n" + state if state else ""), False
+    return "INDEX.md rows (a lookup, not a search):\n" + "\n".join(rows[:30]) + ("\n\n" + state if state else ""), False
 
 
 def t_propose(mem, args):
@@ -362,6 +447,14 @@ def t_now(mem, args):
 
 def t_check(mem, args):
     out, ran = [], 0
+    if os.path.isdir(os.path.join(mem.root, ".memory")):
+        r = run_governance(mem, ["doctor"])
+        if r is not None:
+            text = (r.stdout + r.stderr).strip()
+            if "HEALTH exit=" in text or "RECONCILE exit=" in text or not any(
+                    os.path.exists(os.path.join(mem.root, "scripts", n)) for n in ("health_check.py", "reconcile.py")):
+                return f"== doctor (exit {r.returncode}) ==\n{text[:4000]}", False
+            out.append(f"== doctor (exit {r.returncode}) ==\n{text[:4000]}")   # an older CLI: add the scripts below
     for script in ("health_check.py", "reconcile.py"):
         p = os.path.join(mem.root, "scripts", script)
         if not os.path.exists(p):
@@ -379,8 +472,8 @@ def t_check(mem, args):
 
 def t_lookup(mem, args):
     registry = one_line(args.get("registry") or "capability", 20).lower()
-    if registry not in ("capability", "map"):
-        return "registry must be 'capability' (CAPABILITIES.md) or 'map' (MAP.md).", True
+    if registry not in ("capability", "map", "goal"):
+        return "registry must be 'capability' (CAPABILITIES.md), 'map' (MAP.md), or 'goal' (Goals in MEMORY.md).", True
     argv = ["lookup", "--json", "--registry", registry, "--query", one_line(args.get("query"), 200)]
     if args.get("status"):
         argv += ["--status", one_line(args.get("status"), 40)]
@@ -477,7 +570,7 @@ def t_changes(mem, args):
 TOOLS = {
     "memory_read": (t_read, "Read the project memory at the start of a session: MEMORY.md and NOW.md, with the conflict rule. Call this before taking work.",
                     {"type": "object", "properties": {}}),
-    "memory_locate": (t_locate, "Find a file or topic in INDEX.md (the project map) and the INDEX/ parts it points to. A lookup, not a search: returns the matching index rows.",
+    "memory_locate": (t_locate, "Find a topic: its INDEX.md rows, and its latest state in NOW.md, MEMORY.md, LOG.md and PROPOSALS.md. Call it before you say something is done, shipped, or pending.",
                       {"type": "object", "properties": {"query": {"type": "string", "description": "words to look up, e.g. 'pricing spec'"}},
                        "required": ["query"]}),
     "memory_propose": (t_propose, "Propose a new durable fact or rule. It is queued in PROPOSALS.md for a person to approve; it does not become memory by itself.",
@@ -488,18 +581,18 @@ TOOLS = {
                     {"type": "object", "properties": {"text": {"type": "string"}, "source": {"type": "string"}}, "required": ["text"]}),
     "memory_now": (t_now, "Tracked work moved: add one dated line under 'In flight' in NOW.md, with a pointer to the detail.",
                    {"type": "object", "properties": {"item": {"type": "string"}, "pointer": {"type": "string"}}, "required": ["item", "pointer"]}),
-    "memory_check": (t_check, "Run the weekly checks (scripts/health_check.py and scripts/reconcile.py) if installed; read-only.",
+    "memory_check": (t_check, "Run the weekly checks: doctor when installed, else scripts/health_check.py and reconcile.py. Read-only.",
                      {"type": "object", "properties": {}}),
     "memory_status": (t_status, "Versions, counts and the memory budget; says when an upgrade is due.",
                       {"type": "object", "properties": {}}),
-    "memory_lookup": (t_lookup, "Look up rows in CAPABILITIES.md (registry=capability) or MAP.md (registry=map). Search the capabilities before building something new. Read-only; returns JSON.",
+    "memory_lookup": (t_lookup, "Rows of CAPABILITIES.md, MAP.md, or the Goals in MEMORY.md. Search capabilities before building something new. Read-only JSON.",
                       {"type": "object", "properties": {
-                          "registry": {"type": "string", "enum": ["capability", "map"], "description": "capability (default) or map"},
-                          "query": {"type": "string", "description": "words that must all appear in a row, e.g. 'backup restore'"},
-                          "status": {"type": "string", "description": "capability state filter: active, incubating or retired"},
-                          "limit": {"type": "integer", "description": "rows to return, 1-50 (default 10)"},
+                          "registry": {"type": "string", "enum": ["capability", "map", "goal"]},
+                          "query": {"type": "string", "description": "words that must all appear in a row"},
+                          "status": {"type": "string", "description": "capability state: active, incubating, retired"},
+                          "limit": {"type": "integer", "description": "1-50, default 10"},
                           "detail": {"type": "boolean", "description": "every column, untruncated"}}}),
-    "memory_route": (t_route, "Before or after a change: one compact card (about 2 KB) with what to reuse, the map components it touches, event types and surfaces to update, the tier (light or heavy), and only the premises the changed paths depend on. Read-only; returns JSON.",
+    "memory_route": (t_route, "Before or after a change: a card of about 2 KB with what to reuse, the components and surfaces it touches, the tier, and the premises the paths depend on. Read-only JSON.",
                      {"type": "object", "properties": {
                          "intent": {"type": "string", "description": "the change in plain words"},
                          "paths": {"type": "array", "items": {"type": "string"}, "description": "paths the change touches"},
@@ -507,14 +600,12 @@ TOOLS = {
                          "reversible": {"type": "boolean", "description": "the change can be undone inside the project"},
                          "single_area": {"type": "boolean", "description": "the change stays inside one map area"},
                          "detail": {"type": "boolean", "description": "lift the 2 KB budget"}}}),
-    "memory_changes": (t_changes, "Before you deliver: hand back the files this task read, with the fingerprints you saw; it says which changed since, so you do not act on a stale read. With files alone it takes their fingerprints now. Read-only; returns JSON.",
+    "memory_changes": (t_changes, "Before you deliver: give the files you read and the fingerprints you saw; it says which changed since. With files alone it takes fingerprints now. Read-only JSON.",
                        {"type": "object", "properties": {
                            "refs": {"type": "array", "items": {"type": "object", "properties": {
                                "file": {"type": "string"}, "fingerprint": {"type": "string"}},
-                               "required": ["file", "fingerprint"]},
-                               "description": "files you read and the fingerprint each had then"},
-                           "files": {"type": "array", "items": {"type": "string"},
-                                     "description": "paths to fingerprint now, relative to the project root"}}}),
+                               "required": ["file", "fingerprint"]}},
+                           "files": {"type": "array", "items": {"type": "string"}, "description": "paths under the root"}}}),
 }
 
 

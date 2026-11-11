@@ -20,7 +20,7 @@ CLI = HERE.parents[0] / "memory_governance.py"
 REPO = HERE.parents[2]
 TEMPLATES = REPO / "templates"
 OLD_CLI_PATH = "extras/memory-governance/memory_governance.py"
-PUBLISHED = {"1.4.0": "168335a", "1.4.2": "cc08db9"}   # the commits those releases were cut from
+PUBLISHED = {"1.4.0": "168335a", "1.4.2": "cc08db9", "1.4.3": "7e13bca"}   # the commits those releases were cut from
 DAY = "2026-11-10"
 
 
@@ -608,6 +608,29 @@ class UpgradeTests(Base):
 
     def test_upgrade_from_published_1_4_0(self):
         self.check_upgrade("1.4.0")
+
+    def test_upgrade_from_published_1_4_3(self):
+        old = self.old_cli("1.4.3")
+        self.project(init=False)
+        self.cli("init", cli=old)
+        installed = self.root / "scripts" / "memory_governance.py"
+        self.cli("write", "log", "Built with 1.4.3", "--source", "test", "--date", DAY, cli=installed)
+        self.cli("route", "rename old-name to new-name", "--paths", "NOW.md", "--terms", "old-name", "--record", cli=installed)
+        self.assertEqual(self.cli("id", "take", "D", cli=installed).stdout.strip(), "D-001")
+        before = self.snapshot()
+        self.assertIn("DRY RUN", self.cli("upgrade", "--source", str(CLI)).stdout)
+        self.assertEqual(self.snapshot(), before)
+        self.cli("upgrade", "--source", str(CLI), "--apply")
+        after = self.snapshot()
+        changed = sorted(k for k in after if after[k] != before.get(k))
+        self.assertEqual(changed, [".memory/backups/memory_governance_1.4.3.py", "scripts/memory_governance.py"])
+        self.assertEqual(after[".memory/backups/memory_governance_1.4.3.py"], before["scripts/memory_governance.py"])
+        # the 1.4.4 commands work on 1.4.3 data, and the old records stay as they were
+        self.assertIn("DOCTOR", self.cli("doctor", ok=None, cli=installed).stdout)
+        self.assertIn("no PROFILE.md", self.cli("profile", "check", cli=installed).stdout)
+        self.assertIn("no goals", json.loads(self.cli("lookup", "--registry", "goal", "--json", cli=installed).stdout)["note"])
+        self.assertEqual(self.cli("id", "take", "D", cli=installed).stdout.strip(), "D-002")
+        self.assertIn("EVENTS OK", self.cli("events", "verify", cli=installed).stdout)
 
     def test_old_data_shapes_are_read_as_they_are(self):
         """The same check without git: the files below are what 1.4.0 to 1.4.2 left on disk."""

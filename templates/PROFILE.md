@@ -1,3 +1,4 @@
+<!-- wallaby-agent-rules 1.4.4 -->
 # PROFILE.md — how to work with me
 
 > Optional. What the user wants, how they judge work, and what to ask before acting. One dated line per preference, with the user's own words as the source. The date is when the user last confirmed it.

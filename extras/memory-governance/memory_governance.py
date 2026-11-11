@@ -37,7 +37,7 @@ from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-VERSION = "1.4.3"
+VERSION = "1.4.4"
 SKIP_DIRS = {
     ".git", ".hg", ".svn", ".credentials", ".memory", "node_modules",
     ".venv", "venv", "env", "__pycache__", ".pytest_cache", "dist",
@@ -226,6 +226,8 @@ def scan(root: Path, terms, allow=None):
     truncated = False
     for path, skip_reason in iter_text_files(root):
         rel = path.relative_to(root).as_posix()
+        if fnmatch.fnmatch(rel, "scripts/memory_governance*.py"):
+            continue   # the installed CLI itself: its help examples are not project content
         if skip_reason:
             skipped.append({"path": rel, "reason": skip_reason})
             continue
@@ -625,6 +627,27 @@ def cmd_contradict(args):
     return 0
 
 
+WEEKLY_SCRIPTS = (("HEALTH", "scripts/health_check.py"), ("RECONCILE", "scripts/reconcile.py"))
+
+
+def weekly_script_lines(root: Path):
+    """Run the weekly scripts when they are installed, so one doctor run shows everything."""
+    out = []
+    for label, rel in WEEKLY_SCRIPTS:
+        path = root / rel
+        if not path.is_file():
+            continue
+        try:
+            r = subprocess.run([sys.executable, str(path), str(root)], capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            out.append(f"{label} not run: {e}")
+            continue
+        last = next((ln.strip() for ln in reversed(r.stdout.splitlines()) if ln.strip()), "")
+        out.append(f"{label} exit={r.returncode}" + (f" · {one_line(last, 140)}" if r.returncode and last else "")
+                   + (f" (details: python3 {rel})" if r.returncode else ""))
+    return out
+
+
 def cmd_doctor(args):
     root = Path(args.target).resolve()
     impact = load_json(config_path(root, "impact.json"))
@@ -652,6 +675,14 @@ def cmd_doctor(args):
     dupes = id_duplicates(root)
     for line in dupes:
         print(f"IDS {line}")
+    prof = profile_check(root)
+    if prof["exists"]:
+        print(f"PROFILE lines={prof['entries']} errors={len(prof['errors'])} due={len(prof['due'])}"
+              + (" (profile check lists them)" if prof["errors"] or prof["due"] else ""))
+        if prof["errors"]:
+            code = max(code, 1)
+    for line in weekly_script_lines(root):   # report only: the scripts keep their own exit codes
+        print(line)
     if any(report[k] for k in AUDIT_KINDS) or map_state["status"] == "drift" or stream["problems"] or dupes:
         code = max(code, 1)
     if code == 0:
@@ -1193,6 +1224,8 @@ def cmd_route(args):
 # ---------------------------------------------------------------------------
 
 def lookup(root: Path, registry: str, query="", status=None, limit=10, detail=False):
+    if registry == "goal":
+        return _lookup_goals(root, query, limit, detail)
     rows = load_caps(root) if registry == "capability" else load_map(root)
     source = CAPS_NAME if registry == "capability" else MAP_NAME
     result = OrderedDict(registry=registry, source=source, query=query, status=status, total=0, rows=[])
@@ -1221,6 +1254,25 @@ def lookup(root: Path, registry: str, query="", status=None, limit=10, detail=Fa
             if detail:
                 item["job"] = clean(r.get("job", ""))
         item["line"] = r["line"]
+        result["rows"].append(item)
+    return result
+
+
+def _lookup_goals(root: Path, query="", limit=10, detail=False):
+    """Goals and values from MEMORY.md, each with how many NOW.md and LOG.md lines point to it."""
+    result = OrderedDict(registry="goal", source=MEMORY_NAME, query=query, status=None, total=0, rows=[])
+    rep = goals_report(root)
+    if not rep["goals"]:
+        result["note"] = "no goals: add a section to MEMORY.md whose heading starts with Goals, one line per goal: '- G1 · <the goal>'"
+        return result
+    terms = [t for t in (query or "").lower().split() if t]
+    found = [g for g in rep["goals"] if all(t in f"{g['id']} {g['text']}".lower() for t in terms)]
+    result["total"] = len(found)
+    for g in found[:max(1, limit)]:
+        item = OrderedDict(goal=g["id"], kind=g["kind"], text=_clip(g["text"], detail), pointers=g["pointers"])
+        if detail:
+            item["latest"] = [f"{x['file']}:{x['line']}" for x in g["latest"]]
+        item["line"] = g["line"]
         result["rows"].append(item)
     return result
 
@@ -1376,6 +1428,9 @@ def audit_report(root: Path):
     stubs, ghosts = stub_problems(root)
     report["stub"] += stubs
     report["ghost"] += ghosts
+    for x in goals_report(root)["ghosts"]:
+        report["ghost"].append({"item": f"{x['file']}:{x['line']} goal: {x['goal']}",
+                                "detail": f"points to {x['goal']}, which is not under Goals in {MEMORY_NAME}"})
     report["volume"] = [{"item": p.split(":", 1)[0], "detail": p} for p in volume_verify(root)]
     return report
 
@@ -3680,13 +3735,13 @@ def cmd_split(args):
 
 
 # ---------------------------------------------------------------------------
-# unreleased · goals: numbered goals and values in MEMORY.md, and the work that points to them
+# 1.4.4 · goals: numbered goals and values in MEMORY.md, and the work that points to them
 # ---------------------------------------------------------------------------
 # Convention: a section of MEMORY.md whose heading starts with "Goals" holds one line per goal or value,
 #   - G1 · Ten paying teams by March
 #   - V1 · Never store request bodies
 # `write log|now|close --goal G1` adds "· goal: G1" to the line, after checking that G1 exists.
-# `goals` lists them with the lines that point to each, and fails on a pointer to a goal that is not there.
+# `lookup --registry goal` lists them with the lines that point to each; `audit` and `doctor` flag a pointer to a goal that is not there.
 
 GOAL_LINE = re.compile(r"^- (?:\[\d{4}-\d{2}-\d{2}\]\s+)?\**([GV]\d{1,3})\**\s+·\s+(.+)$")
 GOAL_REF = re.compile(r"(?<![A-Za-z0-9])goal:\s*([GV]\d{1,3})\b")
@@ -3745,22 +3800,8 @@ def goals_report(root: Path):
     return {"goals": rows, "ghosts": ghosts}
 
 
-def cmd_goals(args):
-    res = goals_report(Path(args.target).resolve())
-    if args.json:
-        print(json.dumps(res, ensure_ascii=False))
-    else:
-        if not res["goals"]:
-            print("No goals: add a section to MEMORY.md whose heading starts with Goals, one line per goal: '- G1 · <the goal>'.")
-        for g in res["goals"]:
-            print(f"{g['id']} ({g['kind']}) · {g['text']} — {g['pointers']} line(s) point here")
-        for x in res["ghosts"]:
-            print(f"  missing goal {x['goal']}: {x['file']}:{x['line']}  {x['text']}")
-    return 1 if res["ghosts"] else 0
-
-
 # ---------------------------------------------------------------------------
-# unreleased · profile: how to work with this user, as one file the user can check and take along
+# 1.4.4 · profile: how to work with this user, as one file the user can check and take along
 # ---------------------------------------------------------------------------
 # PROFILE.md holds one dated, sourced line per preference under five headings. The date is when the user
 # last confirmed it. `profile check` validates the format and lists lines past their review age (no model);
@@ -3873,6 +3914,8 @@ def profile_import(root: Path, src: Path, replace=False, actor=None):
 
 def cmd_profile(args):
     root = Path(args.target).resolve()
+    if args.action == "harvest":
+        return cmd_harvest(args)
     if args.action == "check":
         res = profile_check(root, args.today)
         rc = 1 if res["errors"] else 0
@@ -3902,7 +3945,7 @@ def cmd_profile(args):
 
 
 # ---------------------------------------------------------------------------
-# unreleased · harvest: the user's own words, gathered from what was already written down
+# 1.4.4 · harvest: the user's own words, gathered from what was already written down
 # ---------------------------------------------------------------------------
 # Preferences should not depend on one model noticing them mid-session. Any agent that records the
 # user's exact words — `source: user: "..."` on a log line, a FAILURES.md entry — leaves material
@@ -4053,6 +4096,48 @@ def cmd_harvest(args):
     return 0
 
 
+# Help that an agent can act on without reading this file: three groups, and one copyable example per command.
+_RUN = "python3 scripts/memory_governance.py"
+HELP_GROUPS = """commands by how often you need them:
+  daily       write, id, route, verify, lookup, doctor
+  now & then  profile, split, map, upgrade, init, events, audit
+  advanced    premise, contradict, impact (older form of route --terms --record)
+every command takes --help, which ends with an example you can copy."""
+HELP_EXAMPLES = {
+    "init": f"{_RUN} --target . init",
+    "impact": f"{_RUN} impact --event rename --terms old-name --record   (prefer: route ... --terms old-plan --record)",
+    "verify": f"{_RUN} verify",
+    "premise": f"{_RUN} premise",
+    "contradict": f"{_RUN} contradict list",
+    "doctor": f"{_RUN} doctor",
+    "upgrade": f"{_RUN} upgrade",
+    "route": f'{_RUN} route "rename old-name to new-name" --paths docs/pricing.md --terms old-name --record',
+    "profile": f"{_RUN} profile check   |   {_RUN} profile harvest --advance",
+    "lookup": f'{_RUN} lookup --registry capability --query "backup restore"',
+    "audit": f"{_RUN} audit",
+    "map": f"{_RUN} map sync",
+    "split": f"{_RUN} split volume plan --file LOG.md",
+    "events": f"{_RUN} events list",
+    "id": f"{_RUN} id take D",
+    "write": f'{_RUN} write log "Shipped the pricing page" --source \'user: "ship it"\'',
+}
+WRITE_EXAMPLES = {
+    "log": f'{_RUN} write log "Shipped the pricing page" --source \'user: "ship it today"\' --goal G1',
+    "now": f'{_RUN} write now "Pricing page rewrite" --pointer docs/pricing.md',
+    "close": f'{_RUN} write close "Pricing page shipped" --match "pricing page"',
+    "propose": f'{_RUN} write propose "Quote prices in USD" --source \'user: "always USD"\' --origin harvest',
+    "promote": f'{_RUN} write promote --match "prices in usd" --section Active',
+    "reject": f'{_RUN} write reject --match "prices in usd" --reason "one-off"',
+    "confirm": f'{_RUN} write confirm --match "numbers before" --source \'user: "yes, still"\'',
+    "fact": f'{_RUN} write fact "Prices are quoted in USD" --source docs/pricing.md --section Active',
+    "index": f'{_RUN} write index "Pricing spec" --path docs/pricing.md',
+    "capability": f'{_RUN} write capability "backup script" --entry scripts/backup.sh --form script',
+    "map": f'{_RUN} write map "Pricing page" --keywords "pricing, plans"',
+    "failure": f'{_RUN} write failure --kind stale --observed "said it was pending" --expected "check LOG.md first"',
+    "batch": f"{_RUN} write batch --file entries.jsonl",
+}
+
+
 def build_parser():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--target", default=".", help="project root, default: current directory")
@@ -4091,26 +4176,22 @@ def build_parser():
     route.add_argument("--terms", action="append", default=[], help="an old name or path that should disappear; implies --record")
     route.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
     route.add_argument("--json", action="store_true")
-    goals_p = sub.add_parser("goals", help="the numbered goals and values in MEMORY.md and the lines that point to them")
-    goals_p.add_argument("--json", action="store_true")
-    prof = sub.add_parser("profile", help="PROFILE.md: check the format and what is due for review, export, import")
-    prof.add_argument("action", choices=["check", "export", "import"])
+    prof = sub.add_parser("profile", help="PROFILE.md: check it, harvest the user's words for it, export, import")
+    prof.add_argument("action", choices=["check", "harvest", "export", "import"])
     prof.add_argument("--path", help="the package directory for export (new or empty) or import")
     prof.add_argument("--replace", action="store_true", help="import over an existing PROFILE.md (the old one is kept)")
-    prof.add_argument("--today", help="YYYY-MM-DD for check; defaults to today")
+    prof.add_argument("--today", help="YYYY-MM-DD for check and harvest --advance; defaults to today")
+    prof.add_argument("--since", help="harvest: YYYY-MM-DD; defaults to the saved cursor, else everything")
+    prof.add_argument("--speaker", action="append", help="harvest: who counts as the user in the records (repeatable); default: user, the user")
+    prof.add_argument("--source", action="append", help="harvest: a file to read, with its month volumes (repeatable); default: LOG.md, FAILURES.md")
+    prof.add_argument("--include-approvals", action="store_true", help="harvest: also list short approvals and answers to the agent's questions")
+    prof.add_argument("--all", action="store_true", help="harvest: list every quote, not only the likely ones")
+    prof.add_argument("--advance", action="store_true", help="harvest: after listing, move the cursor to today")
     prof.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
     prof.add_argument("--json", action="store_true")
-    harvest_p = sub.add_parser("harvest", help="list the user's own words from LOG.md and FAILURES.md as profile candidates (reads only)")
-    harvest_p.add_argument("--since", help="YYYY-MM-DD; defaults to the saved cursor, else everything")
-    harvest_p.add_argument("--speaker", action="append", help="who counts as the user in the records (repeatable); default: user, the user, 用户")
-    harvest_p.add_argument("--source", action="append", help="a file to read, with its month volumes (repeatable); default: LOG.md, FAILURES.md")
-    harvest_p.add_argument("--include-approvals", action="store_true", help="also list short approvals and answers to the agent's questions")
-    harvest_p.add_argument("--all", action="store_true", help="list every quote, not only the likely ones")
-    harvest_p.add_argument("--advance", action="store_true", help="after listing, move the cursor to today")
-    harvest_p.add_argument("--today", help="YYYY-MM-DD for --advance; defaults to today")
-    harvest_p.add_argument("--json", action="store_true")
     lookup_p = sub.add_parser("lookup", help="read rows from CAPABILITIES.md or MAP.md")
-    lookup_p.add_argument("--registry", choices=["capability", "map"], required=True)
+    lookup_p.add_argument("--registry", choices=["capability", "map", "goal"], required=True,
+                          help="capability (CAPABILITIES.md), map (MAP.md), or goal (the Goals section of MEMORY.md)")
     lookup_p.add_argument("--query", default="", help="words that must all appear in a row")
     lookup_p.add_argument("--status", help="capability state, e.g. active")
     lookup_p.add_argument("--limit", type=int, default=10)
@@ -4222,6 +4303,14 @@ def build_parser():
     batch.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
     batch.add_argument("--dry-run", action="store_true")
     batch.add_argument("--json", action="store_true")
+    for name, sp in sub.choices.items():
+        if name in HELP_EXAMPLES:
+            sp.epilog = "example: " + HELP_EXAMPLES[name]
+    for name, sp in faces.choices.items():
+        if name in WRITE_EXAMPLES:
+            sp.epilog = "example: " + WRITE_EXAMPLES[name]
+    p.epilog = HELP_GROUPS
+    p.formatter_class = argparse.RawDescriptionHelpFormatter
     return p
 
 
@@ -4248,12 +4337,8 @@ def main(argv=None):
             return cmd_upgrade(args)
         if args.command == "route":
             return cmd_route(args)
-        if args.command == "goals":
-            return cmd_goals(args)
         if args.command == "profile":
             return cmd_profile(args)
-        if args.command == "harvest":
-            return cmd_harvest(args)
         if args.command == "lookup":
             return cmd_lookup(args)
         if args.command == "audit":

@@ -108,22 +108,23 @@ class GoalTests(Base):
         self.assertIn("unrecognized arguments: --goal",
                       self.cli("write", "fact", "x", "--source", "y", "--goal", "G1", ok=2).stderr)   # only log, now, close take it
 
-    def test_goals_lists_pointers_and_fails_on_a_missing_goal(self):
+    def test_lookup_lists_goals_and_audit_flags_a_missing_one(self):
         self.setup_goals()
         self.cli("write", "log", "Shipped the team plan", "--goal", "G1", "--date", "2026-11-10")
-        res = self.js("goals")
-        by = {g["id"]: g for g in res["goals"]}
-        self.assertEqual(set(by), {"G1", "V1"})
+        res = self.js("lookup", "--registry", "goal")
+        by = {g["goal"]: g for g in res["rows"]}
+        self.assertEqual(set(by), {"G1", "V1"})                                       # the commented example does not count
         self.assertEqual((by["G1"]["pointers"], by["V1"]["pointers"], by["V1"]["kind"]), (1, 0, "value"))
+        self.assertEqual([g["goal"] for g in self.js("lookup", "--registry", "goal", "--query", "paying")["rows"]], ["G1"])
         self.write("LOG.md", self.read("LOG.md") + "- [2026-11-09] Old work · goal: G7\n")
-        r = self.cli("goals", ok=1)
-        self.assertIn("missing goal G7", r.stdout)
+        ghosts = self.js("audit", ok=1)["ghost"]
+        self.assertTrue(any("goal: G7" in g["item"] for g in ghosts), ghosts)
+        self.assertIn("ghost=1", self.cli("doctor", ok=1).stdout)                   # doctor counts; audit lists
 
     def test_no_goals_section(self):
         self.project()
-        self.assertIn("No goals", self.cli("goals").stdout)
+        self.assertIn("no goals", self.js("lookup", "--registry", "goal")["note"])
         self.assertIn("add a Goals section", self.cli("write", "log", "x", "--goal", "G1", ok=2).stderr)
-
 
 if __name__ == "__main__":
     unittest.main()

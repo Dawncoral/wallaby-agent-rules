@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.3 -->
+<!-- wallaby-agent-rules 1.4.4 -->
 # PROMPT.zh-CN.md —— 粘贴即用的提示词（中文版）
 
 四段自包含提示词。选一段，整个代码块复制，粘给在你项目里干活的 AI（Kimi Code、Claude Code、Cursor、Codex，或任何能读写文件的 agent）。无需安装、零依赖——AI 自己把整套系统建出来。English version: [PROMPT.md](PROMPT.md)。
@@ -155,6 +155,7 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 - 首行注释直接写明版本：1.0.0 起为语义化 `<!-- wallaby-agent-rules 1.0.0 -->`；早期安装为 `<!-- wallaby-agent-rules vX -->`（v1–v4.1）。
 - 无标记 → 按指纹推断：
+  - **1.4.4**：入口文件的 `## Verify` 节有一句：说做完了之前先查 NOW.md、LOG.md 最新几条和 MEMORY.md；可选的 PROFILE.md；治理 CLI 新增 `profile`（check、harvest、export、import）、`write confirm`、目标编号（`--goal`、`lookup --registry goal`），`doctor` 会顺带跑每周脚本；MCP 服务器有十个工具（新增 `memory_changes`），`memory_locate` 会带回最新状态。
   - **1.4.3**：可选的 `extras/memory-mcp/` 服务器（九个工具）；治理 CLI 新增 `route`（含 `--record`）、`lookup`、`audit`（含常驻说明对基线）、`map sync`、`split`、`write`、`events`、`id`；scripts/health_check.py 与 scripts/reconcile.py 标记升到 1.4.3，能读月卷（`LOG/YYYY-MM.md`）和 INDEX 分片（`INDEX/<分片>.md`）；入口文件可带两条可选规则（CAPABILITIES.md、MAP.md）。MEMORY.md、NOW.md、INDEX.md、LOG.md 与 1.4.2 相同。
   - **1.4.2**：治理 CLI 新增无损 `upgrade` 命令——默认干跑、先备份、替换后验证，失败自动恢复；其他安装文件与 1.4.1 相同。
   - **1.4.1**：仅文档补丁，新增 `extras/memory-governance/WEEKLY_RECONCILE.md`；已安装文件其余与 1.4.0 相同。
@@ -173,12 +174,12 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 ## 第 2 步：提出增量升级清单
 
-拿现状对照 1.4.3 布局（核心文件保留 1.1.0 结构，另加 1.4.0 收工措辞；可选模板、记忆治理包和记忆 MCP 服务器是仓库侧新增件）。输出编号清单：
+拿现状对照 1.4.4 布局（核心文件保留 1.1.0 结构，另加 1.4.0 收工措辞；可选模板、记忆治理包和记忆 MCP 服务器是仓库侧新增件）。输出编号清单：
 
 - **新增**——还不存在的文件。INDEX.md 先扫描项目并给我看你将要写入的首个完整版本。
-- **可选新增**——分别提供 MAP.md、CAPABILITIES.md、FAILURES.md，不把它们变成可用安装的必要条件。
+- **可选新增**——分别提供 MAP.md、CAPABILITIES.md、FAILURES.md、PROFILE.md，不把它们变成可用安装的必要条件。
 - **可选治理包**——提议运行 `python3 extras/memory-governance/memory_governance.py --target . init`，再跑 `python3 scripts/memory_governance.py doctor`。已有 scripts/memory_governance.py 的，提议先跑 `python3 extras/memory-governance/memory_governance.py --target . upgrade`（干跑），我同意后再加 `--apply`。绝不把它变成强制升级项。
-- **建议改动**——每个已有文件给一份 diff：你建议加什么（比如 `## 仪式词` 节、可选的 `## 信任培养模式` 节、代码项目的 `## 代码与版本` 节、当前版本标记）；如发现有内容显得冗余，*建议*移哪——明确标注可选，没我逐项明确同意绝不执行。
+- **建议改动**——每个已有文件给一份 diff：你建议加什么（比如 `## 仪式词` 节、可选的 `## 信任培养模式` 节、代码项目的 `## 代码与版本` 节、`## Verify` 下的状态检查句、当前版本标记）；如发现有内容显得冗余，*建议*移哪——明确标注可选，没我逐项明确同意绝不执行。
 - **替换（仅限脚手架）**——若 scripts/health_check.py 或 scripts/reconcile.py 的版本标记早于 1.4.3（或 health_check.py 不足十项扫描、reconcile.py 不足两项扫描），提议换成 wallaby-agent-rules 仓库的当前版本。只有这两个文件可以直接替换。
 - **指引**——如果我的工具在 wallaby-agent-rules 仓库的 `templates/integrations/` 里有卡，指给我。
 

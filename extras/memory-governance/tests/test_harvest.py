@@ -43,12 +43,12 @@ class HarvestTests(Base):
         self.write("FAILURES.md", failures)
 
     def quotes(self, *args):
-        return {r["quote"]: r for r in self.js("harvest", *args)["candidates"]}
+        return {r["quote"]: r for r in self.js("profile", "harvest", *args)["candidates"]}
 
     def test_own_words_listed_and_picks_left_out(self):
         self.setup_records()
         before = self.snapshot()
-        res = self.js("harvest")
+        res = self.js("profile", "harvest")
         got = {r["quote"] for r in res["candidates"]}
         self.assertTrue(OWN <= got, got)
         self.assertIn("we should never build reports nobody opens", got)                 # month volumes are read
@@ -65,7 +65,7 @@ class HarvestTests(Base):
         self.assertTrue(rows["plan B"]["approval"])
         self.assertEqual(rows["keep the cap as it is for now"]["answering"], "Keep the cap of one release a week, or lift it?")
         self.assertFalse(rows["it should work right after install"]["approval"])
-        self.assertIn("answering: Keep the cap", self.cli("harvest", "--include-approvals").stdout)
+        self.assertIn("answering: Keep the cap", self.cli("profile", "harvest", "--include-approvals").stdout)
 
     def test_review_through_the_queue_and_no_second_round(self):
         self.setup_records()
@@ -76,7 +76,7 @@ class HarvestTests(Base):
                  "--source", 'user: "too many steps, people should not need to configure anything" (LOG.md 2026-11-06)',
                  "--origin", "harvest", "--date", "2026-11-10")
         self.cli("write", "reject", "--match", "no configuration", "--reason", "one-off, not a rule", "--date", "2026-11-10")
-        res = self.js("harvest")
+        res = self.js("profile", "harvest")
         got = {r["quote"] for r in res["candidates"]}
         self.assertNotIn("Always quote prices in USD, never mix currencies on one page", got)   # waiting in PROPOSALS.md
         self.assertNotIn("too many steps, people should not need to configure anything", got)  # rejected stays rejected
@@ -86,7 +86,7 @@ class HarvestTests(Base):
 
     def test_cursor_and_speakers(self):
         self.setup_records()
-        out = self.js("harvest", "--advance", "--today", "2026-11-06")
+        out = self.js("profile", "harvest", "--advance", "--today", "2026-11-06")
         self.assertEqual(out["advanced_to"], "2026-11-06")
         later = set(self.quotes())
         self.assertIn("it should work right after install", later)

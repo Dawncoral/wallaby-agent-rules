@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.3 -->
+<!-- wallaby-agent-rules 1.4.4 -->
 # Memory MCP
 
 **A second door to the same files.** Your memory stays in `MEMORY.md`, `NOW.md`, `INDEX.md`, and `LOG.md`, read through the entry file. This optional server opens those files to agents that never load the entry file, such as an agent started by a workbench or a remote runner. It keeps no store, cache, or index of its own.
@@ -31,15 +31,15 @@ Claude Code: `claude mcp add wallaby-memory -- python3 /abs/path/wallaby_memory_
 | Tool | Protocol step | What it does |
 |---|---|---|
 | `memory_read` | session start | Returns `MEMORY.md` and `NOW.md`, the file version, and the conflict rule: files beat memory, memory beats inference. |
-| `memory_locate` | check INDEX.md first | Returns the `INDEX.md` rows that match, including rows in the `INDEX/` parts it points to. It never guesses a path. |
+| `memory_locate` | check INDEX.md first; before you say done | Returns the `INDEX.md` rows that match, including rows in the `INDEX/` parts it points to, and the topic's latest state: the newest lines from `NOW.md`, `MEMORY.md`, `LOG.md` with its volumes, and `PROPOSALS.md`, at most five per file and about 1.5 KB in all. It marks lines that say done and warns when NOW.md and LOG.md disagree. It never guesses a path. |
 | `memory_propose` | trust-building | Queues a dated fact in `PROPOSALS.md`. A source is required. It never writes `MEMORY.md`; a person promotes it. |
 | `memory_note` | "note this" | Adds one dated line at the top of this month in `LOG.md`. |
 | `memory_now` | tracked work moved | Adds one dated line under `## In flight` in `NOW.md`. A pointer is required. |
-| `memory_check` | weekly checks | Runs `scripts/health_check.py` and `scripts/reconcile.py` when they exist. |
+| `memory_check` | weekly checks | Runs `doctor` when the governance CLI and `.memory/` are there; otherwise runs `scripts/health_check.py` and `scripts/reconcile.py` when they exist. |
 | `memory_status` | upgrades | Reports the file version, counts, and the memory budget, and says when an upgrade is due. |
-| `memory_lookup` | search before building | With `registry: capability`, returns rows of `CAPABILITIES.md`; with `registry: map`, rows of `MAP.md`. Every query word must appear in the row. It also takes `status`, `limit`, and `detail`. Read-only. |
+| `memory_lookup` | search before building | With `registry: capability`, returns rows of `CAPABILITIES.md`; with `registry: map`, rows of `MAP.md`; with `registry: goal`, the goals and values in `MEMORY.md`. Every query word must appear in the row. It also takes `status`, `limit`, and `detail`. Read-only. |
 | `memory_route` | before and after a change | Returns the route card as JSON: capabilities to reuse, files to register, map components, events and surfaces, the tier, and the premises the changed paths depend on. About 2 KB. Read-only. |
-| `memory_changes` | before you deliver | `memory_read` gives each file's fingerprint. Hand back the files the task read with the fingerprints you saw, and it says which changed since, so you do not act on a stale read. With `files` alone it takes the fingerprints now. Paths outside the root are refused. Read-only. Unreleased. |
+| `memory_changes` | before you deliver | `memory_read` gives each file's fingerprint. Hand back the files the task read with the fingerprints you saw, and it says which changed since, so you do not act on a stale read. With `files` alone it takes the fingerprints now. Paths outside the root are refused. Read-only. |
 
 `memory_lookup` and `memory_route` run the governance CLI with `--json` and return its output; they hold no logic of their own. They prefer `scripts/memory_governance.py` 1.4.3 or newer under the root and fall back to the copy in `extras/memory-governance/` beside this server. Without either, they say how to install it.
 

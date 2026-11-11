@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.3 -->
+<!-- wallaby-agent-rules 1.4.4 -->
 # AGENTS.md — token-budget starter template
 # Source: Wallaby Token engineering practice — https://www.wallabytoken.com/blog/p/agents-md-token-budget
 # License: MIT — adapt freely, attribution appreciated.
@@ -68,6 +68,9 @@ README section 4.)
 
 - One canonical check: `<test/build command>`. Run it before declaring any
   task done. Do not invent a new verification ritual per task.
+- Before you call anything done, shipped, or pending, look it up in NOW.md,
+  the newest LOG.md lines, and MEMORY.md; `memory_locate` reads all three.
+  A live check beats every file.
 
 ## Forbidden without explicit human approval
 
@@ -81,15 +84,13 @@ README section 4.)
 - DO NOT write prose explanations into instruction or memory files —
   operational statements only.
 
-Each of these is a default behavior of coding agents. Each default is a
-recurring token leak. Ban the leak, keep the capability: anything here is
-allowed the moment a human asks for it.
+Each is a default agent habit and a recurring token leak. Ban the leak,
+keep the capability: any of it is allowed the moment a human asks.
 
 ## Closeout (end of every task)
 
 1. **Drift check**: state what changed vs. what was planned. One line per
-   drift, with the reason. Intent and outcome drift apart silently unless
-   you check.
+   drift, with the reason.
 2. **Memory update**: touch MEMORY.md only if the task changed a settled
    fact, produced a decision worth keeping, or finished tracked work.
    Otherwise write nothing. When tracked work closes, write LOG.md and
@@ -97,8 +98,7 @@ allowed the moment a human asks for it.
    entries use `<anchor> — <current status>`; do not write "later",
    "afterwards", or another deferral placeholder.
 3. **Delete process notes.** Git history and the decision log already hold
-   what matters; blow-by-blow scratch is the biggest token garbage source
-   in any memory system.
+   what matters.
 4. **One rule in, one rule out.** Before adding a standing rule, check
    whether one already covers it. If the governance `audit` reports this
    file over its baseline, merge or retire a rule first, and say which.

@@ -3,6 +3,11 @@
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
 
+## Unreleased
+
+- **`harvest`** in the governance CLI lists the user's own words from LOG.md, FAILURES.md, and their month volumes as candidates for lasting preferences. It writes nothing. Short approvals and replies marked `(answering "…")` count as picks of the agent's own suggestions and are left out by default. Quotes already proposed, kept, or rejected do not come back. A cursor in `.memory/` limits each run to new records. The person approves each candidate through the existing `write propose` → `write promote` / `write reject` queue. `--json` gives tools a stable list. See [Harvest the user's own words](extras/memory-governance/README.md#harvest-the-users-own-words-unreleased).
+- `write log`, `fact`, and `propose` explain in their help how to record the user's exact words: `user: "…"`.
+
 ## 1.4.3 — 2026-11-10
 
 **The registries, the change check, and the memory files now work as one loop.** The release checklist counts new commands as a minor version; this one keeps a patch number by maintainer decision.

@@ -331,6 +331,38 @@ A series is one to four capital letters. Five are built in: `R` for receipts, `C
 
 `audit` exits 1 when a contradiction, premise, or failure ID is defined twice. It also notes receipt IDs that 1.4.0 to 1.4.2 issued more than once, and IDs taken more than seven days ago that no file mentions.
 
+## Harvest the user's own words (unreleased)
+
+Preferences should not depend on one model noticing them during one session. Every agent already writes down what the user decided, so the user's words are in the records. `harvest` reads them back later, and the person still decides what becomes memory.
+
+Write the user's words exactly, as the source of a line:
+
+```bash
+python3 scripts/memory_governance.py write log "Moved pricing to USD" --source 'user: "Always quote prices in USD"'
+```
+
+If the user only picked one of the options you offered, add `(answering "<your question>")` after their words. A pick is an approval of your idea. It is not the user's own view, and `harvest` keeps the two apart.
+
+```bash
+python3 scripts/memory_governance.py harvest              # since the saved cursor, else everything
+python3 scripts/memory_governance.py harvest --advance    # list, then move the cursor to today
+```
+
+It reads LOG.md, FAILURES.md, and their month volumes. It finds a quote that follows `user` or `the user`. Straight quotes, curly quotes, and Chinese corner brackets all work, and so do records written in Chinese. A second quote chained right after the first counts too, as in `user: "A", then "B"`. The command writes nothing. Only `--advance` saves a file, `.memory/harvest_cursor.json`. Three kinds of quote are left out:
+
+- **Approvals and picks**: three words or fewer, or twelve characters in Chinese; a plain yes or go; or a reply marked `(answering "…")`. `--include-approvals` lists them with the question that was answered.
+- **Already handled**: in PROPOSALS.md, MEMORY.md, MEMORY/, or a `Rejected proposal` line in the log. A rejected quote does not come back.
+- **Unlikely**: no sign of a rule, a correction, or a standard. `--all` lists them too.
+
+Use `--speaker` when your records name the user another way, and `--source` for other files. `--json` returns `version`, `since`, `total`, `approvals`, `known`, and `candidates`. Each candidate has `quote`, `date`, `file`, `line`, `approval`, `answering`, and `signals`. Tools that drive agents can build on these fields.
+
+The review goes through the trust-building queue:
+
+1. The agent reads the candidates. It drops one-off instructions and turns each lasting preference into one sentence: `write propose --text "<the rule>" --source 'user: "<their words>", LOG.md 2026-11-02' --origin harvest`.
+2. The person reads PROPOSALS.md. For each line, the agent runs `write promote --match … --file MEMORY/working-with-me.md` on a yes, or `write reject --match … --reason …` on a no. Create the topic file first if you keep preferences apart from MEMORY.md.
+
+Nothing reaches memory without the person's yes. A good time to run this is the weekly review.
+
 ## What the scanner does and does not do
 
 - It reads text files and reports paths and match counts, not file contents.

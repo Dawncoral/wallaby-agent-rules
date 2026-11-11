@@ -3655,6 +3655,158 @@ def cmd_split(args):
     return 0
 
 
+# ---------------------------------------------------------------------------
+# 1.4.4 · harvest: the user's own words, gathered from what was already written down
+# ---------------------------------------------------------------------------
+# Preferences should not depend on one model noticing them mid-session. Any agent that records the
+# user's exact words — `source: user: "..."` on a log line, a FAILURES.md entry — leaves material
+# this command can read later. It lists candidates only; nothing is written. An agent turns the
+# good ones into `write propose` lines, and the person approves each with `write promote` or
+# `write reject`. A pick between options the agent offered is an approval, not the user's own
+# view, so short approvals and replies marked `(answering "...")` are left out by default.
+
+HARVEST_SPEAKERS = ("user", "the user", "用户")
+HARVEST_SOURCES = ("LOG.md", "FAILURES.md")
+HARVEST_CURSOR = "harvest_cursor.json"
+_H_OPEN, _H_CLOSE = "\"“「", "\"”」"
+_H_APPROVE = re.compile(
+    r"^(ok(ay)?|yes|yep|yeah|y|sure|fine|go|go ahead|do it|ship it|lgtm|sounds good|approved?|agreed?|proceed|"
+    r"continue|option\s*\w|\w|\d+|好|好的|行|可以|做吧|开工|同意|没问题|继续|就这样)[\s.!。！,，]*$", re.I)
+_H_ANSWER = re.compile(r"\s*[（(]\s*(?:answering|answered|in reply to|答)\s*[:：]?\s*[\"“「]([^\"”」\n]{0,300})[\"”」]\s*[)）]", re.I)
+_H_CHAIN = re.compile(r"([^\"“「」”\n。]{0,8}?)[\"“「]([^\"”」\n]{2,400})[\"”」]")
+_H_CHAIN_STOP = re.compile(r"answer|asked|question|suggest|propos|答|问|建议|提议", re.I)
+_H_CJK = re.compile(r"[㐀-鿿]")
+HARVEST_SIGNALS = {
+    "rule": r"\b(always|never|every time|from now on|by default|in general)\b|以后|一律|每次|永远|默认|原则|一定要|必须|不能|别再|不要再",
+    "correction": r"\b(wrong|not what|that's not|stop|don't|instead|too (much|many|slow|long))\b|不对|错了|不是这样|重做|不够|没必要|多余|不该",
+    "standard": r"\b(should|must|need to|prefer|rather|keep it|make sure)\b|应该|需要|希望|尽量|优先|简单|清楚|成本|速度",
+}
+
+
+def _h_norm(text):
+    return re.sub(r"\s+", "", str(text or "")).lower()
+
+
+def _h_quotes(text, speakers):
+    """(quote, end) for each quote attributed to a speaker, plus quotes chained right after it
+    ('user: "A", then "B"'). A chained quote whose connector mentions an answer or a suggestion
+    belongs to someone else and stops the chain."""
+    names = "|".join(re.escape(s) for s in sorted(speakers, key=len, reverse=True))
+    head = re.compile(rf"(?<![A-Za-z])(?:{names})(?![A-Za-z])[^{_H_OPEN}\n]{{0,30}}?[{_H_OPEN}]([^{_H_CLOSE}\n]{{2,400}})[{_H_CLOSE}]", re.I)
+    for m in head.finditer(text):
+        yield m.group(1), m.end()
+        pos = m.end()
+        while True:
+            c = _H_CHAIN.match(text, pos)
+            if not c or _H_CHAIN_STOP.search(c.group(1)):
+                break
+            yield c.group(2), c.end()
+            pos = c.end()
+
+
+def _h_is_approval(quote, after):
+    q = quote.strip()
+    short = len(q) <= 12 if _H_CJK.search(q) else len(q.split()) <= 3
+    return bool(short or _H_APPROVE.match(q) or _H_ANSWER.match(after))
+
+
+def harvest(root: Path, since=None, speakers=None, sources=None, include_approvals=False, show_all=False):
+    root = Path(root)
+    speakers = tuple(speakers or HARVEST_SPEAKERS)
+    cursor = config_path(root, HARVEST_CURSOR)
+    if since is None and cursor.is_file():
+        since = (load_json(cursor) or {}).get("since")
+    files = []
+    for rel in sources or HARVEST_SOURCES:
+        path = root / rel
+        if path.is_file():
+            files += [path] + volume_files(path)
+    found = {}
+    for path in files:
+        rel = path.relative_to(root).as_posix()
+        lines = read_text(path).splitlines()
+        hidden = _hidden_lines([ln + "\n" for ln in lines])
+        month = ""
+        for n, ln in enumerate(lines, 1):
+            if n - 1 in hidden:
+                continue
+            mh = re.match(r"^#{1,4}\s.*?(\d{4}-\d{2})(-\d{2})?", ln)
+            if mh:
+                month = mh.group(1) + (mh.group(2) or "")
+            md = DATED_LINE.match(ln.strip())
+            if md and md.group(2).startswith("Rejected proposal:"):
+                continue                                  # the review trail, not new words
+            day = md.group(1) if md else month
+            for q, end in _h_quotes(ln, speakers):
+                q = q.strip()
+                key = _h_norm(q)
+                if not key or key in found or (since and day and day < since):
+                    continue
+                after = ln[end:end + 320]
+                ans = _H_ANSWER.match(after)
+                found[key] = {"quote": q, "date": day, "file": rel, "line": n,
+                              "approval": _h_is_approval(q, after), "answering": ans.group(1) if ans else ""}
+    known_texts = []
+    for rel in ("PROPOSALS.md", MEMORY_NAME):
+        known_texts += _dated_texts(root, rel)
+    topic_dir = root / "MEMORY"
+    if topic_dir.is_dir():
+        for path in sorted(topic_dir.glob("*.md")):
+            known_texts += _dated_texts(root, path.relative_to(root).as_posix())
+    for path in [root / LOG_NAME] + volume_files(root / LOG_NAME):
+        if path.is_file():
+            known_texts += [t for t in _dated_texts(root, path.relative_to(root).as_posix()) if t.startswith("Rejected proposal:")]
+    known_blob = "\n".join(_h_norm(t) for t in known_texts)
+    rows, approvals, known = [], 0, 0
+    for key, r in found.items():
+        if key[:40] in known_blob:
+            known += 1
+            continue
+        if r["approval"]:
+            approvals += 1
+            if not include_approvals:
+                continue
+        signals = [k for k, rx in HARVEST_SIGNALS.items() if re.search(rx, r["quote"], re.I)]
+        score = 2 * len(signals) + (1 if 15 <= len(r["quote"]) <= 200 else 0)
+        if show_all or score >= 3 or r["approval"]:
+            rows.append({**r, "signals": signals, "score": score})
+    rows.sort(key=lambda r: (-r["score"], r["date"] or "", r["file"], r["line"]))
+    return {"version": 1, "since": since, "speakers": list(speakers), "sources": [f.relative_to(root).as_posix() for f in files],
+            "total": len(found), "approvals": approvals, "known": known, "candidates": rows}
+
+
+def harvest_advance(root: Path, day=None):
+    day = local_today(day)
+    path = config_path(Path(root), HARVEST_CURSOR)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(path, json.dumps({"since": day}) + "\n")
+    return day
+
+
+def cmd_harvest(args):
+    root = Path(args.target).resolve()
+    res = harvest(root, args.since, args.speaker, args.source, args.include_approvals, args.all)
+    if args.advance:
+        res["advanced_to"] = harvest_advance(root, args.today)
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False))
+        return 0
+    print(f"since {res['since'] or 'the beginning'}: {res['total']} quote(s) from {', '.join(res['speakers'])}; "
+          f"{res['approvals']} approval(s) or pick(s); {res['known']} already proposed, kept, or rejected; "
+          f"{len(res['candidates'])} candidate(s)")
+    for r in res["candidates"]:
+        tag = " [approval]" if r["approval"] else ""
+        print(f"  {r['file']}:{r['line']} [{r['date'] or '?'}] {'/'.join(r['signals']) or '-'}{tag}  {r['quote'][:160]}")
+        if r["answering"]:
+            print(f"      answering: {r['answering'][:160]}")
+    if res["candidates"]:
+        print("next: write propose --text \"<the rule, in a sentence>\" --source 'user: \"<their words>\" (<file> <date>)' --origin harvest;"
+              " the person approves each with write promote or write reject")
+    if res.get("advanced_to"):
+        print(f"cursor moved to {res['advanced_to']}")
+    return 0
+
+
 def build_parser():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--target", default=".", help="project root, default: current directory")
@@ -3693,6 +3845,15 @@ def build_parser():
     route.add_argument("--terms", action="append", default=[], help="an old name or path that should disappear; implies --record")
     route.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
     route.add_argument("--json", action="store_true")
+    harvest_p = sub.add_parser("harvest", help="list the user's own words from LOG.md and FAILURES.md as profile candidates (reads only)")
+    harvest_p.add_argument("--since", help="YYYY-MM-DD; defaults to the saved cursor, else everything")
+    harvest_p.add_argument("--speaker", action="append", help="who counts as the user in the records (repeatable); default: user, the user, 用户")
+    harvest_p.add_argument("--source", action="append", help="a file to read, with its month volumes (repeatable); default: LOG.md, FAILURES.md")
+    harvest_p.add_argument("--include-approvals", action="store_true", help="also list short approvals and answers to the agent's questions")
+    harvest_p.add_argument("--all", action="store_true", help="list every quote, not only the likely ones")
+    harvest_p.add_argument("--advance", action="store_true", help="after listing, move the cursor to today")
+    harvest_p.add_argument("--today", help="YYYY-MM-DD for --advance; defaults to today")
+    harvest_p.add_argument("--json", action="store_true")
     lookup_p = sub.add_parser("lookup", help="read rows from CAPABILITIES.md or MAP.md")
     lookup_p.add_argument("--registry", choices=["capability", "map"], required=True)
     lookup_p.add_argument("--query", default="", help="words that must all appear in a row")
@@ -3769,19 +3930,22 @@ def build_parser():
 
     day, take = "YYYY-MM-DD; defaults to today", "take the next ID of this series and put it in front, e.g. D"
     face("log", "LOG.md: one dated line on top of its month", text="what happened",
-         source="a pointer or who says so", date=day, take=take)
+         source='a pointer, or who says so; the user\'s exact words as user: "..." (add (answering "...") when they picked your option)',
+         date=day, take=take)
     face("now", "NOW.md: one dated line under In flight", text="the item that moved",
          pointer="where the detail lives (required)", section="a heading other than In flight", date=day, take=take)
     face("close", "finish tracked work in one action: the NOW.md line leaves, LOG.md gets the entry", text="what happened",
          match="words from the NOW.md line (required)", pointer="where the detail lives", date=day, take=take)
     face("propose", "PROPOSALS.md: queue a fact for a person to approve", text="the fact",
-         source="where it comes from (required)", origin="the work that produced it, e.g. a task id", date=day)
+         source='where it comes from (required); the user\'s exact words as user: "..."',
+         origin="the work that produced it, e.g. a task id, or harvest", date=day)
     face("promote", "move one approved proposal from PROPOSALS.md into MEMORY.md",
          match="words from the proposal (required)", section="the MEMORY.md heading to put it under",
          file="a MEMORY/ topic file instead of MEMORY.md")
     face("reject", "remove one proposal from PROPOSALS.md and log why",
          match="words from the proposal (required)", reason="why it was turned down", date=day)
-    face("fact", "MEMORY.md: one dated, sourced line", text="the fact", source="where it comes from (required)",
+    face("fact", "MEMORY.md: one dated, sourced line", text="the fact",
+         source='where it comes from (required); the user\'s exact words as user: "..."',
          section="the heading to put it under", file="a MEMORY/ topic file instead of MEMORY.md", date=day, take=take)
     face("index", "INDEX.md: register a file", text="what the file is, in a few words", path="the file (required)",
          section="the heading whose table gets the row", update="replace the note of a file that is already registered")
@@ -3826,6 +3990,8 @@ def main(argv=None):
             return cmd_upgrade(args)
         if args.command == "route":
             return cmd_route(args)
+        if args.command == "harvest":
+            return cmd_harvest(args)
         if args.command == "lookup":
             return cmd_lookup(args)
         if args.command == "audit":

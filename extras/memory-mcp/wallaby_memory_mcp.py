@@ -20,6 +20,8 @@ The tools follow the protocol, not a free search:
                     before building; same name and arguments as the central lookup tool it mirrors
   memory_route    — the reflex card for a change: what to reuse, which map components, event types and
                     surfaces, the tier, and only the premises the changed paths touch (about 2 KB)
+  memory_changes  — before you deliver: hand back the files you read with the fingerprints you saw;
+                    it says which changed since (unreleased). With `files` alone it takes the fingerprints.
 
 memory_lookup and memory_route hold no logic of their own: they run the governance CLI
 (scripts/memory_governance.py, 1.4.3 or newer; else the copy beside this server in the repo) with
@@ -43,6 +45,7 @@ Protocol: MCP over stdio, JSON-RPC 2.0, newline-delimited frames. Standard libra
 Source: this is the canonical copy (extras/memory-mcp/ in wallaby-agent-rules, included from 1.4.3).
 """
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -179,6 +182,28 @@ def est_tokens(text):
     return cjk + (len(text) - cjk) // 4
 
 
+MAX_REFS = 50
+
+
+def fingerprint(path):
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()[:16]
+
+
+def project_file(mem, name):
+    """A regular file inside the root, by relative path; anything outside the project is refused."""
+    name = str(name or "").strip()
+    if not name:
+        raise ValueError("empty path")
+    root = os.path.realpath(mem.root)
+    path = os.path.realpath(os.path.join(root, name))
+    if os.path.commonpath([root, path]) != root:
+        raise ValueError("outside the project root")
+    if not os.path.isfile(path):
+        raise FileNotFoundError("no such file")
+    return path, os.path.relpath(path, root).replace(os.sep, "/")
+
+
 # ---- tools ---------------------------------------------------------------
 
 def t_read(mem, args):
@@ -190,6 +215,8 @@ def t_read(mem, args):
             CONFLICT_RULE]
     if pending:
         head.append(f"{pending} proposed fact(s) are waiting in PROPOSALS.md; they are not facts until approved.")
+    prints = [f"{FILES[k]}={fingerprint(mem.path(k))}" for k in ("MEMORY", "NOW") if os.path.isfile(mem.path(k))]
+    head.append("[fingerprints] " + "  ".join(prints) + "  (hand them to memory_changes before you deliver)")
     return "\n".join(head) + "\n\n=== MEMORY.md ===\n" + memory.strip() + "\n\n=== NOW.md ===\n" + now.strip(), False
 
 
@@ -411,6 +438,42 @@ def t_status(mem, args):
     return json.dumps(st, ensure_ascii=False, indent=2), False
 
 
+def t_changes(mem, args):
+    refs, files = args.get("refs"), args.get("files")
+    if refs:
+        if not isinstance(refs, list):
+            return 'refs is a list: [{"file": path, "fingerprint": what you saw}, ...]', True
+        if len(refs) > MAX_REFS:
+            return f"at most {MAX_REFS} files per call", True
+        out = []
+        for r in refs:
+            r = r if isinstance(r, dict) else {}
+            then = str(r.get("fingerprint") or "")
+            try:
+                path, name = project_file(mem, r.get("file"))
+            except (ValueError, OSError) as e:
+                out.append({"file": str(r.get("file") or ""), "status": "missing", "detail": str(e)})
+                continue
+            now = fingerprint(path)
+            out.append({"file": name, "status": "unchanged" if now == then else "changed",
+                        "fingerprint_then": then or None, "fingerprint_now": now})
+        changed = sum(1 for o in out if o["status"] != "unchanged")
+        return json.dumps({"changed": changed, "total": len(out), "refs": out}, ensure_ascii=False), False
+    if files:
+        if not isinstance(files, list) or len(files) > MAX_REFS:
+            return f"files is a list of at most {MAX_REFS} paths", True
+        out = []
+        for name in files:
+            try:
+                path, rel = project_file(mem, name)
+                out.append({"file": rel, "fingerprint": fingerprint(path)})
+            except (ValueError, OSError) as e:
+                out.append({"file": str(name), "status": "missing", "detail": str(e)})
+        return json.dumps({"fingerprints": out}, ensure_ascii=False), False
+    return ("give refs (files you read, with the fingerprints you saw) to see what changed, "
+            "or files (paths) to take their fingerprints now"), True
+
+
 TOOLS = {
     "memory_read": (t_read, "Read the project memory at the start of a session: MEMORY.md and NOW.md, with the conflict rule. Call this before taking work.",
                     {"type": "object", "properties": {}}),
@@ -444,6 +507,14 @@ TOOLS = {
                          "reversible": {"type": "boolean", "description": "the change can be undone inside the project"},
                          "single_area": {"type": "boolean", "description": "the change stays inside one map area"},
                          "detail": {"type": "boolean", "description": "lift the 2 KB budget"}}}),
+    "memory_changes": (t_changes, "Before you deliver: hand back the files this task read, with the fingerprints you saw; it says which changed since, so you do not act on a stale read. With files alone it takes their fingerprints now. Read-only; returns JSON.",
+                       {"type": "object", "properties": {
+                           "refs": {"type": "array", "items": {"type": "object", "properties": {
+                               "file": {"type": "string"}, "fingerprint": {"type": "string"}},
+                               "required": ["file", "fingerprint"]},
+                               "description": "files you read and the fingerprint each had then"},
+                           "files": {"type": "array", "items": {"type": "string"},
+                                     "description": "paths to fingerprint now, relative to the project root"}}}),
 }
 
 

@@ -64,9 +64,9 @@ def main():
         r = s.call("initialize", {"protocolVersion": "2024-11-05"})
         check("initialize", r["result"]["serverInfo"]["name"] == "wallaby-memory-mcp")
         names = {t["name"] for t in s.call("tools/list")["result"]["tools"]}
-        check("nine tools", names == {"memory_read", "memory_locate", "memory_propose", "memory_note",
-                                      "memory_now", "memory_check", "memory_status", "memory_lookup",
-                                      "memory_route"}, names)
+        check("ten tools", names == {"memory_read", "memory_locate", "memory_propose", "memory_note",
+                                     "memory_now", "memory_check", "memory_status", "memory_lookup",
+                                     "memory_route", "memory_changes"}, names)
         text, err = s.tool("memory_read")
         check("read: MEMORY + NOW + conflict rule", not err and "USD" in text and "=== NOW.md ===" in text
               and "Conflict order" in text)
@@ -103,6 +103,23 @@ def main():
         check("status: current install is not told to upgrade", st["files_version"] == "1.0.1"
               and "upgrade" not in st and st["pending_proposals"] == 1 and st["facts"] == 1
               and st["rules_release"] == "1.4.3" and st["writes_format"] == "1.0.1")
+        text, _ = s.tool("memory_read")
+        prints = dict(re.findall(r"(MEMORY\.md|NOW\.md)=([0-9a-f]{16})", text))
+        check("read: gives fingerprints", set(prints) == {"MEMORY.md", "NOW.md"}, text[:300])
+        refs = [{"file": k, "fingerprint": v} for k, v in prints.items()]
+        res = json.loads(s.tool("memory_changes", refs=refs)[0])
+        check("changes: nothing changed yet", res["changed"] == 0 and res["total"] == 2, res)
+        with open(os.path.join(tmp, "NOW.md"), "a", encoding="utf-8") as f:
+            f.write("- [2026-10-02] edited by someone else\n")
+        res = json.loads(s.tool("memory_changes", refs=refs + [{"file": "../outside.md", "fingerprint": "x"}])[0])
+        st_by = {r["file"]: r["status"] for r in res["refs"]}
+        check("changes: an edit shows, outside the root is refused",
+              st_by.get("NOW.md") == "changed" and st_by.get("MEMORY.md") == "unchanged"
+              and st_by.get("../outside.md") == "missing" and res["changed"] == 2, res)
+        stamp = json.loads(s.tool("memory_changes", files=["INDEX.md"])[0])
+        check("changes: files alone takes fingerprints", len(stamp["fingerprints"][0]["fingerprint"]) == 16, stamp)
+        text, err = s.tool("memory_changes")
+        check("changes: says what to give", err and "refs" in text)
         r = s.call("bogus/method")
         check("unknown method is an error", r["error"]["code"] == -32601)
         s.close()

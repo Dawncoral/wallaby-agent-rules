@@ -3024,7 +3024,7 @@ PROPOSALS_HEADER = ("# PROPOSALS.md — trust-building queue\n\n> New durable fa
 FAILURE_FIELDS = (("trigger", "Trigger"), ("observed", "Observed"), ("expected", "Expected"),
                   ("root_cause", "Root cause"), ("fix", "Fix"), ("check", "Regression check"))
 INDEX_HEAD_WORDS = ("file", "path", "文件", "路径")
-WRITE_FACES = ("log", "now", "close", "propose", "promote", "reject", "fact", "index", "capability", "map", "failure")
+WRITE_FACES = ("log", "now", "close", "propose", "promote", "reject", "confirm", "fact", "index", "capability", "map", "failure")
 
 
 def redact(text):
@@ -3281,6 +3281,30 @@ def _build(root: Path, face: str, a, day: str, ident):
     """The edits one face makes. Nothing is written here."""
     tag = f"{ident} · " if ident else ""
     text = redact(one_line(a.get("text")))
+    if a.get("goal"):
+        if face not in ("log", "now", "close"):
+            raise GovernanceError("--goal goes with log, now, or close")
+        text = f"{text} · goal: {check_goal(root, a['goal'])}"
+    if face == "confirm":
+        match = one_line(a.get("match"), 200).lower()
+        rel = a.get("file") or PROFILE_NAME
+        if not match:
+            raise GovernanceError("confirm needs --match: words from the line the user confirmed")
+        ed = Edit(root, rel)
+        if not ed.existed:
+            raise GovernanceError(f"{rel} does not exist; copy templates/PROFILE.md first")
+        idx = _one_match(ed, 0, len(ed.lines), match, f"in {rel}")
+        m = DATED_LINE.match(ed.lines[idx].strip())
+        if not m:
+            raise GovernanceError("that line is not dated; edit it by hand")
+        if m.group(1) == day:
+            return f"already confirmed on {day}: nothing changed"
+        indent = ed.lines[idx][:len(ed.lines[idx]) - len(ed.lines[idx].lstrip())]
+        ed.remove(idx)
+        ed.add(idx, [f"{indent}- [{day}] {m.group(2)}"])
+        source = redact(one_line(a.get("source"), 200))
+        fact = re.sub(r"\s+— source:.*$", "", m.group(2))
+        return [ed, _log_edit(root, f"- [{day}] Confirmed with the user: {fact}" + (f" — {source}" if source else ""), day)]
     if face == "log":
         if not text:
             raise GovernanceError("log needs the text of what happened")
@@ -3575,7 +3599,7 @@ def cmd_write(args):
                 raise GovernanceError(f"batch line {n} ({face}): {e}; {len(results)} entry(ies) before it were written")
         _emit(results, args.json, [ln for r in results for ln in write_lines(r)] or ["Nothing to write."])
         return 0
-    keys = ("text", "source", "pointer", "match", "reason", "section", "file", "date", "take", "origin", "path", "update",
+    keys = ("text", "source", "pointer", "match", "reason", "section", "file", "date", "take", "origin", "path", "update", "goal",
             "entry", "form", "triggers", "state", "call", "job", "keywords", "details", "area", "kind", "trigger",
             "observed", "expected", "root_cause", "fix", "check")
     a = {k: getattr(args, k) for k in keys if getattr(args, k, None) not in (None, "", False)}
@@ -3656,7 +3680,229 @@ def cmd_split(args):
 
 
 # ---------------------------------------------------------------------------
-# 1.4.4 · harvest: the user's own words, gathered from what was already written down
+# unreleased · goals: numbered goals and values in MEMORY.md, and the work that points to them
+# ---------------------------------------------------------------------------
+# Convention: a section of MEMORY.md whose heading starts with "Goals" holds one line per goal or value,
+#   - G1 · Ten paying teams by March
+#   - V1 · Never store request bodies
+# `write log|now|close --goal G1` adds "· goal: G1" to the line, after checking that G1 exists.
+# `goals` lists them with the lines that point to each, and fails on a pointer to a goal that is not there.
+
+GOAL_LINE = re.compile(r"^- (?:\[\d{4}-\d{2}-\d{2}\]\s+)?\**([GV]\d{1,3})\**\s+·\s+(.+)$")
+GOAL_REF = re.compile(r"(?<![A-Za-z0-9])goal:\s*([GV]\d{1,3})\b")
+
+
+def goal_list(root: Path):
+    path = root / MEMORY_NAME
+    if not path.is_file():
+        return []
+    lines = read_text(path).splitlines(keepends=True)
+    hidden = _hidden_lines(lines)
+    out, inside = [], False
+    for i, ln in enumerate(lines):
+        if i in hidden:
+            continue
+        h = re.match(r"^(#{1,6})\s+(.*)$", ln.strip())
+        if h:
+            inside = h.group(2).strip().lower().startswith("goals")
+            continue
+        m = GOAL_LINE.match(ln.strip()) if inside else None
+        if m:
+            out.append({"id": m.group(1), "kind": "value" if m.group(1)[0] == "V" else "goal",
+                        "text": m.group(2).strip(), "line": i + 1})
+    return out
+
+
+def check_goal(root: Path, ident):
+    ident = str(ident or "").strip().upper()
+    known = {g["id"] for g in goal_list(root)}
+    if not re.fullmatch(r"[GV]\d{1,3}", ident):
+        raise GovernanceError("--goal takes an ID like G1 (a goal) or V1 (a value)")
+    if ident not in known:
+        raise GovernanceError(f"{ident} is not under Goals in MEMORY.md" + (f"; known: {', '.join(sorted(known))}" if known
+                              else "; add a Goals section with lines like '- G1 · <the goal>'"))
+    return ident
+
+
+def goals_report(root: Path):
+    goals = goal_list(root)
+    known = {g["id"] for g in goals}
+    refs, ghosts = {g["id"]: [] for g in goals}, []
+    files = [root / "NOW.md", root / LOG_NAME] + volume_files(root / LOG_NAME)
+    for path in files:
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        lines = read_text(path).splitlines(keepends=True)
+        hidden = _hidden_lines(lines)
+        for i, ln in enumerate(lines):
+            if i in hidden:
+                continue
+            for m in GOAL_REF.finditer(ln):
+                hit = {"file": rel, "line": i + 1, "text": one_line(ln, 160)}
+                (refs[m.group(1)] if m.group(1) in known else ghosts).append({**hit, "goal": m.group(1)} if m.group(1) not in known else hit)
+    rows = [{**g, "pointers": len(refs[g["id"]]), "latest": refs[g["id"]][:3]} for g in goals]
+    return {"goals": rows, "ghosts": ghosts}
+
+
+def cmd_goals(args):
+    res = goals_report(Path(args.target).resolve())
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False))
+    else:
+        if not res["goals"]:
+            print("No goals: add a section to MEMORY.md whose heading starts with Goals, one line per goal: '- G1 · <the goal>'.")
+        for g in res["goals"]:
+            print(f"{g['id']} ({g['kind']}) · {g['text']} — {g['pointers']} line(s) point here")
+        for x in res["ghosts"]:
+            print(f"  missing goal {x['goal']}: {x['file']}:{x['line']}  {x['text']}")
+    return 1 if res["ghosts"] else 0
+
+
+# ---------------------------------------------------------------------------
+# unreleased · profile: how to work with this user, as one file the user can check and take along
+# ---------------------------------------------------------------------------
+# PROFILE.md holds one dated, sourced line per preference under five headings. The date is when the user
+# last confirmed it. `profile check` validates the format and lists lines past their review age (no model);
+# `write confirm` refreshes a line after the user says it still holds. `profile export` and `profile import`
+# move the file with a SHA-256 manifest, byte for byte. New lines come through harvest and the PROPOSALS queue.
+
+PROFILE_NAME = "PROFILE.md"
+PROFILE_MANIFEST = "MANIFEST.sha256"
+PROFILE_SECTIONS = {"always ask me first": None, "how i judge work": 90, "boundaries": 90,
+                    "pace and communication": 60, "what drives me": 180}   # review age in days; None = never ages
+
+
+def _profile_key(title):
+    t = title.strip().lower()
+    return next((k for k in PROFILE_SECTIONS if t == k or t.startswith(k + " ")), None)
+
+
+def profile_check(root: Path, today=None):
+    path = root / PROFILE_NAME
+    if not path.is_file():
+        return {"file": PROFILE_NAME, "exists": False, "entries": 0, "errors": [], "due": [],
+                "note": "no PROFILE.md: copy templates/PROFILE.md to start one"}
+    day = datetime.strptime(local_today(today), "%Y-%m-%d").date()
+    lines = read_text(path).splitlines(keepends=True)
+    hidden = _hidden_lines(lines)
+    errors, due, seen, entries, section = [], [], {}, 0, None
+    for i, ln in enumerate(lines):
+        if i in hidden:
+            continue
+        s = ln.strip()
+        h = re.match(r"^##\s+(.*)$", s)
+        if h:
+            section = _profile_key(h.group(1))
+            if section is None:
+                errors.append({"line": i + 1, "error": f"unknown heading '{h.group(1).strip()}'; use: " + ", ".join(k.capitalize() for k in PROFILE_SECTIONS)})
+            continue
+        if not s.startswith("- "):
+            continue
+        m = DATED_LINE.match(s)
+        if not m:
+            errors.append({"line": i + 1, "error": "not dated: start the line with - [YYYY-MM-DD]"})
+            continue
+        if section is None:
+            errors.append({"line": i + 1, "error": "outside the five headings"})
+            continue
+        entries += 1
+        body = m.group(2)
+        if " — source:" not in body:
+            errors.append({"line": i + 1, "error": "no source: end the line with — source: user: \"their words\""})
+        key = re.sub(r"\s+— source:.*$", "", body).strip().lower()
+        if key in seen:
+            errors.append({"line": i + 1, "error": f"same as line {seen[key]}"})
+        seen.setdefault(key, i + 1)
+        limit = PROFILE_SECTIONS[section]
+        try:
+            age = (day - datetime.strptime(m.group(1), "%Y-%m-%d").date()).days
+        except ValueError:
+            errors.append({"line": i + 1, "error": f"bad date {m.group(1)}"})
+            continue
+        if limit is not None and age > limit:
+            due.append({"line": i + 1, "section": section, "date": m.group(1), "age": age, "limit": limit,
+                        "text": re.sub(r"\s+— source:.*$", "", body)})
+    return {"file": PROFILE_NAME, "exists": True, "entries": entries, "errors": errors, "due": due}
+
+
+def profile_export(root: Path, out: Path):
+    src = root / PROFILE_NAME
+    if not src.is_file():
+        raise GovernanceError("no PROFILE.md to export")
+    res = profile_check(root)
+    if res["errors"]:
+        raise GovernanceError(f"PROFILE.md has {len(res['errors'])} format error(s); run profile check first")
+    if out.exists() and (not out.is_dir() or any(out.iterdir())):
+        raise GovernanceError(f"{out} must be a new or empty directory")
+    out.mkdir(parents=True, exist_ok=True)
+    data = src.read_bytes()
+    (out / PROFILE_NAME).write_bytes(data)
+    (out / PROFILE_MANIFEST).write_text(f"{hashlib.sha256(data).hexdigest()}  {PROFILE_NAME}\n", encoding="utf-8")
+    return {"out": str(out), "files": [PROFILE_NAME, PROFILE_MANIFEST], "sha256": hashlib.sha256(data).hexdigest()}
+
+
+def profile_import(root: Path, src: Path, replace=False, actor=None):
+    man = src / PROFILE_MANIFEST
+    if not man.is_file() or not (src / PROFILE_NAME).is_file():
+        raise GovernanceError(f"{src} needs {PROFILE_NAME} and {PROFILE_MANIFEST} (made by profile export)")
+    want = {}
+    for ln in read_text(man).splitlines():
+        parts = ln.split()
+        if len(parts) == 2:
+            want[parts[1]] = parts[0]
+    data = (src / PROFILE_NAME).read_bytes()
+    if want.get(PROFILE_NAME) != hashlib.sha256(data).hexdigest():
+        raise GovernanceError("PROFILE.md does not match its manifest: the package was changed or damaged; nothing imported")
+    dest = root / PROFILE_NAME
+    if dest.exists() and not replace:
+        if dest.read_bytes() == data:
+            return {"imported": False, "note": "PROFILE.md is already the same, byte for byte"}
+        raise GovernanceError("PROFILE.md already exists; pass --replace to swap it (the old one is kept under .memory/)")
+    kept = None
+    if dest.exists():
+        backup_dir = memory_dir(root) if memory_dir(root).is_dir() else root
+        kept = backup_dir / f"PROFILE.before-import.{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+        kept.write_bytes(dest.read_bytes())
+    tmp = dest.with_name(dest.name + ".tmp")
+    tmp.write_bytes(data)
+    os.replace(tmp, dest)
+    record_files(root, "profile.import", [PROFILE_NAME], actor=actor, summary="imported PROFILE.md from a package")
+    return {"imported": True, "sha256": want[PROFILE_NAME], "kept": kept.relative_to(root).as_posix() if kept else None}
+
+
+def cmd_profile(args):
+    root = Path(args.target).resolve()
+    if args.action == "check":
+        res = profile_check(root, args.today)
+        rc = 1 if res["errors"] else 0
+        if args.json:
+            print(json.dumps(res, ensure_ascii=False))
+            return rc
+        if not res["exists"]:
+            print(res["note"])
+            return 0
+        print(f"PROFILE.md: {res['entries']} line(s), {len(res['errors'])} format error(s), {len(res['due'])} due for a check with the user")
+        for e in res["errors"]:
+            print(f"  line {e['line']}: {e['error']}")
+        for d in res["due"]:
+            print(f"  due: line {d['line']} [{d['section']}] {d['age']} days (review age {d['limit']}): {d['text'][:120]}")
+        if res["due"]:
+            print("ask the user whether each still holds: on a yes, write confirm --match <words>; on a no, edit or remove the line by hand")
+        return rc
+    if not args.path:
+        raise GovernanceError(f"profile {args.action} needs --path: the package directory")
+    if args.action == "export":
+        res = profile_export(root, Path(args.path).expanduser().resolve())
+    else:
+        res = profile_import(root, Path(args.path).expanduser().resolve(), args.replace, resolve_actor(args.actor))
+    print(json.dumps(res, ensure_ascii=False) if args.json else
+          "\n".join(f"{k}: {v}" for k, v in res.items() if v not in (None, "")))
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# unreleased · harvest: the user's own words, gathered from what was already written down
 # ---------------------------------------------------------------------------
 # Preferences should not depend on one model noticing them mid-session. Any agent that records the
 # user's exact words — `source: user: "..."` on a log line, a FAILURES.md entry — leaves material
@@ -3801,7 +4047,7 @@ def cmd_harvest(args):
             print(f"      answering: {r['answering'][:160]}")
     if res["candidates"]:
         print("next: write propose --text \"<the rule, in a sentence>\" --source 'user: \"<their words>\" (<file> <date>)' --origin harvest;"
-              " the person approves each with write promote or write reject")
+              " on the person's yes, write promote --file PROFILE.md --section <heading>; on a no, write reject")
     if res.get("advanced_to"):
         print(f"cursor moved to {res['advanced_to']}")
     return 0
@@ -3845,6 +4091,15 @@ def build_parser():
     route.add_argument("--terms", action="append", default=[], help="an old name or path that should disappear; implies --record")
     route.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
     route.add_argument("--json", action="store_true")
+    goals_p = sub.add_parser("goals", help="the numbered goals and values in MEMORY.md and the lines that point to them")
+    goals_p.add_argument("--json", action="store_true")
+    prof = sub.add_parser("profile", help="PROFILE.md: check the format and what is due for review, export, import")
+    prof.add_argument("action", choices=["check", "export", "import"])
+    prof.add_argument("--path", help="the package directory for export (new or empty) or import")
+    prof.add_argument("--replace", action="store_true", help="import over an existing PROFILE.md (the old one is kept)")
+    prof.add_argument("--today", help="YYYY-MM-DD for check; defaults to today")
+    prof.add_argument("--actor", help=f"who is asking; defaults to ${ACTOR_ENV}, then cli")
+    prof.add_argument("--json", action="store_true")
     harvest_p = sub.add_parser("harvest", help="list the user's own words from LOG.md and FAILURES.md as profile candidates (reads only)")
     harvest_p.add_argument("--since", help="YYYY-MM-DD; defaults to the saved cursor, else everything")
     harvest_p.add_argument("--speaker", action="append", help="who counts as the user in the records (repeatable); default: user, the user, 用户")
@@ -3929,13 +4184,14 @@ def build_parser():
         return fp
 
     day, take = "YYYY-MM-DD; defaults to today", "take the next ID of this series and put it in front, e.g. D"
+    goal = "the goal or value this serves, e.g. G1 (must be listed under Goals in MEMORY.md)"
     face("log", "LOG.md: one dated line on top of its month", text="what happened",
          source='a pointer, or who says so; the user\'s exact words as user: "..." (add (answering "...") when they picked your option)',
-         date=day, take=take)
+         date=day, take=take, goal=goal)
     face("now", "NOW.md: one dated line under In flight", text="the item that moved",
-         pointer="where the detail lives (required)", section="a heading other than In flight", date=day, take=take)
+         pointer="where the detail lives (required)", section="a heading other than In flight", date=day, take=take, goal=goal)
     face("close", "finish tracked work in one action: the NOW.md line leaves, LOG.md gets the entry", text="what happened",
-         match="words from the NOW.md line (required)", pointer="where the detail lives", date=day, take=take)
+         match="words from the NOW.md line (required)", pointer="where the detail lives", date=day, take=take, goal=goal)
     face("propose", "PROPOSALS.md: queue a fact for a person to approve", text="the fact",
          source='where it comes from (required); the user\'s exact words as user: "..."',
          origin="the work that produced it, e.g. a task id, or harvest", date=day)
@@ -3944,6 +4200,8 @@ def build_parser():
          file="a MEMORY/ topic file instead of MEMORY.md")
     face("reject", "remove one proposal from PROPOSALS.md and log why",
          match="words from the proposal (required)", reason="why it was turned down", date=day)
+    face("confirm", "the user confirmed a PROFILE.md line still holds: it gets today's date, LOG.md records it",
+         match="words from the line (required)", file="another file than PROFILE.md", source="the user's words", date=day)
     face("fact", "MEMORY.md: one dated, sourced line", text="the fact",
          source='where it comes from (required); the user\'s exact words as user: "..."',
          section="the heading to put it under", file="a MEMORY/ topic file instead of MEMORY.md", date=day, take=take)
@@ -3990,6 +4248,10 @@ def main(argv=None):
             return cmd_upgrade(args)
         if args.command == "route":
             return cmd_route(args)
+        if args.command == "goals":
+            return cmd_goals(args)
+        if args.command == "profile":
+            return cmd_profile(args)
         if args.command == "harvest":
             return cmd_harvest(args)
         if args.command == "lookup":

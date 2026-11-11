@@ -142,7 +142,7 @@ Shipped so far: the closeout ritual, the deeper health check (ten scans: drift, 
 
 ## Also in this repo
 
-- [`templates/`](templates/) — NOW / INDEX / LOG templates, optional MAP / CAPABILITIES / FAILURES templates, and the health check and reconcile scripts, ready to copy.
+- [`templates/`](templates/) — NOW / INDEX / LOG templates, optional MAP / CAPABILITIES / FAILURES / PROFILE templates, and the health check and reconcile scripts, ready to copy.
 - [`templates/integrations/`](templates/integrations/) — per-tool cards: entry file, gotchas, 30-second self-check.
 - [`extras/memory-governance/`](extras/memory-governance/) — conduction, premise checks, contradiction history, verification receipts, change routing, registry audits, map sync, memory splits, checked writes, an event log, and ID counters through one zero-dependency CLI.
 - [`extras/memory-mcp/`](extras/memory-mcp/) — the same memory files as an MCP server: read, look up, propose, log, search capabilities, and route a change, with writes redacted and proposals kept out of MEMORY.md.

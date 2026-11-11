@@ -359,9 +359,52 @@ Use `--speaker` when your records name the user another way, and `--source` for 
 The review goes through the trust-building queue:
 
 1. The agent reads the candidates. It drops one-off instructions and turns each lasting preference into one sentence: `write propose --text "<the rule>" --source 'user: "<their words>", LOG.md 2026-11-02' --origin harvest`.
-2. The person reads PROPOSALS.md. For each line, the agent runs `write promote --match … --file MEMORY/working-with-me.md` on a yes, or `write reject --match … --reason …` on a no. Create the topic file first if you keep preferences apart from MEMORY.md.
+2. The person reads PROPOSALS.md. For each line, the agent runs `write promote --match … --file PROFILE.md --section "<heading>"` on a yes, or `write reject --match … --reason …` on a no. See [The user profile](#the-user-profile-unreleased) below.
 
 Nothing reaches memory without the person's yes. A good time to run this is the weekly review.
+
+## The user profile (unreleased)
+
+`PROFILE.md` says how to work with this user: what to ask before acting, how they judge work, their boundaries, their pace, and what drives them. Copy `templates/PROFILE.md` to the project root to start one. It has five headings, with one dated line per preference and the user's own words as the source:
+
+```markdown
+## How I judge work
+
+- [2026-11-10] Numbers before opinions — source: user: "show me the data first"
+```
+
+The date is when the user last confirmed the line. Lines get there through the review queue above, so none goes in without the user's yes.
+
+```bash
+python3 scripts/memory_governance.py profile check                # format, and lines due for review
+python3 scripts/memory_governance.py write confirm --match "numbers before"
+python3 scripts/memory_governance.py profile export --path ~/profile-pack
+python3 scripts/memory_governance.py profile import --path ~/profile-pack --replace
+```
+
+- `profile check` exits 1 on a format error: an unknown heading, an undated line, a line with no source, or the same preference twice. It needs no model. It also lists lines past their review age: 90 days for judging work and for boundaries, 60 for pace, and 180 for what drives the user. Lines under Always ask me first never age.
+- For a line that is due, ask the user. On a yes, `write confirm` gives the line today's date and adds a line to LOG.md. On a no, edit or remove the line by hand.
+- `profile export` writes `PROFILE.md` and a SHA-256 manifest to a new or empty directory. `profile import` checks the manifest first and refuses a package that was changed. It copies the file byte for byte. With `--replace`, it keeps the old file under `.memory/` and records the import in the event log.
+
+## Numbered goals (unreleased)
+
+Give each goal and value an ID in MEMORY.md, under a heading that starts with `Goals`:
+
+```markdown
+## Goals
+
+- G1 · Ten paying teams by March
+- V1 · Never store request bodies
+```
+
+`G` is a goal and `V` is a value. Point work at them as you write it down:
+
+```bash
+python3 scripts/memory_governance.py write now "Billing page" --pointer docs/billing.md --goal G1
+python3 scripts/memory_governance.py goals
+```
+
+`--goal` works with `write log`, `now`, and `close`. It checks that the ID is listed and adds `· goal: G1` to the line. `goals` lists every goal and value with the NOW.md and LOG.md lines that point to it. It exits 1 when a line points to a goal that is not listed, for example after a goal was renamed.
 
 ## What the scanner does and does not do
 
@@ -384,6 +427,8 @@ Nothing reaches memory without the person's yes. A good time to run this is the 
 | `.memory/audit_baseline.json` | Files that were unregistered before the first audit |
 | `.memory/events.jsonl` | One line for each write, receipt, contradiction, split, map sync, and ID |
 | `.memory/ids.json` | The next number of each ID series |
+| `.memory/harvest_cursor.json` | The date the last `harvest --advance` reached |
+| `PROFILE.md` | How to work with this user; optional, from `templates/PROFILE.md` |
 | `scripts/memory_governance.py` | The installed CLI |
 
 Run the complete check after any change:

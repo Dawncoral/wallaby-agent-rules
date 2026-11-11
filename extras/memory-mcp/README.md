@@ -39,6 +39,7 @@ Claude Code: `claude mcp add wallaby-memory -- python3 /abs/path/wallaby_memory_
 | `memory_status` | upgrades | Reports the file version, counts, and the memory budget, and says when an upgrade is due. |
 | `memory_lookup` | search before building | With `registry: capability`, returns rows of `CAPABILITIES.md`; with `registry: map`, rows of `MAP.md`. Every query word must appear in the row. It also takes `status`, `limit`, and `detail`. Read-only. |
 | `memory_route` | before and after a change | Returns the route card as JSON: capabilities to reuse, files to register, map components, events and surfaces, the tier, and the premises the changed paths depend on. About 2 KB. Read-only. |
+| `memory_changes` | before you deliver | `memory_read` gives each file's fingerprint. Hand back the files the task read with the fingerprints you saw, and it says which changed since, so you do not act on a stale read. With `files` alone it takes the fingerprints now. Paths outside the root are refused. Read-only. Unreleased. |
 
 `memory_lookup` and `memory_route` run the governance CLI with `--json` and return its output; they hold no logic of their own. They prefer `scripts/memory_governance.py` 1.4.3 or newer under the root and fall back to the copy in `extras/memory-governance/` beside this server. Without either, they say how to install it.
 
@@ -50,7 +51,7 @@ In a project with a `.memory/` directory, `memory_propose`, `memory_note`, and `
 
 Each core file carries a first-line marker such as `<!-- wallaby-agent-rules 1.0.1 -->`, and the marker changes only when that file changes. In 1.4.3 the newest core-file marker is still 1.0.1. `memory_status` compares your files against that format, not against the release number. A current install gets no upgrade hint. An install with a pre-1.0 marker (`v1` to `v4.1`) is sent to the L2 upgrade check in [PROMPT.md](../../PROMPT.md), which never overwrites your content.
 
-Agents bind to the nine tool names, not to the file layout. If the files change shape in a later release, you update this server and leave agent configs alone.
+Agents bind to the tool names, not to the file layout. If the files change shape in a later release, you update this server and leave agent configs alone.
 
 ## Verify
 

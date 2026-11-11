@@ -130,7 +130,7 @@ python3 scripts/memory_governance.py doctor
 
 ## 这个仓库里还有
 
-- [`templates/`](templates/)——NOW / INDEX / LOG 模板、可选 MAP / CAPABILITIES / FAILURES 模板，以及健康检查与对账脚本，可直接复制。
+- [`templates/`](templates/)——NOW / INDEX / LOG 模板、可选 MAP / CAPABILITIES / FAILURES / PROFILE 模板，以及健康检查与对账脚本，可直接复制。
 - [`templates/integrations/`](templates/integrations/)——每工具一张卡：入口文件、坑、30 秒自检。
 - [`extras/memory-governance/`](extras/memory-governance/)——通过一个零依赖 CLI 提供传导、前提检查、矛盾历史、验收回执、改动路由、登记审计、地图同步、记忆分裂、受检写入、事件日志与编号计数器。
 - [`extras/memory-mcp/`](extras/memory-mcp/)——把同一套记忆文件做成 MCP 服务器：读取、查找、提议、记日志、查能力表、为改动出路由卡；写入先脱敏，提议不进 MEMORY.md。

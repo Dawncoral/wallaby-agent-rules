@@ -3,7 +3,7 @@
 
 Zero dependencies. Python 3.8+. The scanner is read-only; only explicit init,
 impact --record, route --record, verify, contradiction mutations, map sync,
-split, write, id take, and events adopt write.
+rules sync, split, write, id take, and events adopt write.
 
 1.4.3 closes the loop between the registries and the memory files:
   route   one compact card per change: what to reuse, which map components,
@@ -18,6 +18,7 @@ split, write, id take, and events adopt write.
           are never rewritten
   events  an append-only log of what the CLI wrote and which agent asked
   id      one counter per ID series (R, C, P, F, D or your own); numbers never repeat
+  rules   rules sync keeps shared-rules blocks identical to their one source (1.4.5)
 A change takes two commands: route --record before it, verify after it.
 """
 from __future__ import annotations
@@ -669,6 +670,9 @@ def cmd_doctor(args):
     print(f"MAP {map_state['status']}" + (" (counts refresh on the next map sync)" if map_state.get("counts_stale") else ""))
     for line in rules_lines(rules_status(root)):   # report only: never changes the exit code
         print(line)
+    shared = shared_sync(root, check=True)
+    for line in shared_lines(shared):
+        print(line)
     stream = events_status(root)
     for line in events_lines(stream):
         print(line)
@@ -683,7 +687,8 @@ def cmd_doctor(args):
             code = max(code, 1)
     for line in weekly_script_lines(root):   # report only: the scripts keep their own exit codes
         print(line)
-    if any(report[k] for k in AUDIT_KINDS) or map_state["status"] == "drift" or stream["problems"] or dupes:
+    if any(report[k] for k in AUDIT_KINDS) or map_state["status"] == "drift" or stream["problems"] or dupes \
+            or shared["drift"] or shared["problems"]:
         code = max(code, 1)
     if code == 0:
         print("DOCTOR OK")
@@ -1645,8 +1650,8 @@ def duplicate_pairs(rules):
             continue
         hits = Counter(j for x in g for j in index[x] if j > i)
         for j, inter in hits.items():
-            if rules[i]["file"] == rules[j]["file"]:
-                continue
+            if rules[i]["file"] == rules[j]["file"] or (rules[i].get("shared") and rules[j].get("shared")):
+                continue   # a shared block and its copies repeat on purpose; rules sync keeps them equal
             jac = inter / len(g | grams[j])
             if jac >= DUP_JACCARD:
                 pairs.append((round(jac, 2), i, j))
@@ -1665,7 +1670,13 @@ def rules_census(root: Path):
             continue
         sizes[rel] = len(text.encode("utf-8"))
         kind = "resident" if rel in resident else "on_demand"
-        rules.extend({"file": rel, "line": ln, "text": t, "kind": kind} for ln, t in extract_rules(text))
+        spans = shared_spans(text)
+        for ln, t in extract_rules(text):
+            r = {"file": rel, "line": ln, "text": t, "kind": kind}
+            role = next((role for b, e, role in spans if b + 1 < ln < e + 1), None)
+            if role:
+                r["shared"] = role   # inside a shared block: still counted as loaded
+            rules.append(r)
     pairs = duplicate_pairs(rules)
     return OrderedDict(
         resident=OrderedDict(files=resident, rules=sum(1 for r in rules if r["kind"] == "resident"),
@@ -1753,6 +1764,164 @@ def rules_lines(status):
         for n in noms[:DUP_SHOWN]:
             out.append(f"  {', '.join(n['places'])}: {n['fix']}")
     return out
+
+
+# ---------------------------------------------------------------------------
+# 1.4.5 · shared rules: one source, generated copies in each agent's entry file
+# ---------------------------------------------------------------------------
+
+SHARED_LINE = re.compile(r"^<!-- shared-rules:([A-Za-z0-9_.-]+) (BEGIN|END)\b(.*?)-->[ \t]*$")
+SHARED_EXTS = {".md", ".mdc"}
+SHARED_NAMES = {".cursorrules"}
+
+
+def shared_blocks(text: str):
+    """Blocks in one file as dicts (name, role, begin, end: 0-based line numbers of the markers), plus problems.
+    Markers inside code fences are examples, not blocks."""
+    blocks, problems, open_b, fence = [], [], None, False
+    for i, line in enumerate(text.splitlines()):
+        s = line.strip()
+        if s.startswith(("```", "~~~")):
+            fence = not fence
+            continue
+        m = SHARED_LINE.match(line) if not fence else None
+        if not m:
+            continue
+        name, kind, rest = m.group(1), m.group(2), m.group(3).strip()
+        if kind == "BEGIN":
+            if open_b:
+                problems.append(f"line {i + 1}: {name} begins inside {open_b['name']}")
+                continue
+            role = "source" if rest == "source" else "copy" if rest.startswith("copy") else None
+            if role is None:
+                problems.append(f"line {i + 1}: {name} BEGIN needs 'source' or 'copy …'")
+                continue
+            open_b = {"name": name, "role": role, "begin": i}
+        elif not open_b or open_b["name"] != name:
+            problems.append(f"line {i + 1}: {name} END without its BEGIN")
+        else:
+            blocks.append(dict(open_b, end=i))
+            open_b = None
+    if open_b:
+        problems.append(f"line {open_b['begin'] + 1}: {open_b['name']} BEGIN without END")
+    return blocks, problems
+
+
+def shared_spans(text: str):
+    if "<!-- shared-rules:" not in text:
+        return []
+    return [(b["begin"], b["end"], b["role"]) for b in shared_blocks(text)[0]]
+
+
+def _shared_files(root: Path):
+    out = []
+    for base, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        for name in sorted(files):
+            p = Path(base) / name
+            if (p.suffix in SHARED_EXTS or name in SHARED_NAMES) and not p.is_symlink():
+                try:
+                    if p.stat().st_size <= MAX_FILE_BYTES:
+                        out.append(p)
+                except OSError:
+                    continue
+            if len(out) >= MAX_FILES:
+                return out
+    return out
+
+
+def shared_scan(root: Path):
+    """Every shared block in the project: {name: {source, body, copies: [...]}} and the problems found."""
+    names, problems = OrderedDict(), []
+    for p in _shared_files(root):
+        try:
+            text = read_text(p)
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "<!-- shared-rules:" not in text:
+            continue
+        rel = p.relative_to(root).as_posix()
+        blocks, probs = shared_blocks(text)
+        problems += [f"{rel} {x}" for x in probs]
+        lines = text.splitlines(keepends=True)
+        for b in blocks:
+            entry = names.setdefault(b["name"], {"source": None, "body": None, "copies": []})
+            body = "".join(lines[b["begin"] + 1:b["end"]])
+            if b["role"] == "source":
+                if entry["source"]:
+                    problems.append(f"{b['name']} has two sources: {entry['source']} and {rel}; keep one, mark the other 'copy'")
+                    continue
+                entry["source"], entry["body"] = rel, body
+            else:
+                entry["copies"].append({"file": rel, "begin": b["begin"], "end": b["end"], "body": body})
+    for name, e in names.items():
+        if not e["source"] and e["copies"]:
+            problems.append(f"{name} has copies but no source: mark one block 'BEGIN source'")
+        for c in e["copies"]:
+            c["status"] = "ok" if e["body"] is None or c["body"].replace("\r\n", "\n") == e["body"].replace("\r\n", "\n") else "drift"
+    return names, problems
+
+
+def shared_sync(root: Path, check=False, actor=None):
+    names, problems = shared_scan(root)
+    result = OrderedDict(blocks=len(names), copies=sum(len(e["copies"]) for e in names.values()),
+                         drift=[], updated=[], problems=problems)
+    for name, e in names.items():
+        for c in e["copies"]:
+            if c["status"] == "drift":
+                result["drift"].append(f"{c['file']} ({name})")
+    if check or not result["drift"]:
+        return result
+    by_file = defaultdict(list)
+    for name, e in names.items():
+        if e["body"] is None:
+            continue
+        for c in e["copies"]:
+            if c["status"] == "drift":
+                by_file[c["file"]].append((name, e, c))
+    for rel, items in sorted(by_file.items()):
+        p = root / rel
+        text = read_text(p)
+        lines = text.splitlines(keepends=True)
+        crlf = "\r\n" in text
+        for name, e, c in sorted(items, key=lambda x: -x[2]["begin"]):   # bottom up, so line numbers hold
+            eol = "\r\n" if crlf else "\n"
+            body = e["body"].replace("\r\n", "\n")
+            if crlf:
+                body = body.replace("\n", "\r\n")
+            begin = f"<!-- shared-rules:{name} BEGIN copy of {e['source']}; edit the source, then run rules sync -->{eol}"
+            end_line = lines[c["end"]]
+            lines[c["begin"]:c["end"] + 1] = [begin, body, end_line if end_line.endswith(("\n", "\r")) else end_line]
+        write_text_atomic(p, "".join(lines))
+        for name, e, _ in items:
+            record_event(root, "rules.sync", actor=actor, file=rel, summary=f"shared block {name} copied from {e['source']}")
+        result["updated"].append(rel)
+    result["drift"] = []
+    return result
+
+
+def shared_lines(result):
+    """Text for doctor: silent when the project has no shared blocks."""
+    if not result["blocks"] and not result["problems"]:
+        return []
+    out = [f"SHARED blocks={result['blocks']} copies={result['copies']} drift={len(result['drift'])}"
+           + (" (rules sync rewrites the copies from the source)" if result["drift"] else "")]
+    out += [f"  drift: {d}" for d in result["drift"][:DUP_SHOWN]]
+    out += [f"  problem: {x}" for x in result["problems"][:DUP_SHOWN]]
+    return out
+
+
+def cmd_rules(args):
+    root = Path(args.target).resolve()
+    res = shared_sync(root, check=args.check, actor=getattr(args, "actor", None))
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False))
+    else:
+        for f in res["updated"]:
+            print(f"UPDATED {f}")
+        for line in shared_lines(res) or ["SHARED none: no shared-rules blocks in this project"]:
+            print(line)
+    return 1 if res["problems"] or (args.check and res["drift"]) else 0
 
 
 def rules_json(status):
@@ -4118,7 +4287,7 @@ def cmd_harvest(args):
 _RUN = "python3 scripts/memory_governance.py"
 HELP_GROUPS = """commands by how often you need them:
   daily       write, id, route, verify, lookup, doctor
-  now & then  profile, split, map, upgrade, init, events, audit
+  now & then  profile, split, map, rules, upgrade, init, events, audit
   advanced    premise, contradict, impact (older form of route --terms --record)
 every command takes --help, which ends with an example you can copy."""
 HELP_EXAMPLES = {
@@ -4134,6 +4303,7 @@ HELP_EXAMPLES = {
     "lookup": f'{_RUN} lookup --registry capability --query "backup restore"',
     "audit": f"{_RUN} audit",
     "map": f"{_RUN} map sync",
+    "rules": f"{_RUN} rules sync --check",
     "split": f"{_RUN} split volume plan --file LOG.md",
     "events": f"{_RUN} events list",
     "id": f"{_RUN} id take D",
@@ -4226,6 +4396,11 @@ def build_parser():
     map_p.add_argument("action", choices=["sync"])
     map_p.add_argument("--check", action="store_true", help="report drift (exit 1) without writing")
     map_p.add_argument("--json", action="store_true")
+    rules_p = sub.add_parser("rules", help="keep shared-rules blocks identical to their one source")
+    rules_p.add_argument("action", choices=["sync"])
+    rules_p.add_argument("--check", action="store_true", help="report drift (exit 1) without writing")
+    rules_p.add_argument("--json", action="store_true")
+    rules_p.add_argument("--actor", help="who asked for the sync, for the event log")
     split = sub.add_parser("split", help="month volumes and topic splits, with receipts and rollback")
     split_sub = split.add_subparsers(dest="split_kind", required=True)
     vol = split_sub.add_parser("volume", help="cut finished months of an append-only log into volumes")
@@ -4363,6 +4538,8 @@ def main(argv=None):
             return cmd_audit(args)
         if args.command == "map":
             return cmd_map(args)
+        if args.command == "rules":
+            return cmd_rules(args)
         if args.command == "split":
             return cmd_split(args)
         if args.command == "events":

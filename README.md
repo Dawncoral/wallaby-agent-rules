@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.4 -->
+<!-- wallaby-agent-rules 1.4.5 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
@@ -70,6 +70,8 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 | Code & releases (code projects) | The current released version is a dated memory fact, updated the moment it changes; every release, migration, or rollback gets logged with its commit reference |
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
+
+**New in 1.4.5**: rules that several agents share live in one source block, and `rules sync` copies them into each agent's entry file, so `AGENTS.md`, `CLAUDE.md` and the rest cannot drift apart. `doctor` reports any copy that has. `memory_read` ends with a short status block, so an agent starts work with one call.
 
 **New in 1.4.4**: fewer entry points and the latest state in one lookup. `doctor` runs every check, including the weekly scripts. `memory_locate` returns a topic's newest lines from NOW.md, MEMORY.md, and LOG.md, so an agent checks before it calls anything done. An optional PROFILE.md keeps how to work with the user, filled only with the user's own words and their yes. Goals get IDs that work can point to. See the [changelog](CHANGELOG.md).
 

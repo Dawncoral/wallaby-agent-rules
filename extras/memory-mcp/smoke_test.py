@@ -74,6 +74,9 @@ def main():
         check("locate: index row", "docs/pricing.md" in text and "deploy" not in text)
         text, _ = s.tool("memory_locate", query="kubernetes")
         check("locate: no guess when absent", "Nothing in INDEX.md" in text)
+        text, _ = s.tool("memory_locate", query="usd quantum")
+        check("locate: drops a word when no state line has them all", "[fewer words]" in text
+              and 'dropped "quantum"' in text and "USD" in text, text[:400])
         text, err = s.tool("memory_propose", fact="Gateway runs on port 8788", source="")
         check("propose: source required", err)
         text, err = s.tool("memory_propose", fact="Gateway key is sk-abcdefghijklmnop1234 for user a@b.com",
@@ -87,7 +90,10 @@ def main():
                          source="x")
         check("propose: no duplicate of a fact", "Already in MEMORY.md" in text)
         text, _ = s.tool("memory_read")
-        check("read: mentions pending proposals", "1 proposed fact" in text)
+        check("read: mentions pending proposals", "proposals waiting: 1" in text)
+        tail = text[text.index("[status]"):]
+        check("read: status block comes last and stays small", text.rindex("=== NOW.md ===") < text.index("[status]")
+              and "in flight:" in tail and "upgrade: none due" in tail and len(tail.encode()) <= 600, tail)
         s.tool("memory_note", text="Released 1.4.2", source="agent")
         s.tool("memory_note", text="Second note", source="agent")
         log = open(os.path.join(tmp, "LOG.md"), encoding="utf-8").read()
@@ -102,7 +108,7 @@ def main():
         st = json.loads(s.tool("memory_status")[0])
         check("status: current install is not told to upgrade", st["files_version"] == "1.0.1"
               and "upgrade" not in st and st["pending_proposals"] == 1 and st["facts"] == 1
-              and st["rules_release"] == "1.4.4" and st["writes_format"] == "1.0.1")
+              and st["rules_release"] == "1.4.5" and st["writes_format"] == "1.0.1")
         text, _ = s.tool("memory_read")
         prints = dict(re.findall(r"(MEMORY\.md|NOW\.md)=([0-9a-f]{16})", text))
         check("read: gives fingerprints", set(prints) == {"MEMORY.md", "NOW.md"}, text[:300])
@@ -254,7 +260,7 @@ def main():
                       listing == ["LOG.md", "MEMORY.md", "NOW.md", "PROPOSALS.md"], listing)
         ver = subprocess.run([sys.executable, SERVER, "--version"], capture_output=True, text=True, timeout=10)
         check("--version names server, release and core format",
-              ver.stdout.strip() == "wallaby-memory-mcp 0.5.0 (wallaby-agent-rules 1.4.4, core format 1.0.1)",
+              ver.stdout.strip() == "wallaby-memory-mcp 0.5.1 (wallaby-agent-rules 1.4.5, core format 1.0.1)",
               ver.stdout)
         # 1.4.4: latest state in memory_locate, goals in memory_lookup, doctor in memory_check, the size budget
         st = tempfile.mkdtemp(prefix="memmcp-state-")

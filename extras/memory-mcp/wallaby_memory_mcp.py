@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wallaby_memory_mcp.py — the file memory as an MCP server (0.5.0, ships with wallaby-agent-rules 1.4.4).
+"""wallaby_memory_mcp.py — the file memory as an MCP server (0.5.1, ships with wallaby-agent-rules 1.4.5).
 
 The memory stays what it is: MEMORY.md, NOW.md, INDEX.md, LOG.md (and PROPOSALS.md for the trust-
 building queue) as plain Markdown in the project. This server is an optional second door to the same
@@ -7,10 +7,12 @@ files, for agents that do not read the entry file or that run somewhere the entr
 It adds no store of its own: the files are the single source; nothing here is cached or indexed.
 
 The tools follow the protocol, not a free search:
-  memory_read     — the session-start read: MEMORY.md + NOW.md, with versions and the conflict rule
+  memory_read     — the session-start read: MEMORY.md + NOW.md, with versions and the conflict rule,
+                    ending with a short status block (in flight, proposals, budget, upgrade, fingerprints)
   memory_locate   — "look it up, don't search": rows of INDEX.md (and the INDEX/ parts it points to)
                     whose path or note match, plus the topic's latest state in NOW.md, MEMORY.md, LOG.md
-                    and PROPOSALS.md (newest first, about 1.5 KB at most)
+                    and PROPOSALS.md (newest first, about 1.5 KB at most); when several words find no
+                    state, it drops one word at a time and says which
   memory_propose  — a new durable fact goes to PROPOSALS.md, dated and sourced, never into MEMORY.md;
                     a person (or an approving tool) promotes it
   memory_note     — "note this": one dated line on top of this month in LOG.md
@@ -56,10 +58,10 @@ import subprocess
 import sys
 
 SERVER_NAME = "wallaby-memory-mcp"
-SERVER_VERSION = "0.5.0"
+SERVER_VERSION = "0.5.1"
 ORIGIN = ""  # --origin: the work this session does (for example a task id); added to every proposal
 CLIENT = ""  # the MCP client's name from `initialize`; the event log records it as the actor of each write
-RULES_VERSION = "1.4.4"  # the wallaby-agent-rules release this server ships with
+RULES_VERSION = "1.4.5"  # the wallaby-agent-rules release this server ships with
 CORE_FORMAT = "1.0.1"    # newest first-line marker on MEMORY.md / NOW.md / INDEX.md / LOG.md in that release
 PROTOCOL = "2024-11-05"
 
@@ -209,18 +211,70 @@ def project_file(mem, name):
 
 # ---- tools ---------------------------------------------------------------
 
+STATUS_MAX = 600   # bytes: the status block at the end of memory_read; past it, the detail goes first
+
+
+def upgrade_hint(installed):
+    if installed and _vkey(installed) < _vkey(CORE_FORMAT):
+        return (f"files are {installed}, this server writes the {CORE_FORMAT} format: run the L2 upgrade "
+                "check from PROMPT.md; your content is never overwritten")
+    if installed and _vkey(installed) > _vkey(RULES_VERSION):
+        return f"files are newer ({installed}) than this server ({RULES_VERSION}): update the server"
+    return ""
+
+
+def _status_line(label, fn):
+    """One line of the status block; a part that fails says so and names the call that gives it in full."""
+    try:
+        return fn()
+    except Exception as e:  # noqa: BLE001 — the read itself must not fail on a status part
+        return f"{label}: unavailable ({type(e).__name__}); memory_status gives it in full"
+
+
+def status_block(mem):
+    """Volatile facts last, so the stable files above stay the same from one session to the next."""
+    d, _ = today()
+
+    def flight():
+        rows = [x for x in mem.lines("NOW") if x["section"].lower().startswith("in flight")]
+        if not rows:
+            return "in flight: none"
+        oldest = min(x["date"] for x in rows)
+        age = (datetime.date.fromisoformat(d) - datetime.date.fromisoformat(oldest)).days
+        return f"in flight: {len(rows)}, oldest {oldest} ({age} days)"
+
+    def proposals():
+        n = len(mem.lines("PROPOSALS"))
+        return f"proposals waiting: {n}" + (" (not facts until a person approves them)" if n else "")
+
+    def budget():
+        tokens = est_tokens(mem.read("MEMORY"))
+        return f"MEMORY.md: ~{tokens} estimated tokens of a ~8k soft wall" + (" (over: split or retire lines)" if tokens > 8000 else "")
+
+    def upgrade():
+        return "upgrade: " + (upgrade_hint(mem.installed_version()) or "none due")
+
+    def prints():
+        fp = [f"{FILES[k]}={fingerprint(mem.path(k))}" for k in ("MEMORY", "NOW") if os.path.isfile(mem.path(k))]
+        return "[fingerprints] " + "  ".join(fp) + "  (hand them to memory_changes before you deliver)"
+
+    lines = ["[status] " + d + " · no need to call memory_status at the start"]
+    lines += [_status_line(k, f) for k, f in (("in flight", flight), ("proposals", proposals), ("budget", budget),
+                                              ("upgrade", upgrade), ("fingerprints", prints))]
+    block = "\n".join(lines)
+    if len(block.encode()) > STATUS_MAX:   # keep the counts and the fingerprints; drop the advice
+        block = "\n".join(ln.split(" (")[0] if not ln.startswith("[fingerprints]") else ln for ln in lines)
+    return block
+
+
 def t_read(mem, args):
     memory, now = mem.read("MEMORY"), mem.read("NOW")
     if not memory and not now:
         return f"No memory files under {mem.root}. Install wallaby-agent-rules there first (see its README).", True
-    pending = len(mem.lines("PROPOSALS"))
     head = [f"[wallaby memory · files {mem.installed_version() or 'unmarked'} · server {SERVER_VERSION}]",
             CONFLICT_RULE]
-    if pending:
-        head.append(f"{pending} proposed fact(s) are waiting in PROPOSALS.md; they are not facts until approved.")
-    prints = [f"{FILES[k]}={fingerprint(mem.path(k))}" for k in ("MEMORY", "NOW") if os.path.isfile(mem.path(k))]
-    head.append("[fingerprints] " + "  ".join(prints) + "  (hand them to memory_changes before you deliver)")
-    return "\n".join(head) + "\n\n=== MEMORY.md ===\n" + memory.strip() + "\n\n=== NOW.md ===\n" + now.strip(), False
+    return ("\n".join(head) + "\n\n=== MEMORY.md ===\n" + memory.strip() + "\n\n=== NOW.md ===\n" + now.strip()
+            + "\n\n" + status_block(mem)), False
 
 
 INDEX_PART_RE = re.compile(r"`(INDEX/[^`\s]+\.md)`")
@@ -378,6 +432,15 @@ def t_locate(mem, args):
         if all(t in s.lower() for t in terms):
             rows.append(s)
     state = state_text(state_hits(mem, terms))
+    if not state and len(terms) > 1:   # every word must be on one line: one extra word in the question finds nothing
+        for i in range(len(terms) - 1, -1, -1):
+            rest = terms[:i] + terms[i + 1:]
+            found = state_text(state_hits(mem, rest))
+            if found:
+                head, _, body = found.partition("\n")
+                state = (f"{head}\n[fewer words] no state line has every word; dropped \"{terms[i]}\" and looked up "
+                         f"\"{' '.join(rest)}\". INDEX.md rows still need every word.\n{body}")
+                break
     if not rows:
         miss = (f"Nothing in INDEX.md matches \"{q}\". If the file exists, register it in INDEX.md the moment "
                 "you find it; do not guess a path.")
@@ -523,11 +586,9 @@ def t_status(mem, args):
           "index_rows": sum(1 for ln in mem.read("INDEX").splitlines() if ln.strip().startswith(("|", "- "))),
           "memory_tokens_est": est_tokens(memory),
           "memory_soft_wall": "~150 dated lines or ~8k estimated tokens"}
-    if installed and _vkey(installed) < _vkey(CORE_FORMAT):
-        st["upgrade"] = (f"files are {installed}, this server writes the {CORE_FORMAT} format: run the L2 upgrade "
-                         "check from PROMPT.md; your content is never overwritten")
-    elif installed and _vkey(installed) > _vkey(RULES_VERSION):
-        st["upgrade"] = f"files are newer ({installed}) than this server ({RULES_VERSION}): update the server"
+    hint = upgrade_hint(installed)
+    if hint:
+        st["upgrade"] = hint
     return json.dumps(st, ensure_ascii=False, indent=2), False
 
 
@@ -568,7 +629,7 @@ def t_changes(mem, args):
 
 
 TOOLS = {
-    "memory_read": (t_read, "Read the project memory at the start of a session: MEMORY.md and NOW.md, with the conflict rule. Call this before taking work.",
+    "memory_read": (t_read, "Read the project memory at the start of a session: MEMORY.md and NOW.md, with the conflict rule, ending with a status block. Call this before taking work; no memory_status needed.",
                     {"type": "object", "properties": {}}),
     "memory_locate": (t_locate, "Find a topic: its INDEX.md rows, and its latest state in NOW.md, MEMORY.md, LOG.md and PROPOSALS.md. Call it before you say something is done, shipped, or pending.",
                       {"type": "object", "properties": {"query": {"type": "string", "description": "words to look up, e.g. 'pricing spec'"}},

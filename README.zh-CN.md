@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.4 -->
+<!-- wallaby-agent-rules 1.4.5 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
@@ -62,6 +62,8 @@ python3 scripts/memory_governance.py doctor
 | 代码与版本节（代码项目） | 当前发布版本=带日期的记忆事实，一变就更新；每次发布/迁移/回滚都带 commit 号落日志 |
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
+
+**1.4.5 新增**：几个 agent 共用的规则只在一个源块里写一份，`rules sync` 把它复制进各家的入口文件，`AGENTS.md`、`CLAUDE.md` 等不会再各写各的；哪份副本走样了，`doctor` 会报出来。`memory_read` 末尾带一小段状态，agent 开工调一次就够。
 
 **1.4.4 新增**：入口更少，一次查询就能看到最新状态。`doctor` 一条命令跑完所有检查，包括每周脚本。`memory_locate` 会带回一个主题在 NOW.md、MEMORY.md、LOG.md 里最新的几行，agent 说做完了之前先查一下。可选的 PROFILE.md 记录怎么和用户合作，只收用户自己说的话，并且要用户点头。目标可以编号，工作记录可以指向它。详见[更新日志](CHANGELOG.md)。
 

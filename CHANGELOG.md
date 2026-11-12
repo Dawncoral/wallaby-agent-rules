@@ -5,7 +5,16 @@ All notable changes to wallaby-agent-rules. This project versions by marker comm
 
 ## 1.4.5 — 2026-11-12
 
-A fix for projects that upgrade from an earlier version. After 1.4.4, `doctor` could turn red without any change to the project's data, in two cases:
+**One source for rules that several agents share, a status block at the end of the session-start read, and an upgrade fix.** `rules` is a new command, which the release checklist counts as a minor version; this one keeps a patch number by maintainer decision.
+
+- **Shared rules**: put a rule set once between `<!-- shared-rules:NAME BEGIN source -->` and `<!-- shared-rules:NAME END -->`, and an empty block with the same name marked `BEGIN copy` in each agent's entry file (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and so on). `rules sync` copies the source into every copy and logs each write; `rules sync --check` reports drift and writes nothing. `doctor` shows one `SHARED` line when the project has such blocks and fails on drift, two sources for one name, or a marker without its pair; a project without blocks sees no change. The rules census no longer reports a copy as a repeat of its source, and still reports a rule pasted by hand. Markers inside code fences are examples, not blocks. See [Share rules between agents](extras/memory-governance/README.md#share-rules-between-agents).
+- **Status at the end of `memory_read`**: the read now ends with a block of at most 600 bytes: tracked work in flight and the oldest item's age, proposals waiting, the MEMORY.md budget, whether an upgrade is due, and the fingerprints for `memory_changes`. The agent needs no `memory_status` call at the start. A part that cannot be read says so and names `memory_status`, and the read still succeeds. The changing part comes last, so the files above it read the same from one session to the next. The proposal count and fingerprints moved from the top into this block.
+- **Fewer words in `memory_locate`**: every word must be on one line, so one extra word in a question used to find no state at all. When several words find nothing, `memory_locate` drops one word at a time, starting from the last, and says which word it dropped. INDEX.md rows still need every word.
+- The MCP server is 0.5.1.
+
+### An upgrade fix
+
+After 1.4.4, `doctor` could turn red without any change to the project's data, in two cases:
 
 - **A PROFILE.md of another kind**: 1.4.4 checked any PROFILE.md as a user profile. Now `doctor` and `profile check` treat it as one only when it has at least one of the five profile headings. Otherwise they leave it alone and say so.
 - **The words "goal: G2" in a log**: 1.4.4 read any such text as a pointer to a goal. Now pointers are checked only once MEMORY.md has a Goals section.
@@ -14,7 +23,11 @@ Upgrade tests now start from every published CLI, 1.4.0 through 1.4.4, and check
 
 ### Migrating from 1.4.4
 
-Run `python3 extras/memory-governance/memory_governance.py --target . upgrade`, read the dry run, then add `--apply`. Nothing else changes.
+1. Run `python3 extras/memory-governance/memory_governance.py --target . upgrade`, read the dry run, then add `--apply`. If you took 1.4.5 from main before the shared rules were added, run it again: `upgrade` compares the files byte for byte, not only the version.
+2. Replace `wallaby_memory_mcp.py` with the new copy. Tool names did not change, so agent configs stay as they are.
+3. Optional: when two entry files repeat the same rules, keep them once in a source block and put copy blocks in the others, then run `rules sync`.
+
+Your memory files need no migration.
 
 ## 1.4.4 — 2026-11-12
 

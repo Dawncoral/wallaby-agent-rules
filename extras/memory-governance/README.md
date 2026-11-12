@@ -208,6 +208,33 @@ python3 scripts/memory_governance.py map sync --check
 
 `map sync` writes a generated block between `<!-- map:auto:begin -->` and `<!-- map:auto:end -->`, with one row per top-level directory: files, INDEX rows, registered capabilities, unregistered files, and split files. Rows you wrote outside the block stay as they are. It also prints paste-ready rows: new CAPABILITIES.md entries marked `incubating`, CAPABILITIES.md retirements, and new MAP.md components. It never writes them for you. `--check` exits 1 when the block lacks a top-level directory or a split file; `doctor` runs the check. A change in the counts alone is not drift: `doctor` stays green, and the next `map sync` refreshes them.
 
+### Share rules between agents
+
+When several agents read their own entry files, the same rules end up in each one and drift apart. Keep them once, in a source block, in any Markdown file:
+
+```markdown
+<!-- shared-rules:writes BEGIN source -->
+- Never push directly to main.
+- Run the full test suite before you commit.
+<!-- shared-rules:writes END -->
+```
+
+In each entry file that needs them, put a block with the same name marked `copy`. It can start empty:
+
+```markdown
+<!-- shared-rules:writes BEGIN copy -->
+<!-- shared-rules:writes END -->
+```
+
+```bash
+python3 scripts/memory_governance.py rules sync
+python3 scripts/memory_governance.py rules sync --check
+```
+
+`rules sync` copies the source between the markers of every copy, notes the source path on the copy's first line, and logs one event for each file it writes. Text outside the blocks stays as it is, and so do the file's line endings. `--check` exits 1 on drift and writes nothing. `doctor` prints one `SHARED` line when the project has blocks and fails on drift, two sources with one name, a copy with no source, or a marker without its pair. Markers inside code fences are examples and are skipped. The rules census counts the copies as loaded, since agents read them, but never reports a copy as a repeat of its source. A rule pasted by hand still shows.
+
+Edit the source, never a copy: the next `rules sync` overwrites a copy.
+
 ### Split memory files that grew too large
 
 Month volumes are automatic:
@@ -305,7 +332,7 @@ python3 scripts/memory_governance.py events list --since 41
 python3 scripts/memory_governance.py events verify
 ```
 
-`.memory/events.jsonl` gets one line for each write, receipt, contradiction, split, map sync, and ID:
+`.memory/events.jsonl` gets one line for each write, receipt, contradiction, split, map sync, rules sync, and ID:
 
 ```json
 {"seq": 42, "ts": "2026-11-10T13:38:25+00:00", "actor": "claude-code", "event": "write.log", "file": "LOG.md", "sha256": "9d1c…", "summary": "- [2026-11-10] Shipped the pricing page — docs/pricing.md", "prev": "3f6c1d0a9b2e4c57"}
@@ -426,7 +453,7 @@ python3 scripts/memory_governance.py lookup --registry goal
 | `.memory/splits/` | One manifest per split, plus backups of every file a split changed |
 | `.memory/rules_baseline.json` | The always-loaded instructions at first run, plus the user's guardrails answer |
 | `.memory/audit_baseline.json` | Files that were unregistered before the first audit |
-| `.memory/events.jsonl` | One line for each write, receipt, contradiction, split, map sync, and ID |
+| `.memory/events.jsonl` | One line for each write, receipt, contradiction, split, map sync, rules sync, and ID |
 | `.memory/ids.json` | The next number of each ID series |
 | `.memory/harvest_cursor.json` | The date the last `harvest --advance` reached |
 | `PROFILE.md` | How to work with this user; optional, from `templates/PROFILE.md` |

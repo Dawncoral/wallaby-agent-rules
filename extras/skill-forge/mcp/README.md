@@ -46,6 +46,18 @@ Keep the feedback instruction as one unnumbered footer. Move it to a numbered st
 
 See [Evidence](../README.md#evidence) for the existing experiment assets and their limits. Feedback-placement research belongs in the existing P0/P1 evaluation harness and its per-run ledgers; this server does not add a production execution-logging pipeline.
 
+## Updating
+
+On macOS and Linux the server picks up a new version of its own file. No reconnect is needed. When the file on disk
+changes, the next request is answered by the new code, in the same process and over the same pipes, and the reply
+carries one line saying so. Code that does not start is left alone and reported in the reply. On Windows, and with
+`SKILL_FORGE_MCP_HOT_RELOAD=0`, the server only says that a reconnect is needed. New tool parameters may still need a
+reconnect, because some clients do not refresh their tool list.
+
+```sh
+python3 ../../hot_reload_test.py   # both servers, started from a temporary copy (macOS and Linux)
+```
+
 ## Verify
 
 ```sh

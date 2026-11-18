@@ -53,6 +53,18 @@ Each core file carries a first-line marker such as `<!-- wallaby-agent-rules 1.0
 
 Agents bind to the tool names, not to the file layout. If the files change shape in a later release, you update this server and leave agent configs alone.
 
+## Updating
+
+On macOS and Linux the server picks up a new version of its own file. No reconnect is needed. When the file on disk
+changes, the next request is answered by the new code, in the same process and over the same pipes, and the reply
+carries one line saying so. Code that does not start is left alone and reported in the reply. On Windows, and with
+`WALLABY_MEMORY_MCP_HOT_RELOAD=0`, the server only says that a reconnect is needed. New tool parameters may still need a
+reconnect, because some clients do not refresh their tool list.
+
+```sh
+python3 ../hot_reload_test.py   # both servers, started from a temporary copy (macOS and Linux)
+```
+
 ## Verify
 
 ```sh

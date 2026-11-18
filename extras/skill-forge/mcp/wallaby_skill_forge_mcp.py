@@ -34,6 +34,7 @@ Protocol: MCP over stdio, JSON-RPC 2.0, newline-delimited frames.
 Zero dependencies — standard library only.
 """
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -1044,7 +1045,7 @@ def handle(frame):
     if method == "initialize":
         return result_ok(req_id, {
             "protocolVersion": frame.get("params", {}).get("protocolVersion", "2024-11-05"),
-            "capabilities": {"tools": {"listChanged": False}, "prompts": {"listChanged": False}},
+            "capabilities": {"tools": {"listChanged": True}, "prompts": {"listChanged": False}},
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
         })
     if method == "notifications/initialized":
@@ -1070,9 +1071,173 @@ def handle(frame):
     return None
 
 
+# >>> mcp_hot_reload v1 >>>  (source of truth: mcp_hot_reload.py; do not edit an embedded copy, edit the source and sync)
+import base64
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+
+class HotReload:
+    """Hot reload for a single-file stdio MCP server.
+
+    An MCP server is a child process that reads its code once, at start. After the file on disk changes, a running
+    server keeps answering with the old code until someone reconnects it. With this class, the server looks at its
+    own source files when a request arrives. If they changed, were last written at least SETTLE seconds ago, and the
+    new code starts cleanly in a child process, the server replaces itself in place (os.execve): same pid, same
+    pipes, so the client notices nothing, and the request in hand plus any bytes already read are handed to the new
+    process. The first call after a code change is answered by the new code.
+
+    Limits: in-place restart is POSIX only (elsewhere, and with <PREFIX>_HOT_RELOAD=0, the server only says that a
+    reconnect is needed); new code that does not start is left alone and reported; a changed tool list is announced
+    with tools/list_changed, which some clients ignore until they reconnect.
+
+        hot = HotReload([__file__], SERVER_VERSION, prefix="MY_MCP")
+        for raw in hot.lines(0):                         # instead of: for line in sys.stdin
+            hot.check(raw + b"\n", client_name, tools_sig)   # does not return if the code changed
+            ... handle raw.decode("utf-8", "replace") ...
+            note = hot.take_note(tools_sig)              # one line for the caller, if there is news
+
+    The host must answer `--version` (print, exit 0): that is how new code is tried before the switch.
+    """
+    SETTLE = 2.0                 # seconds a changed file must have been left alone, so a half-written file is not loaded
+    CARRY_MAX = 96 * 1024        # bytes of unread requests that can be handed over (they travel in the environment)
+    MSG = {
+        "updated": "[hot reload] this server now runs the code on disk: v{old} -> v{new}",
+        "same_ver": "[hot reload] this server now runs the code on disk (still v{new})",
+        "tools": "; tool descriptions or parameters changed, so reconnect if your client did not refresh them",
+        "stale": "[hot reload] the code on disk changed ({files}) but this process still runs v{new}; reconnect to load it",
+        "broken": "[hot reload] the new code on disk does not start ({why}); still running v{new}, and it will be loaded once fixed",
+    }
+
+    def __init__(self, files, version, prefix="MCP", preflight=("--version",)):
+        self.files = [Path(f).resolve() for f in files]
+        self.version, self.prefix, self.preflight = version, prefix, tuple(preflight)
+        env = os.environ
+        self.old_version = env.pop(prefix + "_HOT_FROM", None)      # set only in a process that just took over
+        self.client = env.pop(prefix + "_HOT_CLIENT", None) or ""
+        self.old_tools = env.pop(prefix + "_HOT_TOOLS", None)
+        carry = env.pop(prefix + "_HOT_CARRY", "")
+        self.buf = base64.b64decode(carry) if carry else b""
+        self.note, self.bad = "", None
+        self.sig = self._sig()
+        if self.old_version is not None:
+            key = "updated" if self.old_version != version else "same_ver"
+            self.note = self.MSG[key].format(old=self.old_version, new=version)
+
+    def _sig(self):
+        out = []
+        for p in self.files:
+            try:
+                st = p.stat()
+                out.append((st.st_mtime_ns, st.st_size))
+            except OSError:
+                out.append((0, 0))
+        return tuple(out)
+
+    def enabled(self):
+        off = os.environ.get(self.prefix + "_HOT_RELOAD", "").strip().lower() in ("0", "off", "false")
+        return os.name == "posix" and not off
+
+    def lines(self, fd=0):
+        """Yield one request line at a time (bytes, no newline), reading the pipe ourselves. Bytes read but not yet
+        handled stay in self.buf, so they can be handed to the new process."""
+        while True:
+            i = self.buf.find(b"\n")
+            if i >= 0:
+                line, self.buf = self.buf[:i], self.buf[i + 1:]
+                yield line
+                continue
+            try:
+                chunk = os.read(fd, 65536)
+            except InterruptedError:
+                continue
+            if not chunk:
+                if self.buf:
+                    line, self.buf = self.buf, b""
+                    yield line
+                return
+            self.buf += chunk
+
+    def check(self, pending=b"", client="", tools_sig=""):
+        """Call once per incoming request, before handling it. Returns at once if nothing changed. If the code changed
+        and the new code starts, this call does not return: the process becomes the new code, and `pending` (the
+        request in hand, with its newline) plus self.buf go with it."""
+        sig = self._sig()
+        if sig == self.sig or sig == self.bad:
+            return
+        moved = [(p, a) for p, a, b in zip(self.files, sig, self.sig) if a != b]
+        age = time.time() - max(a[0] for _, a in moved) / 1e9          # only the files that changed
+        if 0 <= age < self.SETTLE:
+            return
+        changed = ", ".join(p.name for p, _ in moved)
+        if not self.enabled():
+            self.bad, self.note = sig, self.MSG["stale"].format(files=changed, new=self.version)
+            return
+        why = self._try_start()
+        if why:
+            self.bad, self.note = sig, self.MSG["broken"].format(why=why, new=self.version)
+            return
+        carry = pending + self.buf
+        if len(carry) > self.CARRY_MAX:
+            return
+        env = dict(os.environ)
+        env.update({self.prefix + "_HOT_FROM": self.version, self.prefix + "_HOT_CLIENT": client or "",
+                    self.prefix + "_HOT_TOOLS": tools_sig or "",
+                    self.prefix + "_HOT_CARRY": base64.b64encode(carry).decode("ascii")})
+        argv = list(getattr(sys, "orig_argv", None) or [sys.executable] + sys.argv)
+        try:
+            sys.stdout.flush()
+            os.execve(sys.executable, argv, env)
+        except OSError as e:
+            self.bad, self.note = sig, self.MSG["broken"].format(why=f"{type(e).__name__}: {e}", new=self.version)
+
+    def _try_start(self):
+        """Start the code on disk once in a child process. Returns "" if it starts, else one line saying why not."""
+        try:
+            r = subprocess.run([sys.executable, str(self.files[0])] + list(self.preflight), stdin=subprocess.DEVNULL,
+                               capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.SubprocessError) as e:
+            return type(e).__name__
+        if r.returncode == 0:
+            return ""
+        tail = (r.stderr or r.stdout or "").strip().splitlines()
+        return (tail[-1] if tail else f"exit code {r.returncode}")[:160]
+
+    def tools_changed(self, tools_sig):
+        """True in a process that just took over and whose tool list differs from the old one's."""
+        return bool(self.old_tools) and bool(tools_sig) and tools_sig != self.old_tools
+
+    def take_note(self, tools_sig=""):
+        """The line for the caller, if any (new code was loaded, or new code does not start). Cleared once taken."""
+        note, self.note = self.note, ""
+        if note and self.old_version is not None and self.tools_changed(tools_sig):
+            note += self.MSG["tools"]
+            self.old_tools = None
+        return note
+# <<< mcp_hot_reload v1 <<<
+
+
 def main():
+    if "--version" in sys.argv[1:]:
+        print(f"{SERVER_NAME} {SERVER_VERSION} (template {TEMPLATE_VERSION})")
+        return
     log_err(f"{SERVER_NAME} {SERVER_VERSION} up (template {TEMPLATE_VERSION})")
-    for line in sys.stdin:
+    # Hot reload: when this file changes on disk, the next request is answered by the new code (POSIX; see HotReload).
+    hot = HotReload([os.path.abspath(__file__)], SERVER_VERSION, prefix="SKILL_FORGE_MCP")
+    sig = hashlib.sha256(json.dumps(TOOLS, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    if hot.tools_changed(sig):
+        sys.stdout.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}) + "\n")
+        sys.stdout.flush()
+    posix = os.name == "posix"
+    for line in (hot.lines(0) if posix else sys.stdin):
+        if posix:
+            hot.check(line + b"\n", "", sig)       # does not return if the code changed: the new process takes this request
+            line = line.decode("utf-8", "replace")
+        else:
+            hot.check()                            # elsewhere: only notes that a reconnect is needed
         line = line.strip()
         if not line:
             continue
@@ -1084,6 +1249,10 @@ def main():
         log_err(f"<- {frame.get('method')}")
         resp = handle(frame)
         if resp is not None:
+            content = (resp.get("result") or {}).get("content") if frame.get("method") == "tools/call" else None
+            note = hot.take_note(sig) if isinstance(content, list) else ""
+            if note:                               # new code was loaded, or new code on disk does not start
+                content.append({"type": "text", "text": note})
             sys.stdout.write(json.dumps(resp, ensure_ascii=False) + "\n")
             sys.stdout.flush()
 

@@ -1,0 +1,68 @@
+name: quickstart
+
+# The offline check for a new clone: init, demo, doctor, the quickstart tests,
+# and both MCP smoke tests. No pip or npm install, no model, no API key, no
+# network call beyond the checkout. This workflow was added with the 1.4.5
+# package and its first GitHub run is pending.
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quickstart:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.12"]
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Show interpreter
+        run: python -c "import sys; print(sys.version); print(sys.executable)"
+
+      - name: Quickstart tests
+        run: python -m unittest discover -s extras/memory-governance/tests -p "test_quickstart.py" -v
+
+      - name: Demo
+        run: python extras/memory-governance/quickstart.py demo
+
+      - name: Clean directory init, doctor, and weekly checks
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+          import tempfile
+
+          root = tempfile.mkdtemp(prefix="qs-ci-")
+          quickstart = os.path.join("extras", "memory-governance", "quickstart.py")
+          subprocess.run([sys.executable, quickstart, "--target", root, "init"], check=True)
+          for name in ("memory_governance.py", "health_check.py", "reconcile.py"):
+              subprocess.run([sys.executable, os.path.join(root, "scripts", name), "--target", root, "doctor"]
+                             if name == "memory_governance.py"
+                             else [sys.executable, os.path.join(root, "scripts", name), root], check=True)
+          print("clean init and doctor ok:", root)
+          PY
+
+      - name: Memory MCP smoke test
+        run: python extras/memory-mcp/smoke_test.py
+
+      - name: Skill Forge MCP smoke test
+        run: python extras/skill-forge/mcp/smoke_test.py

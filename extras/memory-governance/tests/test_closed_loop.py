@@ -89,8 +89,13 @@ class Base(unittest.TestCase):
     def write(self, rel, text):
         p = self.root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(text, encoding="utf-8")
+        with open(p, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
         return p
+
+    def append(self, rel, text):
+        with open(self.root / rel, "a", encoding="utf-8", newline="") as f:
+            f.write(text)
 
     def read(self, rel):
         with open(self.root / rel, encoding="utf-8", newline="") as f:
@@ -372,8 +377,7 @@ class VolumeTests(Base):
     def test_tampered_volume_is_reported(self):
         self.write("LOG.md", log_text(["2026-10", "2026-11"]))
         self.js("split", "volume", "auto", "--today", TODAY, "--threshold", "100")
-        vol = self.root / "LOG" / "2026-10.md"
-        vol.write_text(vol.read_text(encoding="utf-8") + "- [2026-10-31] sneaked in\n", encoding="utf-8")
+        self.append("LOG/2026-10.md", "- [2026-10-31] sneaked in\n")
         r = self.cli("split", "volume", "verify", ok=1)
         self.assertIn("a volume was edited", r.stdout)
         self.cli("init")
@@ -446,8 +450,7 @@ class TopicTests(Base):
         self.memory()
         sha = self.js("split", "topic", "propose", "--today", TODAY)[0]["plan_sha"]
         m = self.js("split", "topic", "apply", "--plan-sha", sha, "--confirm", "--today", TODAY)
-        p = self.root / "MEMORY" / "dormant.md"
-        p.write_text(p.read_text(encoding="utf-8") + "- [2026-11-09] written after the split\n", encoding="utf-8")
+        self.append("MEMORY/dormant.md", "- [2026-11-09] written after the split\n")
         self.cli("split", "topic", "rollback", "--tx", m["tx"])
         self.assertIn("written after the split", self.read("MEMORY.md"))
 
@@ -573,6 +576,13 @@ class ClosedLoopTest(Base):
         ids = [r["receipt"] for r in rows if r.get("type") != "verification"]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual([r["status"] for r in rows if r["type"] == "split"], ["applied", "rolled_back", "applied"])
+
+
+class FixtureWriteTests(Base):
+    def test_write_and_append_keep_lf_on_every_os(self):
+        path = self.write("fixture.md", "first\nsecond\n")
+        self.append("fixture.md", "third\n")
+        self.assertEqual(path.read_bytes(), b"first\nsecond\nthird\n")
 
 
 if __name__ == "__main__":

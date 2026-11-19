@@ -5,7 +5,9 @@ All notable changes to wallaby-agent-rules. This project versions by marker comm
 
 ## 1.4.5 — unreleased
 
-**An offline first-success package: `init`, `demo`, and a printed MCP entry, with no model, API key, network, or git.** This section records work on the `ds/quickstart-v1.4.5` branch. It is not a release date, and it does not change the 1.4.5 entry below.
+**Reliable upgrades and a three-step offline first success.** Shared rules, a compact status block, hot-reloadable MCP servers, and a complete offline quickstart, with no model, API key, network, or git history required.
+
+### First success
 
 - **`extras/memory-governance/quickstart.py`**, a standard-library single file with three commands. `--target PATH init` creates the entry file, `MEMORY.md`, `NOW.md`, `INDEX.md`, `LOG.md`, `scripts/health_check.py`, and `scripts/reconcile.py`, then calls the existing governance CLI's `init` for `.memory/` and `scripts/memory_governance.py`. Existing files are always `KEEP`: a second run changes no bytes and no mtime, and `LOG.md` gets no second initialization line. The entry file is selected from an existing `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`/`.cursorrules`, a lone `.claude/` or `.gemini/` directory, or `AGENTS.md`. `INDEX.md` is generated from relative names and allowed suffixes only; it reads no project content and skips `.git/`, `.credentials/`, and `.env*`. New files are exclusive, stay inside the target, and do not follow symlinks. A missing source or a permission failure reports the stage, file, and next command and exits 2.
 - **`demo`** copies the fictional `examples/first-success/` tree to the system temporary directory, runs the full init there, finds the export-format decision through the real Memory MCP `memory_locate`, shows a `LOG.md`-done/`NOW.md`-in-flight contradiction with `reconcile.py` exit 1, removes only the temporary `NOW.md` line, requires `reconcile.py`, `health_check.py`, and the governance `doctor` to exit 0, and ends with `Doctor: PASS`. The two example dates map to yesterday and today in the copy, so the example does not age; the repository copy is hashed before and after.
@@ -15,14 +17,15 @@ All notable changes to wallaby-agent-rules. This project versions by marker comm
 - **Tests**: `extras/memory-governance/tests/test_quickstart.py` covers first init, second-init byte and mtime idempotency, sentinel preservation, `.credentials` exclusion, no-git init and demo, the demo source hash and exact last line, mcp-config JSON with an untouched HOME, spaces, non-ASCII, Gemini/Claude entry selection, Windows-style paths, and an actionable missing-source failure. Subprocesses have timeouts.
 - **CI**: `.github/workflows/quickstart.yml` is the Ubuntu/macOS/Windows, Python 3.9/3.12 matrix for the quickstart tests, demo, a clean-directory init and doctor, and the two MCP smoke tests. It was added with this package and has not been run on GitHub yet; no paid call is involved.
 
-## 1.4.5 — 2026-11-12
+### Shared rules, status, and upgrade compatibility
 
 **One source for rules that several agents share, a status block at the end of the session-start read, and an upgrade fix.** `rules` is a new command, which the release checklist counts as a minor version; this one keeps a patch number by maintainer decision.
 
 - **Shared rules**: put a rule set once between `<!-- shared-rules:NAME BEGIN source -->` and `<!-- shared-rules:NAME END -->`, and an empty block with the same name marked `BEGIN copy` in each agent's entry file (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and so on). `rules sync` copies the source into every copy and logs each write; `rules sync --check` reports drift and writes nothing. `doctor` shows one `SHARED` line when the project has such blocks and fails on drift, two sources for one name, or a marker without its pair; a project without blocks sees no change. The rules census no longer reports a copy as a repeat of its source, and still reports a rule pasted by hand. Markers inside code fences are examples, not blocks. See [Share rules between agents](extras/memory-governance/README.md#share-rules-between-agents).
 - **Status at the end of `memory_read`**: the read now ends with a block of at most 600 bytes: tracked work in flight and the oldest item's age, proposals waiting, the MEMORY.md budget, whether an upgrade is due, and the fingerprints for `memory_changes`. The agent needs no `memory_status` call at the start. A part that cannot be read says so and names `memory_status`, and the read still succeeds. The changing part comes last, so the files above it read the same from one session to the next. The proposal count and fingerprints moved from the top into this block.
-- **Fewer words in `memory_locate`**: every word must be on one line, so one extra word in a question used to find no state at all. When several words find nothing, `memory_locate` drops one word at a time, starting from the last, and says which word it dropped. INDEX.md rows still need every word.
-- The MCP server is 0.5.1.
+- **Deterministic locate**: a whole query that finds nothing returns an explicit miss instead of dropping words or widening the search. INDEX.md rows still need every word.
+- **Hot reload**: on macOS and Linux, both MCP servers replace changed code on the next request, keeping the process ID and pipes. Broken new code stays untouched while the previous version keeps serving and reports the error. Windows and explicit opt-out keep the reconnect-only behavior. Existing processes need one reconnect before this feature is available.
+- The MCP server is 0.5.2.
 
 ### An upgrade fix
 
@@ -30,8 +33,10 @@ After 1.4.4, `doctor` could turn red without any change to the project's data, i
 
 - **A PROFILE.md of another kind**: 1.4.4 checked any PROFILE.md as a user profile. Now `doctor` and `profile check` treat it as one only when it has at least one of the five profile headings. Otherwise they leave it alone and say so.
 - **The words "goal: G2" in a log**: 1.4.4 read any such text as a pointer to a goal. Now pointers are checked only once MEMORY.md has a Goals section.
+- **Idempotent governance init**: a second init leaves `.memory/receipts.jsonl` and every other existing file's bytes and mtime unchanged.
+- **Gemini entries**: `GEMINI.md` is now included in both health-check copies' root whitelist and entry-file list.
 
-Upgrade tests now start from every published CLI, 1.4.0 through 1.4.4, and check that `doctor` gives the same result before and after on a project with files like these.
+Upgrade tests now start from every published CLI, 1.4.0 through 1.4.4, and check that `doctor` gives the same result before and after on a project with files like these. A separate regression checks that a second init preserves every file's bytes and mtime.
 
 ### Migrating from 1.4.4
 

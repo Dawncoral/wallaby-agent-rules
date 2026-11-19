@@ -5,6 +5,18 @@ One Python CLI connects four jobs that are often skipped: impact mapping, premis
 
 The core memory install is still small. Add this pack only when your project needs to keep its documents consistent as they change.
 
+## Start with the offline first success
+
+The companion `quickstart.py` installs the complete memory files, demonstrates a recoverable decision and a stale-status repair, and prints the client configuration without editing it:
+
+```bash
+python3 extras/memory-governance/quickstart.py --target /path/to/project init
+python3 extras/memory-governance/quickstart.py demo
+python3 extras/memory-governance/quickstart.py --target /path/to/project mcp-config --print
+```
+
+The demo needs no model, API key, network, or git history, and ends with `Doctor: PASS` only when `reconcile.py`, `health_check.py`, and the governance `doctor` all exit 0. Existing project files are kept byte for byte; a second init leaves their contents and mtimes unchanged. See [the quickstart guide](../../docs/quickstart.md) and [the fictional example](../../examples/first-success/).
+
 ## Install in about a minute
 
 From the wallaby-agent-rules repository:

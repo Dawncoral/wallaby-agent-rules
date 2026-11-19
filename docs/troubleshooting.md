@@ -109,11 +109,8 @@ An existing `INDEX.md` is kept as it is, so a row added by hand stays until a
 person removes it. Remove the row by hand; `init` will not edit an existing
 index.
 
-## Known gap: a `GEMINI.md` entry and `health_check.py`
+## `GEMINI.md` entries
 
-When a target has a `.gemini/` directory and no existing entry file,
-`quickstart` creates `GEMINI.md`. The current `templates/health_check.py`
-whitelist does not include `GEMINI.md`, so its first scan reports the new entry
-file as a stray root file. The governance `doctor` still exits 0, because the
-weekly scripts keep their own exit codes and are report only. `quickstart` does
-not edit the template; the fix belongs in `templates/health_check.py`.
+`GEMINI.md` is supported. Both health-check copies include it in their root whitelists and entry-file lists, so a `.gemini/` target can finish `init`, `demo`, and `doctor` without a false stray-root warning.
+
+No special case needed.

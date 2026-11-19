@@ -28,6 +28,9 @@ jobs:
       PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Published-upgrade tests read the old release commits directly.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:

@@ -54,6 +54,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         for rule in (".credentials/", ".env", ".env.*", "!.env.example"):
             self.assertIn(rule, ignores)
 
+    def test_ci_fetches_published_upgrade_fixtures(self):
+        workflow = (ROOT / ".github" / "workflows" / "quickstart.yml").read_text(encoding="utf-8")
+        self.assertIn("fetch-depth: 0", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

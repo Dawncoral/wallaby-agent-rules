@@ -3,6 +3,18 @@
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
 
+## 1.4.5 — unreleased
+
+**An offline first-success package: `init`, `demo`, and a printed MCP entry, with no model, API key, network, or git.** This section records work on the `ds/quickstart-v1.4.5` branch. It is not a release date, and it does not change the 1.4.5 entry below.
+
+- **`extras/memory-governance/quickstart.py`**, a standard-library single file with three commands. `--target PATH init` creates the entry file, `MEMORY.md`, `NOW.md`, `INDEX.md`, `LOG.md`, `scripts/health_check.py`, and `scripts/reconcile.py`, then calls the existing governance CLI's `init` for `.memory/` and `scripts/memory_governance.py`. Existing files are always `KEEP`: a second run changes no bytes and no mtime, and `LOG.md` gets no second initialization line. The entry file is selected from an existing `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`/`.cursorrules`, a lone `.claude/` or `.gemini/` directory, or `AGENTS.md`. `INDEX.md` is generated from relative names and allowed suffixes only; it reads no project content and skips `.git/`, `.credentials/`, and `.env*`. New files are exclusive, stay inside the target, and do not follow symlinks. A missing source or a permission failure reports the stage, file, and next command and exits 2.
+- **`demo`** copies the fictional `examples/first-success/` tree to the system temporary directory, runs the full init there, finds the export-format decision through the real Memory MCP `memory_locate`, shows a `LOG.md`-done/`NOW.md`-in-flight contradiction with `reconcile.py` exit 1, removes only the temporary `NOW.md` line, requires `reconcile.py`, `health_check.py`, and the governance `doctor` to exit 0, and ends with `Doctor: PASS`. The two example dates map to yesterday and today in the copy, so the example does not age; the repository copy is hashed before and after.
+- **`mcp-config --print`** writes only one JSON object to stdout: `mcpServers["wallaby-memory"]` with the absolute current Python, the absolute Memory MCP server path, `--root`, and the absolute target. It scans and writes no client configuration and has no `--write` mode.
+- **`examples/first-success/`** is a small, entirely fictional project with a README, entry file, memory files, two documents, and `expected/demo.txt`.
+- **Docs**: `docs/quickstart.md`, `docs/clients.md`, and `docs/troubleshooting.md` cover the three commands, the merge-only MCP entry, and the stage-by-stage failures.
+- **Tests**: `extras/memory-governance/tests/test_quickstart.py` covers first init, second-init byte and mtime idempotency, sentinel preservation, `.credentials` exclusion, no-git init and demo, the demo source hash and exact last line, mcp-config JSON with an untouched HOME, spaces, non-ASCII, Gemini/Claude entry selection, Windows-style paths, and an actionable missing-source failure. Subprocesses have timeouts.
+- **CI**: `.github/workflows/quickstart.yml` is the Ubuntu/macOS/Windows, Python 3.9/3.12 matrix for the quickstart tests, demo, a clean-directory init and doctor, and the two MCP smoke tests. It was added with this package and has not been run on GitHub yet; no paid call is involved.
+
 ## 1.4.5 — 2026-11-12
 
 **One source for rules that several agents share, a status block at the end of the session-start read, and an upgrade fix.** `rules` is a new command, which the release checklist counts as a minor version; this one keeps a patch number by maintainer decision.

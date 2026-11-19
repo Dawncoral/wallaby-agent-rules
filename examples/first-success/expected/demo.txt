@@ -1,0 +1,12 @@
+Quickstart demo: a temporary copy of examples/first-success (the repo copy stays unchanged).
+step 1/7 init: governance installed in the temporary copy
+step 2/7 locate: memory_locate returned the INDEX row for `docs/export-decision.md`
+INDEX row: | `docs/export-decision.md` | Export format decision: CSV, not XLSX |
+step 3/7 decision: Decision: CSV (RFC 4180), not XLSX.
+step 4/7 contradiction: LOG.md says the runbook is done while NOW.md still lists it in flight
+NOW.md: Publish the field runbook - waiting on two screenshots; detail: `docs/export-runbook.md`
+LOG.md: Field runbook published - ticket EX-42
+step 5/7 reconcile before the fix: exit=1 (as expected)
+step 6/7 fix: removed the finished item from the temporary NOW.md only
+step 7/7 checks: reconcile exit=0 (Clean. Log and state agree with each other.); health_check exit=0 (ALL CLEAR — project is tidy.); doctor exit=0 (DOCTOR OK)
+Doctor: PASS

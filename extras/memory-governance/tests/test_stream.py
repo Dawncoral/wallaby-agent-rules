@@ -281,11 +281,11 @@ class WriteTests(Base):
     def test_propose_promote_and_reject_empty_the_queue(self):
         self.project()
         self.cli("write", "propose", "Prices are quoted in USD", "--source", "docs/pricing.md", "--origin", "task-42; rm", "--date", DAY)
-        self.cli("write", "propose", "Gateway key is sk-abcdefghijklmnop1234 for a@b.com", "--source", "ops/deploy.md", "--date", DAY)
+        self.cli("write", "propose", "Gateway key is sk-exampleabcdefghijklmnop1234 for a@b.com", "--source", "ops/deploy.md", "--date", DAY)
         queue = self.read("PROPOSALS.md")
         self.assertIn("(proposed · from task-42rm)", queue)
         self.assertIn("[REDACTED_KEY]", queue)
-        self.assertNotIn("sk-abc", queue)
+        self.assertNotIn("sk-example", queue)
         self.assertIn("already in PROPOSALS.md", self.js("write", "propose", "prices are quoted in usd", "--source", "x")["skipped"])
         self.assertEqual(self.cli("write", "propose", "no source", ok=2).returncode, 2)
         r = self.cli("write", "promote", "--match", "quoted in usd", ok=2)

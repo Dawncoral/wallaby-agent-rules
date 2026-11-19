@@ -158,7 +158,7 @@ def main():
         t = srv.tool_text("skill_optimize", {"skill": "meeting-notes", "content": waived})
         check("waiver shown explicitly", "(waived: forge-waiver 2)" in t)
         t = srv.tool_text("skill_feedback", {
-            "skill": "meeting-notes", "scene": "ran in /Users/someone/secret with key=sk-abcdef0123456789aa",
+            "skill": "meeting-notes", "scene": "ran in /Users/someone/secret with key=sk-examplef0123456789aa",
             "failure": "a@b.com never got the mail", "severity": "low"})
         check("feedback redaction", "[REDACTED_KEY]" in t and "[REDACTED_EMAIL]" in t and "/Users/someone/" not in t)
         pure = "---\nname: pure\ndescription: use when the user says \"polish this paragraph\"\n---\nPure text polishing.\n"

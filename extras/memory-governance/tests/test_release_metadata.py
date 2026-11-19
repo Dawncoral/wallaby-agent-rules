@@ -26,16 +26,33 @@ class ReleaseMetadataTests(unittest.TestCase):
             with self.subTest(path=rel):
                 self.assertIn("version-1.4.5-blue.svg", (ROOT / rel).read_text(encoding="utf-8"))
 
-    def test_changelog_has_one_unreleased_145_section(self):
+    def test_changelog_has_one_145_section(self):
         top = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("## 1.4.4", 1)[0]
-        self.assertIn("## 1.4.5 — unreleased", top)
-        self.assertNotIn("## 1.4.5 — 2026-11-12", top)
+        self.assertIn("## 1.4.5 — 2026-11-20", top)
+        self.assertNotIn("## 1.4.5 — unreleased", top)
         self.assertNotIn("Fewer words in `memory_locate`", top)
 
     def test_prompt_markers(self):
         for rel in ("PROMPT.md", "PROMPT.zh-CN.md"):
             with self.subTest(path=rel):
                 self.assertTrue((ROOT / rel).read_text(encoding="utf-8").startswith("<!-- wallaby-agent-rules 1.4.5 -->"))
+
+    def test_upgrade_prompt_offers_current_health_check(self):
+        self.assertIn("health_check.py exists with a marker older than 1.4.5",
+                      (ROOT / "PROMPT.md").read_text(encoding="utf-8"))
+        self.assertIn("scripts/health_check.py 的版本标记早于 1.4.5",
+                      (ROOT / "PROMPT.zh-CN.md").read_text(encoding="utf-8"))
+        self.assertIn("worktrees whose `.git` is a file",
+                      (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+    def test_cold_start_and_credential_ignore_rules(self):
+        cold = (ROOT / "COLD_START.md").read_text(encoding="utf-8")
+        self.assertTrue(cold.startswith("<!-- wallaby-agent-rules 1.4.5 -->"))
+        self.assertIn("9-question interview", cold)
+        self.assertIn("L3 — Closeout ritual", cold)
+        ignores = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+        for rule in (".credentials/", ".env", ".env.*", "!.env.example"):
+            self.assertIn(rule, ignores)
 
 
 if __name__ == "__main__":

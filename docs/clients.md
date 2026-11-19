@@ -32,6 +32,8 @@ The command prints one JSON object on stdout and writes nothing:
 `command` is the absolute path of the Python that ran quickstart. `args` holds
 the absolute path of the Memory MCP server, `--root`, and the absolute target
 path. Paths with spaces or non-ASCII characters need no escaping inside JSON.
+If you move the repository or the project, regenerate and merge the entry again
+so those absolute paths stay valid.
 
 ## Merge, do not replace
 
@@ -60,6 +62,25 @@ not scan, discover, or edit any client file, and has no `--write` mode.
    start, then run `command args...` by hand. `python3
    extras/memory-mcp/wallaby_memory_mcp.py --root /path/to/project --version`
    should print one line and exit 0.
+
+## Make the first real lookup
+
+Start is not recall. A configuration merge proves that the server starts; it
+does not prove that a fresh session can find and reopen a real decision. To
+check recall:
+
+1. Ask the agent to record one real decision and its source. If it creates a
+   proposal, read and approve that entry first.
+2. Start a fresh session and ask it to call `memory_locate` for that decision.
+3. Ask for the source entry, then open the named memory entry or linked source
+   document. `memory_read` alone is the session-start read; `memory_locate` is
+   the lookup that should find the decision.
+4. If the decision is absent, expect an explicit miss. Do not broaden the query
+   just to make the demonstration pass.
+
+An agent that reads `AGENTS.md` or another entry file can use the same Markdown
+files without MCP. In that case, check the fresh session's answer and source
+path directly; no tool call is required.
 
 ## Notes
 

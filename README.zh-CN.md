@@ -6,7 +6,7 @@
 
 **AI 记得住，你找得到。**
 
-给你的项目配一个长期记忆——也给你自己一张项目地图。两段粘贴即用的提示词、五个纯文本文件、零依赖。适配任何 AI 编码工具。English: [README.md](README.md)。
+给你的项目配一个长期记忆——也给你自己一张项目地图。先跑零依赖离线示例，再把纯 Markdown 记忆文件接入任何 AI 编码工具。English: [README.md](README.md)。
 
 我们自己在真实业务里天天跑这套系统。截至 2026 年 10 月，它已记录下 45 次记忆失败——每一条都带日期、带出处，并且都变成了你能在这个仓库里看到的一条规则或一道扫描（[失败分类学全文，带证据](https://wallabytoken.com/blog/p/ai-memory-benchmarks-wrong-thing.html)）。
 
@@ -15,13 +15,31 @@
 ```bash
 git clone https://github.com/Dawncoral/wallaby-agent-rules.git
 cd wallaby-agent-rules
-python3 extras/memory-governance/quickstart.py --target .wallaby-first-success init
+
+# 1. 运行虚构示例，不碰任何真实项目
 python3 extras/memory-governance/quickstart.py demo
+
+# 2. 初始化你的项目；已有文件保持不变
+python3 extras/memory-governance/quickstart.py --target /path/to/your-project init
+
+# 3. 检查安装结果
+cd /path/to/your-project
+python3 scripts/memory_governance.py --target . doctor
 ```
 
-最后一行是 **`Doctor: PASS`**。示例会找回一条历史决策、定位它的原文，并发现一条陈旧状态。全程不需要模型、API key、网络或 git 历史，也不会碰你的真实项目。
+Windows 如果找不到 `python3`，改用 `python` 或 `py`。
 
-再把 Memory MCP 接到你的客户端：
+示例找回一条历史决策、定位原文并发现陈旧状态后，以 **`Doctor: PASS`** 结尾。全程不需要模型、API key、网络或 git 历史。
+
+## 完成第一次真实查找
+
+让项目里的 agent 记录一条真实决定及其来源。如果你的配置要求新记忆先提报，就批准那条记录。然后开一个新会话问：
+
+```text
+我们关于<某个主题>决定了什么？把来源条目给我看。
+```
+
+检查答案是否指向真实的记忆条目或链接的源文档。没有这条决定时，必须如实落空，不能自动扩大搜索。可选的 Memory MCP 接入命令：
 
 ```bash
 python3 extras/memory-governance/quickstart.py --target /path/to/your-project mcp-config --print
@@ -29,7 +47,7 @@ python3 extras/memory-governance/quickstart.py --target /path/to/your-project mc
 
 详见[快速开始](docs/quickstart.md)、[客户端接入](docs/clients.md)和[排障](docs/troubleshooting.md)。
 
-**实测证据**：我们的记忆读取方案在 LongMemEval-S 上以 Kimi K3.1 Pro 取得 **96.0%**，并在同题 162 道对照中把读者成本降低 **84%**。[查看方法与边界](https://wallabytoken.com/blog/p/longmemeval-s-kimi-k31-pro)。上面的离线示例是冒烟验证，不代表基准分数开箱即可复现。
+**实测证据**：我们的记忆读取方案在 LongMemEval-S 上使用 Kimi K3.1 Pro 取得 **96.0%**；在同题 162 道对照中，按 Moonshot 刊例估算的读者成本降低 **84%**。[查看方法与边界](https://wallabytoken.com/blog/p/longmemeval-s-kimi-k31-pro)。上面的离线示例是冒烟验证，不代表基准分数开箱即可复现。
 
 ## 30 秒看懂
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -266,6 +267,43 @@ class GovernanceTests(unittest.TestCase):
             ("contradictions.json", module.DEFAULT_CONTRADICTIONS),
         ]:
             self.assertEqual(json.loads((examples / name).read_text(encoding="utf-8")), default)
+
+
+class HealthCheckWorktreeTests(unittest.TestCase):
+    def test_dot_git_file_uses_tracked_files_and_commit_scan(self):
+        if not shutil.which("git"):
+            self.skipTest("git is not installed")
+        with tempfile.TemporaryDirectory(prefix="health-worktree-test-") as tmp:
+            repo = Path(tmp) / "origin"
+            repo.mkdir()
+            subprocess.run(["git", "init", "-q", str(repo)], check=True,
+                           capture_output=True, text=True, timeout=30)
+
+            def git(*args):
+                return subprocess.run(["git", "-C", str(repo), *args], check=True,
+                                      capture_output=True, text=True, timeout=30)
+
+            git("config", "user.name", "Wallaby Test")
+            git("config", "user.email", "test@example.com")
+            (repo / "README.md").write_text("# Example\n", encoding="utf-8")
+            (repo / "fake.txt").write_text("sk-exampleabcdefghijklmnop1234\n", encoding="utf-8")
+            git("add", "README.md", "fake.txt")
+            git("commit", "-q", "-m", "initial")
+            linked = Path(tmp) / "linked"
+            git("worktree", "add", "--detach", str(linked))
+            self.assertTrue((linked / ".git").is_file())
+
+            source = Path(__file__).resolve().parents[3] / "templates" / "health_check.py"
+            spec = importlib.util.spec_from_file_location("health_worktree", source)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            self.assertEqual(module._git_tracked_files(linked), {"README.md", "fake.txt"})
+            findings, used_git = module.scan_secrets(linked)
+            self.assertTrue(used_git)
+            self.assertEqual(findings, [])
+            silence = module.scan_commit_silence(linked)
+            self.assertIsNotNone(silence)
+            self.assertTrue(silence["silent"])
 
 
 if __name__ == "__main__":

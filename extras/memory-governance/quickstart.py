@@ -8,9 +8,10 @@ One standard-library file, three commands:
   python3 extras/memory-governance/quickstart.py demo
   python3 extras/memory-governance/quickstart.py --target /path/to/project mcp-config --print
 
-`init` creates the entry file, MEMORY.md, NOW.md, INDEX.md, LOG.md, and the two weekly
-scripts, then calls the existing governance CLI's `init` for `.memory/` and the installed
-copy. Existing files are always kept: the command never overwrites, merges, or repairs one.
+`init` creates the entry file, a minimal README.md when none exists, MEMORY.md, NOW.md,
+INDEX.md, LOG.md, and the two weekly scripts, then calls the existing governance CLI's
+`init` for `.memory/` and the installed copy. Existing files are always kept: the command
+never overwrites, merges, or repairs one; a kept agent entry points to the L2 upgrade prompt.
 `demo` copies the fictional `examples/first-success/` tree to a system temporary directory,
 runs the full init there, finds a decision through the real Memory MCP `memory_locate`,
 shows a LOG.md/NOW.md contradiction, fixes only the temporary NOW.md, and ends with
@@ -136,6 +137,28 @@ MEMORY_TEMPLATE = """<!-- wallaby-agent-rules 1.0.1 -->
 - [{day}] Look in `INDEX.md` before searching, and append to `LOG.md` before calling
   work done. Source: quickstart init.
 """
+
+README_TEMPLATE = """# Project
+
+This project uses wallaby-agent-rules for file-based agent memory.
+
+## Start here
+
+- `{name}` tells the agent how to work in this project.
+- `MEMORY.md` holds dated facts and decisions.
+- `NOW.md` holds work in flight.
+- `INDEX.md` maps project files.
+- `LOG.md` is the dated event log.
+
+## Checks
+
+Run `python3 scripts/health_check.py`, `python3 scripts/reconcile.py`, and
+`python3 scripts/memory_governance.py --target . doctor`.
+
+Existing files are never overwritten by quickstart. For an incremental upgrade,
+see PROMPT.md in the wallaby-agent-rules repository, section "L2 - Upgrade check".
+"""
+
 
 FALLBACK_INDEX_HEADER = """<!-- wallaby-agent-rules 1.0.1 -->
 # INDEX.md - the project map
@@ -453,7 +476,7 @@ def init_project(root, repo_root=REPO_ROOT):
     name, exists = choose_entry(root)
     if exists:
         kept.append(name)
-        print("KEEP %s" % name)
+        print("KEEP %s (content unchanged; see PROMPT.md L2 - Upgrade check)" % name)
     else:
         text = ENTRY_TEMPLATE.replace("{name}", name)
         if write_new(root, name, text):
@@ -461,7 +484,15 @@ def init_project(root, repo_root=REPO_ROOT):
             print("CREATE %s" % name)
         else:
             kept.append(name)
-            print("KEEP %s" % name)
+            print("KEEP %s (content unchanged; see PROMPT.md L2 - Upgrade check)" % name)
+
+    readme = README_TEMPLATE.replace("{name}", name)
+    if write_new(root, "README.md", readme):
+        created.append("README.md")
+        print("CREATE README.md")
+    else:
+        kept.append("README.md")
+        print("KEEP README.md")
 
     today = date.today().isoformat()
     memory = MEMORY_TEMPLATE.replace("{day}", today)

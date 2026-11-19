@@ -9,7 +9,7 @@
 
 **AI remembers, you find.**
 
-Give your project's AI a long-term memory — and give yourself a map of the project. Two paste-in prompts, five plain files, zero dependencies. Works with any AI coding tool. Chinese edition: [README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md).
+Give your project's AI a long-term memory — and give yourself a map of the project. Start with a zero-dependency offline demo, then add plain Markdown memory files to any AI coding tool. Chinese edition: [README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md).
 
 We run this system on our own business. As of October 2026 it has caught 45 logged memory failures — each dated, sourced, and turned into a rule or a scan you can see in this repo ([the failure taxonomy, with receipts](https://wallabytoken.com/blog/p/ai-memory-benchmarks-wrong-thing.html)).
 
@@ -18,13 +18,31 @@ We run this system on our own business. As of October 2026 it has caught 45 logg
 ```bash
 git clone https://github.com/Dawncoral/wallaby-agent-rules.git
 cd wallaby-agent-rules
-python3 extras/memory-governance/quickstart.py --target .wallaby-first-success init
+
+# 1. Run the fictional example without touching a project
 python3 extras/memory-governance/quickstart.py demo
+
+# 2. Initialize your project; existing files stay unchanged
+python3 extras/memory-governance/quickstart.py --target /path/to/your-project init
+
+# 3. Check the installation
+cd /path/to/your-project
+python3 scripts/memory_governance.py --target . doctor
 ```
 
-The last line is **`Doctor: PASS`**. The demo recovers a decision, locates its source, and catches a stale status. It needs no model, API key, network, or git history, and never touches your real project.
+On Windows, use `python` or `py` in place of `python3` if `python3` is not on PATH.
 
-Then connect the memory MCP to your client:
+The demo ends with **`Doctor: PASS`** after it recovers a decision, locates its source, and catches a stale status. It needs no model, API key, network, or git history.
+
+## Make your first real lookup
+
+Ask the agent in your project to record one real decision and its source. If your setup proposes new memories for approval, approve that entry. Then start a fresh session and ask:
+
+```text
+What did we decide about <topic>? Show the source entry.
+```
+
+Check that the answer names the memory entry or linked source document. An absent decision must return an honest miss, not a widened search. For an optional Memory MCP connection, run:
 
 ```bash
 python3 extras/memory-governance/quickstart.py --target /path/to/your-project mcp-config --print
@@ -32,7 +50,7 @@ python3 extras/memory-governance/quickstart.py --target /path/to/your-project mc
 
 See [the quickstart](docs/quickstart.md), [client setup](docs/clients.md), and [troubleshooting](docs/troubleshooting.md).
 
-**Field evidence:** our memory-reading setup reached **96.0% on LongMemEval-S with Kimi K3.1 Pro**, and used **84% less reader cost than full context in our 162-question control**. [Read the method and limits](https://wallabytoken.com/blog/p/longmemeval-s-kimi-k31-pro). The offline demo above is a smoke test, not a claim that the benchmark reproduces out of the box.
+**Field evidence:** our memory-reading setup reached **96.0% on LongMemEval-S with Kimi K3.1 Pro**, and had **84% lower reader cost than full context in our 162-question control, at Moonshot list rates**. [Read the method and limits](https://wallabytoken.com/blog/p/longmemeval-s-kimi-k31-pro). The offline demo above is a smoke test, not a claim that the benchmark reproduces out of the box.
 
 ## The 30-second version
 

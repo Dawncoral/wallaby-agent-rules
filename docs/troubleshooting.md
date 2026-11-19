@@ -76,8 +76,11 @@ python3 scripts/reconcile.py
   error; P1 findings exit 1. `DOCTOR OK` and exit 0 mean the governance checks
   passed.
 
-A freshly initialized project may show `P-001 P2 FAILING: missing README.md`
-when it has no README. That premise is P2 and does not change the exit code.
+`init` creates a minimal `README.md` only when none exists; an existing README
+is kept byte for byte. Keep your README. If you later remove it, `P-001 P2
+FAILING: missing README.md` reports the missing onboarding entry, so a fresh
+session loses its starting point. That premise is P2 and does not change the
+doctor exit code. Restore a README to clear the finding.
 
 ## Windows
 

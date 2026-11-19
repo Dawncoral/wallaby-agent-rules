@@ -3,19 +3,19 @@
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
 
-## 1.4.5 — unreleased
+## 1.4.5 — 2026-11-20
 
 **Reliable upgrades and a three-step offline first success.** Shared rules, a compact status block, hot-reloadable MCP servers, and a complete offline quickstart, with no model, API key, network, or git history required.
 
 ### First success
 
-- **`extras/memory-governance/quickstart.py`**, a standard-library single file with three commands. `--target PATH init` creates the entry file, `MEMORY.md`, `NOW.md`, `INDEX.md`, `LOG.md`, `scripts/health_check.py`, and `scripts/reconcile.py`, then calls the existing governance CLI's `init` for `.memory/` and `scripts/memory_governance.py`. Existing files are always `KEEP`: a second run changes no bytes and no mtime, and `LOG.md` gets no second initialization line. The entry file is selected from an existing `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`/`.cursorrules`, a lone `.claude/` or `.gemini/` directory, or `AGENTS.md`. `INDEX.md` is generated from relative names and allowed suffixes only; it reads no project content and skips `.git/`, `.credentials/`, and `.env*`. New files are exclusive, stay inside the target, and do not follow symlinks. A missing source or a permission failure reports the stage, file, and next command and exits 2.
+- **`extras/memory-governance/quickstart.py`**, a standard-library single file with three commands. `--target PATH init` creates the entry file, a minimal `README.md` when none exists, `MEMORY.md`, `NOW.md`, `INDEX.md`, `LOG.md`, `scripts/health_check.py`, and `scripts/reconcile.py`, then calls the existing governance CLI's `init` for `.memory/` and `scripts/memory_governance.py`. Existing files are always `KEEP`: a second run changes no bytes and no mtime, and `LOG.md` gets no second initialization line. A kept agent entry points to `PROMPT.md` L2 for a separate, approval-gated content upgrade. The entry file is selected from an existing `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`/`.cursorrules`, a lone `.claude/` or `.gemini/` directory, or `AGENTS.md`. `INDEX.md` is generated from relative names and allowed suffixes only; it reads no project content and skips `.git/`, `.credentials/`, and `.env*`. New files are exclusive, stay inside the target, and do not follow symlinks. A missing source or a permission failure reports the stage, file, and next command and exits 2.
 - **`demo`** copies the fictional `examples/first-success/` tree to the system temporary directory, runs the full init there, finds the export-format decision through the real Memory MCP `memory_locate`, shows a `LOG.md`-done/`NOW.md`-in-flight contradiction with `reconcile.py` exit 1, removes only the temporary `NOW.md` line, requires `reconcile.py`, `health_check.py`, and the governance `doctor` to exit 0, and ends with `Doctor: PASS`. The two example dates map to yesterday and today in the copy, so the example does not age; the repository copy is hashed before and after.
 - **`mcp-config --print`** writes only one JSON object to stdout: `mcpServers["wallaby-memory"]` with the absolute current Python, the absolute Memory MCP server path, `--root`, and the absolute target. It scans and writes no client configuration and has no `--write` mode.
 - **`examples/first-success/`** is a small, entirely fictional project with a README, entry file, memory files, two documents, and `expected/demo.txt`.
-- **Docs**: `docs/quickstart.md`, `docs/clients.md`, and `docs/troubleshooting.md` cover the three commands, the merge-only MCP entry, and the stage-by-stage failures.
-- **Tests**: `extras/memory-governance/tests/test_quickstart.py` covers first init, second-init byte and mtime idempotency, sentinel preservation, `.credentials` exclusion, no-git init and demo, the demo source hash and exact last line, mcp-config JSON with an untouched HOME, spaces, non-ASCII, Gemini/Claude entry selection, Windows-style paths, and an actionable missing-source failure. Subprocesses have timeouts.
-- **CI**: `.github/workflows/quickstart.yml` is the Ubuntu/macOS/Windows, Python 3.9/3.12 matrix for the quickstart tests, demo, a clean-directory init and doctor, and the two MCP smoke tests. It was added with this package and has not been run on GitHub yet; no paid call is involved.
+- **Docs**: `docs/quickstart.md`, `docs/clients.md`, and `docs/troubleshooting.md` cover the three commands, a real decision recorded and found in a fresh session, the merge-only MCP entry, and the stage-by-stage failures. The README distinguishes the offline smoke test from the LongMemEval result and marks the reader costs as Moonshot-list-rate estimates.
+- **Tests**: `extras/memory-governance/tests/test_quickstart.py` covers first init, a generated README with no missing-README premise, second-init byte and mtime idempotency, L2 guidance and sentinel preservation, `.credentials` exclusion, no-git init and demo, the demo source hash and exact last line, mcp-config JSON with an untouched HOME, spaces, non-ASCII, Gemini/Claude entry selection, Windows-style paths, and an actionable missing-source failure. Subprocesses have timeouts.
+- **CI**: `.github/workflows/quickstart.yml` is the Ubuntu/macOS/Windows, Python 3.9/3.12 matrix for the quickstart tests, demo, a clean-directory init and doctor, the two MCP smoke tests, and the hot-reload test. Hot reload runs on POSIX and prints an explicit skip on Windows. The workflow was added with this package and has not been run on GitHub yet; no paid call is involved.
 
 ### Shared rules, status, and upgrade compatibility
 
@@ -34,15 +34,19 @@ After 1.4.4, `doctor` could turn red without any change to the project's data, i
 - **A PROFILE.md of another kind**: 1.4.4 checked any PROFILE.md as a user profile. Now `doctor` and `profile check` treat it as one only when it has at least one of the five profile headings. Otherwise they leave it alone and say so.
 - **The words "goal: G2" in a log**: 1.4.4 read any such text as a pointer to a goal. Now pointers are checked only once MEMORY.md has a Goals section.
 - **Idempotent governance init**: a second init leaves `.memory/receipts.jsonl` and every other existing file's bytes and mtime unchanged.
-- **Gemini entries**: `GEMINI.md` is now included in both health-check copies' root whitelist and entry-file list.
+- **Gemini entries**: `GEMINI.md` is now included in both health-check copies' root whitelist and entry-file list. The L2 prompt offers the current health check to projects whose installed copy predates 1.4.5, and the migration guide names the same replacement.
+- **Worktrees**: both health-check copies recognize a `.git` file as well as a `.git` directory, so linked worktrees and submodules use tracked-file secret scanning and commit-silence detection instead of falling back to a whole-tree scan.
+- **Credential prevention**: `.gitignore` excludes `.credentials/`, `.env`, and `.env.*`, while allowing `.env.example`. Test keys use explicit `example` placeholders.
+- **Compatibility docs**: COLD_START points to the current 9-question interview and L3 closeout. The quickstart notes the Windows Python command aliases, client docs say when absolute MCP paths need regeneration, and the social preview matches the offline demo.
 
-Upgrade tests now start from every published CLI, 1.4.0 through 1.4.4, and check that `doctor` gives the same result before and after on a project with files like these. A separate regression checks that a second init preserves every file's bytes and mtime.
+Upgrade tests now start from every published CLI, 1.4.0 through 1.4.4, and check that `doctor` gives the same result before and after on a project with files like these. Separate regressions cover a second init's byte and mtime preservation, a real linked worktree, the L2 health-check threshold, and credential ignore rules.
 
 ### Migrating from 1.4.4
 
 1. Run `python3 extras/memory-governance/memory_governance.py --target . upgrade`, read the dry run, then add `--apply`. If you took 1.4.5 from main before the shared rules were added, run it again: `upgrade` compares the files byte for byte, not only the version.
-2. Replace `wallaby_memory_mcp.py` with the new copy. Tool names did not change, so agent configs stay as they are.
-3. Optional: when two entry files repeat the same rules, keep them once in a source block and put copy blocks in the others, then run `rules sync`.
+2. Replace `scripts/health_check.py` with the current template to recognize `GEMINI.md` and worktrees whose `.git` is a file. `scripts/reconcile.py` is unchanged.
+3. Replace `wallaby_memory_mcp.py` with the new copy. Tool names did not change, so agent configs stay as they are.
+4. Optional: when two entry files repeat the same rules, keep them once in a source block and put copy blocks in the others, then run `rules sync`.
 
 Your memory files need no migration.
 

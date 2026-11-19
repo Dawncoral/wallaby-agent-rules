@@ -181,7 +181,7 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 - **可选新增**——分别提供 MAP.md、CAPABILITIES.md、FAILURES.md、PROFILE.md，不把它们变成可用安装的必要条件。
 - **可选治理包**——提议运行 `python3 extras/memory-governance/memory_governance.py --target . init`，再跑 `python3 scripts/memory_governance.py doctor`。已有 scripts/memory_governance.py 的，提议先跑 `python3 extras/memory-governance/memory_governance.py --target . upgrade`（干跑），我同意后再加 `--apply`。绝不把它变成强制升级项。
 - **建议改动**——每个已有文件给一份 diff：你建议加什么（比如 `## 仪式词` 节、可选的 `## 信任培养模式` 节、代码项目的 `## 代码与版本` 节、`## Verify` 下的状态检查句、当前版本标记）；如发现有内容显得冗余，*建议*移哪——明确标注可选，没我逐项明确同意绝不执行。
-- **替换（仅限脚手架）**——若 scripts/health_check.py 或 scripts/reconcile.py 的版本标记早于 1.4.3（或 health_check.py 不足十项扫描、reconcile.py 不足两项扫描），提议换成 wallaby-agent-rules 仓库的当前版本。只有这两个文件可以直接替换。
+- **替换（仅限脚手架）**——先检查两份脚本。若 scripts/health_check.py 的版本标记早于 1.4.5（或不足十项扫描），或 scripts/reconcile.py 的版本标记早于 1.4.3（或不足两项扫描），提议换成 wallaby-agent-rules 仓库的当前版本。只有这两个文件可以直接替换。
 - **指引**——如果我的工具在 wallaby-agent-rules 仓库的 `templates/integrations/` 里有卡，指给我。
 
 ## 第 3 步：只执行我批准的

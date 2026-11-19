@@ -352,7 +352,7 @@ def scan_memory_budget(root, today=None):
 
 def _git_tracked_files(root):
     """Relative paths tracked by git, or None when git/.git is unavailable."""
-    if not os.path.isdir(os.path.join(root, ".git")):
+    if not os.path.exists(os.path.join(root, ".git")):
         return None
     try:
         import subprocess
@@ -415,7 +415,7 @@ def scan_commit_silence(root):
     Detection, not enforcement: it cannot prove what was written, only that
     *nothing* was. Returns None when there is no git repo (fail-open).
     """
-    if not os.path.isdir(os.path.join(root, ".git")):
+    if not os.path.exists(os.path.join(root, ".git")):
         return None
     import subprocess
     try:

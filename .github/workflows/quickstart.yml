@@ -69,3 +69,6 @@ jobs:
 
       - name: Skill Forge MCP smoke test
         run: python extras/skill-forge/mcp/smoke_test.py
+
+      - name: Hot reload (POSIX; explicit skip on Windows)
+        run: python extras/hot_reload_test.py

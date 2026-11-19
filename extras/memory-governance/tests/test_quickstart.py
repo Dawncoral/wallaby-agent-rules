@@ -80,15 +80,16 @@ class QuickstartTestCase(unittest.TestCase):
         result = self.init(target)
         self.assertEqual(result.returncode, 0, result.stderr)
         for rel in (
-            "AGENTS.md", "MEMORY.md", "NOW.md", "INDEX.md", "LOG.md",
+            "AGENTS.md", "README.md", "MEMORY.md", "NOW.md", "INDEX.md", "LOG.md",
             "scripts/health_check.py", "scripts/reconcile.py",
             "scripts/memory_governance.py",
             ".memory/impact.json", ".memory/premises.json",
             ".memory/contradictions.json", ".memory/receipts.jsonl",
         ):
             self.assertTrue((target / rel).is_file(), rel)
+        self.assertIn("AGENTS.md", (target / "README.md").read_text(encoding="utf-8"))
         index = (target / "INDEX.md").read_text(encoding="utf-8")
-        for rel in ("AGENTS.md", "MEMORY.md", "NOW.md", "INDEX.md", "LOG.md",
+        for rel in ("AGENTS.md", "README.md", "MEMORY.md", "NOW.md", "INDEX.md", "LOG.md",
                     "scripts/health_check.py", "scripts/reconcile.py"):
             self.assertIn(rel, index)
         self.assertNotIn(".credentials", index)
@@ -97,6 +98,8 @@ class QuickstartTestCase(unittest.TestCase):
             [sys.executable, str(target / "scripts" / "memory_governance.py"),
              "--target", str(target), "doctor"], capture_output=True, text=True, timeout=180)
         self.assertEqual(doctor.returncode, 0, doctor.stdout + doctor.stderr)
+        self.assertIn("P-001 P2 OK", doctor.stdout + doctor.stderr)
+        self.assertNotIn("P-001 P2 FAILING", doctor.stdout + doctor.stderr)
 
         health = subprocess.run([sys.executable, str(target / "scripts" / "health_check.py"),
                                  str(target)], capture_output=True, text=True, timeout=120)
@@ -119,11 +122,13 @@ class QuickstartTestCase(unittest.TestCase):
         self.assertEqual((target / "LOG.md").read_text(encoding="utf-8"), log_before)
         self.assertEqual(log_before.count("Memory system initialized"), 1)
         self.assertIn("KEEP AGENTS.md", second.stdout)
+        self.assertIn("PROMPT.md L2 - Upgrade check", second.stdout)
 
     def test_3_existing_files_keep_their_sentinel_bytes_and_mtime(self):
         target = self.target()
         sentinels = {
             "AGENTS.md": "# sentinel agents\n",
+            "README.md": "# sentinel readme\n",
             "MEMORY.md": "# sentinel memory\n",
             "NOW.md": "# sentinel now\n",
             "INDEX.md": "# sentinel index\n",
@@ -148,12 +153,12 @@ class QuickstartTestCase(unittest.TestCase):
         target = self.target()
         cred = target / ".credentials" / "api.txt"
         cred.parent.mkdir(parents=True)
-        cred.write_text("sk-fictional-sentinel-value\n", encoding="utf-8")
+        cred.write_text("sk-example-sentinel-value\n", encoding="utf-8")
         env_file = target / ".env.local"
-        env_file.write_text("TOKEN=sk-fictional-env-sentinel\n", encoding="utf-8")
+        env_file.write_text("TOKEN=sk-example-env-sentinel\n", encoding="utf-8")
         env_dir = target / ".env"
         env_dir.mkdir()
-        (env_dir / "config.md").write_text("sk-fictional-env-dir-sentinel\n", encoding="utf-8")
+        (env_dir / "config.md").write_text("sk-example-env-dir-sentinel\n", encoding="utf-8")
         seen = []
         original = quickstart.read_text
 
@@ -169,12 +174,12 @@ class QuickstartTestCase(unittest.TestCase):
         index = (target / "INDEX.md").read_text(encoding="utf-8")
         self.assertNotIn(".credentials", index)
         self.assertNotIn(".env", index)
-        self.assertNotIn("sk-fictional", index)
+        self.assertNotIn("sk-example", index)
         for _, text in text_files(target):
-            self.assertNotIn("sk-fictional-sentinel-value", text)
-            self.assertNotIn("sk-fictional-env-sentinel", text)
-            self.assertNotIn("sk-fictional-env-dir-sentinel", text)
-        self.assertEqual(cred.read_text(encoding="utf-8"), "sk-fictional-sentinel-value\n")
+            self.assertNotIn("sk-example-sentinel-value", text)
+            self.assertNotIn("sk-example-env-sentinel", text)
+            self.assertNotIn("sk-example-env-dir-sentinel", text)
+        self.assertEqual(cred.read_text(encoding="utf-8"), "sk-example-sentinel-value\n")
 
     def test_5_init_passes_without_a_git_directory(self):
         target = self.target()

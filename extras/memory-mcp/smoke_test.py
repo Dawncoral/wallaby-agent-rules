@@ -79,11 +79,11 @@ def main():
               and "Nothing in INDEX.md" in text, text[:400])
         text, err = s.tool("memory_propose", fact="Gateway runs on port 8788", source="")
         check("propose: source required", err)
-        text, err = s.tool("memory_propose", fact="Gateway key is sk-abcdefghijklmnop1234 for user a@b.com",
+        text, err = s.tool("memory_propose", fact="Gateway key is sk-exampleabcdefghijklmnop1234 for user a@b.com",
                            source="ops/deploy.md")
         props = open(os.path.join(tmp, "PROPOSALS.md"), encoding="utf-8").read()
         check("propose: queued, redacted", not err and "[REDACTED_KEY]" in props and "[REDACTED_EMAIL]" in props
-              and "sk-abc" not in props)
+              and "sk-example" not in props)
         mem = open(os.path.join(tmp, "MEMORY.md"), encoding="utf-8").read()
         check("propose: MEMORY.md untouched", "Gateway" not in mem)
         text, _ = s.tool("memory_propose", fact="Prices are quoted in USD; 10 credits = 1 USD → docs/pricing.md",

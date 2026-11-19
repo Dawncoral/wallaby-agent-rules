@@ -75,8 +75,8 @@ def main():
         text, _ = s.tool("memory_locate", query="kubernetes")
         check("locate: no guess when absent", "Nothing in INDEX.md" in text)
         text, _ = s.tool("memory_locate", query="usd quantum")
-        check("locate: drops a word when no state line has them all", "[fewer words]" in text
-              and 'dropped "quantum"' in text and "USD" in text, text[:400])
+        check("locate: no automatic query widening", "[fewer words]" not in text
+              and "Nothing in INDEX.md" in text, text[:400])
         text, err = s.tool("memory_propose", fact="Gateway runs on port 8788", source="")
         check("propose: source required", err)
         text, err = s.tool("memory_propose", fact="Gateway key is sk-abcdefghijklmnop1234 for user a@b.com",
@@ -260,7 +260,7 @@ def main():
                       listing == ["LOG.md", "MEMORY.md", "NOW.md", "PROPOSALS.md"], listing)
         ver = subprocess.run([sys.executable, SERVER, "--version"], capture_output=True, text=True, timeout=10)
         check("--version names server, release and core format",
-              ver.stdout.strip() == "wallaby-memory-mcp 0.5.1 (wallaby-agent-rules 1.4.5, core format 1.0.1)",
+              ver.stdout.strip() == "wallaby-memory-mcp 0.5.2 (wallaby-agent-rules 1.4.5, core format 1.0.1)",
               ver.stdout)
         # 1.4.4: latest state in memory_locate, goals in memory_lookup, doctor in memory_check, the size budget
         st = tempfile.mkdtemp(prefix="memmcp-state-")

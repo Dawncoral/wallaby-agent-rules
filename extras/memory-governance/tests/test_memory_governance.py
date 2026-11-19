@@ -72,6 +72,19 @@ class GovernanceTests(unittest.TestCase):
         self.init()
         self.assertIn('"user": "kept"', path.read_text(encoding="utf-8"))
 
+    def test_second_init_preserves_bytes_and_mtimes(self):
+        self.init()
+        before = {
+            str(path.relative_to(self.root)): (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in self.root.rglob("*") if path.is_file()
+        }
+        self.init()
+        after = {
+            str(path.relative_to(self.root)): (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in self.root.rglob("*") if path.is_file()
+        }
+        self.assertEqual(before, after)
+
     def test_impact_record_verify_and_allow_history(self):
         self.init()
         (self.root / "README.md").write_text("old-component\n", encoding="utf-8")

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wallaby_memory_mcp.py — the file memory as an MCP server (0.5.1, ships with wallaby-agent-rules 1.4.5).
+"""wallaby_memory_mcp.py — the file memory as an MCP server (0.5.2, ships with wallaby-agent-rules 1.4.5).
 
 The memory stays what it is: MEMORY.md, NOW.md, INDEX.md, LOG.md (and PROPOSALS.md for the trust-
 building queue) as plain Markdown in the project. This server is an optional second door to the same
@@ -11,8 +11,8 @@ The tools follow the protocol, not a free search:
                     ending with a short status block (in flight, proposals, budget, upgrade, fingerprints)
   memory_locate   — "look it up, don't search": rows of INDEX.md (and the INDEX/ parts it points to)
                     whose path or note match, plus the topic's latest state in NOW.md, MEMORY.md, LOG.md
-                    and PROPOSALS.md (newest first, about 1.5 KB at most); when several words find no
-                    state, it drops one word at a time and says which
+                    and PROPOSALS.md (newest first, about 1.5 KB at most); a whole query that finds
+                    nothing returns an explicit miss instead of widening the search
   memory_propose  — a new durable fact goes to PROPOSALS.md, dated and sourced, never into MEMORY.md;
                     a person (or an approving tool) promotes it
   memory_note     — "note this": one dated line on top of this month in LOG.md
@@ -58,7 +58,7 @@ import subprocess
 import sys
 
 SERVER_NAME = "wallaby-memory-mcp"
-SERVER_VERSION = "0.5.1"
+SERVER_VERSION = "0.5.2"
 ORIGIN = ""  # --origin: the work this session does (for example a task id); added to every proposal
 CLIENT = ""  # the MCP client's name from `initialize`; the event log records it as the actor of each write
 RULES_VERSION = "1.4.5"  # the wallaby-agent-rules release this server ships with
@@ -432,15 +432,6 @@ def t_locate(mem, args):
         if all(t in s.lower() for t in terms):
             rows.append(s)
     state = state_text(state_hits(mem, terms))
-    if not state and len(terms) > 1:   # every word must be on one line: one extra word in the question finds nothing
-        for i in range(len(terms) - 1, -1, -1):
-            rest = terms[:i] + terms[i + 1:]
-            found = state_text(state_hits(mem, rest))
-            if found:
-                head, _, body = found.partition("\n")
-                state = (f"{head}\n[fewer words] no state line has every word; dropped \"{terms[i]}\" and looked up "
-                         f"\"{' '.join(rest)}\". INDEX.md rows still need every word.\n{body}")
-                break
     if not rows:
         miss = (f"Nothing in INDEX.md matches \"{q}\". If the file exists, register it in INDEX.md the moment "
                 "you find it; do not guess a path.")

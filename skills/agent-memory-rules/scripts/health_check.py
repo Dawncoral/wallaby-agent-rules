@@ -10,7 +10,7 @@ Zero dependencies, Python 3.8+. Ten scans:
   4. NOW.md entries idle past the stale threshold (default: 30 days).
   5. INDEX.md registrations pointing at files that no longer exist.
      (Scans 3 + 5 together cover index drift in both directions.)
-  6. Entry files (AGENTS.md / CLAUDE.md / .cursorrules) past the size wall —
+  6. Entry files (AGENTS.md / CLAUDE.md / GEMINI.md / .cursorrules) past the size wall —
      three budgets, whichever bursts first: ~32 KiB bytes (hard tool
      truncation), ~500 lines, ~8k estimated tokens (attention budget).
      CJK text fills byte budgets ~3x faster per character than Latin text,
@@ -46,7 +46,7 @@ import sys
 
 # Files allowed to live loose in the project root.
 ROOT_WHITELIST = {
-    "README.md", "AGENTS.md", "CLAUDE.md", ".cursorrules",
+    "README.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules",
     "MEMORY.md", "NOW.md", "INDEX.md", "LOG.md", "CHANGELOG.md",
     "MAP.md", "CAPABILITIES.md", "FAILURES.md",
     "LICENSE", "LICENCE", "LICENSE.md", "LICENSE.txt",
@@ -83,7 +83,7 @@ STALE_DAYS = 30
 #           even where no hard truncation exists
 # CJK text fills byte budgets roughly 3x faster per character than Latin
 # text, so for CJK-heavy files the token estimate is the truer gauge.
-ENTRY_FILES = ("AGENTS.md", "CLAUDE.md", ".cursorrules")
+ENTRY_FILES = ("AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules")
 ENTRY_MAX_BYTES = 32 * 1024
 ENTRY_MAX_LINES = 500
 ENTRY_MAX_TOKENS = 8192

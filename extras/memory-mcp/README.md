@@ -3,7 +3,7 @@
 
 **A second door to the same files.** Your memory stays in `MEMORY.md`, `NOW.md`, `INDEX.md`, and `LOG.md`, read through the entry file. This optional server opens those files to agents that never load the entry file, such as an agent started by a workbench or a remote runner. It keeps no store, cache, or index of its own.
 
-One Python file, standard library only, MCP over stdio. Server version 0.4.0.
+One Python file, standard library only, MCP over stdio. Server version 0.5.2.
 
 ## Install
 
@@ -31,7 +31,7 @@ Claude Code: `claude mcp add wallaby-memory -- python3 /abs/path/wallaby_memory_
 | Tool | Protocol step | What it does |
 |---|---|---|
 | `memory_read` | session start | Returns `MEMORY.md` and `NOW.md`, the file version, and the conflict rule: files beat memory, memory beats inference. It ends with a status block of at most 600 bytes: work in flight and the oldest item's age, proposals waiting, the memory budget, whether an upgrade is due, and the fingerprints for `memory_changes`. No `memory_status` call is needed at the start. |
-| `memory_locate` | check INDEX.md first; before you say done | Returns the `INDEX.md` rows that match, including rows in the `INDEX/` parts it points to, and the topic's latest state: the newest lines from `NOW.md`, `MEMORY.md`, `LOG.md` with its volumes, and `PROPOSALS.md`, at most five per file and about 1.5 KB in all. It marks lines that say done and warns when NOW.md and LOG.md disagree. When several words find no state line, it drops one word at a time and says which; INDEX.md rows still need every word. It never guesses a path. |
+| `memory_locate` | check INDEX.md first; before you say done | Returns the `INDEX.md` rows that match, including rows in the `INDEX/` parts it points to, and the topic's latest state: the newest lines from `NOW.md`, `MEMORY.md`, `LOG.md` with its volumes, and `PROPOSALS.md`, at most five per file and about 1.5 KB in all. It marks lines that say done and warns when NOW.md and LOG.md disagree. If a whole query finds nothing, it says so instead of widening the search. INDEX.md rows still need every word. It never guesses a path. |
 | `memory_propose` | trust-building | Queues a dated fact in `PROPOSALS.md`. A source is required. It never writes `MEMORY.md`; a person promotes it. |
 | `memory_note` | "note this" | Adds one dated line at the top of this month in `LOG.md`. |
 | `memory_now` | tracked work moved | Adds one dated line under `## In flight` in `NOW.md`. A pointer is required. |

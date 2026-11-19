@@ -262,7 +262,11 @@ def cmd_init(args):
             atomic_json(path, data)
             created.append(str(path.relative_to(root)))
     receipts = receipts_path(root)
-    receipts.touch(exist_ok=True)
+    if receipts.exists():
+        print(f"KEEP {receipts.relative_to(root)}")
+    else:
+        receipts.touch()
+        created.append(str(receipts.relative_to(root)))
     target_script = root / "scripts" / "memory_governance.py"
     target_script.parent.mkdir(exist_ok=True)
     source = Path(__file__).resolve()

@@ -33,7 +33,8 @@ def check(name, cond, detail=""):
 
 class Server:
     def __init__(self, home):
-        env = dict(os.environ, HOME=home)
+        # expanduser uses USERPROFILE on Windows; keep every ledger write in the fixture.
+        env = dict(os.environ, HOME=home, USERPROFILE=home)
         self.proc = subprocess.Popen(
             [sys.executable, SERVER],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,

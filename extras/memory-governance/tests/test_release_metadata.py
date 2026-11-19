@@ -57,6 +57,8 @@ class ReleaseMetadataTests(unittest.TestCase):
     def test_ci_fetches_published_upgrade_fixtures(self):
         workflow = (ROOT / ".github" / "workflows" / "quickstart.yml").read_text(encoding="utf-8")
         self.assertIn("fetch-depth: 0", workflow)
+        self.assertIn("ubuntu-24.04", workflow)
+        self.assertIn("core.autocrlf false", workflow)
 
 
 if __name__ == "__main__":

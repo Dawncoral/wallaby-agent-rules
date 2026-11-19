@@ -73,8 +73,12 @@ class DiscoveryTests(Base):
 
     def test_symlinked_entry_file_counts_once(self):
         self.write(".ai/AGENTS.md", AGENTS)
-        os.symlink(".ai/AGENTS.md", self.root / "AGENTS.md")
-        os.symlink(".ai/AGENTS.md", self.root / "CLAUDE.md")
+        target = self.root / ".ai" / "AGENTS.md"
+        try:
+            os.symlink(str(target), self.root / "AGENTS.md")
+            os.symlink(str(target), self.root / "CLAUDE.md")
+        except (OSError, NotImplementedError) as e:
+            self.skipTest("this platform does not allow file symlinks here: %s" % e)
         resident, on_demand = mg.rule_files(self.root)
         self.assertEqual(resident, ["AGENTS.md"])
         self.assertEqual(on_demand, [])

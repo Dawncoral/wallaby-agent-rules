@@ -54,7 +54,7 @@ class GovernanceTests(unittest.TestCase):
 
     def snapshot(self):
         return {
-            str(path.relative_to(self.root)): path.read_bytes()
+            path.relative_to(self.root).as_posix(): path.read_bytes()
             for path in self.root.rglob("*")
             if path.is_file() and ".memory/backups" not in str(path)
         }
@@ -76,12 +76,12 @@ class GovernanceTests(unittest.TestCase):
     def test_second_init_preserves_bytes_and_mtimes(self):
         self.init()
         before = {
-            str(path.relative_to(self.root)): (path.read_bytes(), path.stat().st_mtime_ns)
+            path.relative_to(self.root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
             for path in self.root.rglob("*") if path.is_file()
         }
         self.init()
         after = {
-            str(path.relative_to(self.root)): (path.read_bytes(), path.stat().st_mtime_ns)
+            path.relative_to(self.root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
             for path in self.root.rglob("*") if path.is_file()
         }
         self.assertEqual(before, after)

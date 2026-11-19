@@ -2,13 +2,34 @@
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.5-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
 给你的项目配一个长期记忆——也给你自己一张项目地图。两段粘贴即用的提示词、五个纯文本文件、零依赖。适配任何 AI 编码工具。English: [README.md](README.md)。
 
 我们自己在真实业务里天天跑这套系统。截至 2026 年 10 月，它已记录下 45 次记忆失败——每一条都带日期、带出处，并且都变成了你能在这个仓库里看到的一条规则或一道扫描（[失败分类学全文，带证据](https://wallabytoken.com/blog/p/ai-memory-benchmarks-wrong-thing.html)）。
+
+## 先跑通一个成功示例
+
+```bash
+git clone https://github.com/Dawncoral/wallaby-agent-rules.git
+cd wallaby-agent-rules
+python3 extras/memory-governance/quickstart.py --target /tmp/wallaby-first-success init
+python3 extras/memory-governance/quickstart.py demo
+```
+
+最后一行是 **`Doctor: PASS`**。示例会找回一条历史决策、定位它的原文，并发现一条陈旧状态。全程不需要模型、API key、网络或 git 历史，也不会碰你的真实项目。
+
+再把 Memory MCP 接到你的客户端：
+
+```bash
+python3 extras/memory-governance/quickstart.py --target /path/to/your-project mcp-config --print
+```
+
+详见[快速开始](docs/quickstart.md)、[客户端接入](docs/clients.md)和[排障](docs/troubleshooting.md)。
+
+**实测证据**：我们的记忆读取方案在 LongMemEval-S 上以 Kimi K3.1 Pro 取得 **96.0%**，并在同题 162 道对照中把读者成本降低 **84%**。[查看方法与边界](https://wallabytoken.com/blog/p/longmemeval-s-kimi-k31-pro)。上面的离线示例是冒烟验证，不代表基准分数开箱即可复现。
 
 ## 30 秒看懂
 
@@ -63,7 +84,7 @@ python3 scripts/memory_governance.py doctor
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
 
-**1.4.5 新增**：几个 agent 共用的规则只在一个源块里写一份，`rules sync` 把它复制进各家的入口文件，`AGENTS.md`、`CLAUDE.md` 等不会再各写各的；哪份副本走样了，`doctor` 会报出来。`memory_read` 末尾带一小段状态，agent 开工调一次就够。
+**1.4.5 新增**：离线首次成功包不需要模型或 API key，就能安装并验证完整示例。几个 agent 共用的规则只在一个源块里写一份，`rules sync` 把它复制进各家的入口文件，`AGENTS.md`、`CLAUDE.md` 等不会再各写各的；哪份副本走样了，`doctor` 会报出来。`memory_read` 末尾带一小段状态，agent 开工调一次就够。Memory 与 Skill Forge 两个 MCP 在 macOS／Linux 上会在代码更新后的下一次请求换用新版；已有进程第一次仍需先重连一次。
 
 **1.4.4 新增**：入口更少，一次查询就能看到最新状态。`doctor` 一条命令跑完所有检查，包括每周脚本。`memory_locate` 会带回一个主题在 NOW.md、MEMORY.md、LOG.md 里最新的几行，agent 说做完了之前先查一下。可选的 PROFILE.md 记录怎么和用户合作，只收用户自己说的话，并且要用户点头。目标可以编号，工作记录可以指向它。详见[更新日志](CHANGELOG.md)。
 

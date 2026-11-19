@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.4 -->
+<!-- wallaby-agent-rules 1.4.5 -->
 # PROMPT.zh-CN.md —— 粘贴即用的提示词（中文版）
 
 四段自包含提示词。选一段，整个代码块复制，粘给在你项目里干活的 AI（Kimi Code、Claude Code、Cursor、Codex，或任何能读写文件的 agent）。无需安装、零依赖——AI 自己把整套系统建出来。English version: [PROMPT.md](PROMPT.md)。
@@ -155,6 +155,7 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 - 首行注释直接写明版本：1.0.0 起为语义化 `<!-- wallaby-agent-rules 1.0.0 -->`；早期安装为 `<!-- wallaby-agent-rules vX -->`（v1–v4.1）。
 - 无标记 → 按指纹推断：
+  - **1.4.5**：可用 `rules sync` 管理共享规则的源块／副本块；`memory_read` 末尾带短状态段；MCP 版本为 0.5.2，在 macOS／Linux 支持热更新；`extras/memory-governance/quickstart.py` 提供确定性的 `init`、离线 `demo` 和 `mcp-config --print`。既有安装的文件保持不动，这些只用于识别版本，不构成强制升级。
   - **1.4.4**：入口文件的 `## Verify` 节有一句：说做完了之前先查 NOW.md、LOG.md 最新几条和 MEMORY.md；可选的 PROFILE.md；治理 CLI 新增 `profile`（check、harvest、export、import）、`write confirm`、目标编号（`--goal`、`lookup --registry goal`），`doctor` 会顺带跑每周脚本；MCP 服务器有十个工具（新增 `memory_changes`），`memory_locate` 会带回最新状态。
   - **1.4.3**：可选的 `extras/memory-mcp/` 服务器（九个工具）；治理 CLI 新增 `route`（含 `--record`）、`lookup`、`audit`（含常驻说明对基线）、`map sync`、`split`、`write`、`events`、`id`；scripts/health_check.py 与 scripts/reconcile.py 标记升到 1.4.3，能读月卷（`LOG/YYYY-MM.md`）和 INDEX 分片（`INDEX/<分片>.md`）；入口文件可带两条可选规则（CAPABILITIES.md、MAP.md）。MEMORY.md、NOW.md、INDEX.md、LOG.md 与 1.4.2 相同。
   - **1.4.2**：治理 CLI 新增无损 `upgrade` 命令——默认干跑、先备份、替换后验证，失败自动恢复；其他安装文件与 1.4.1 相同。
@@ -174,7 +175,7 @@ L0 不是另一套系统：它就是每题都按默认作答的 L1。两者跑�
 
 ## 第 2 步：提出增量升级清单
 
-拿现状对照 1.4.4 布局（核心文件保留 1.1.0 结构，另加 1.4.0 收工措辞；可选模板、记忆治理包和记忆 MCP 服务器是仓库侧新增件）。输出编号清单：
+拿现状对照 1.4.5 布局（核心文件保留 1.1.0 结构，另加 1.4.0 收工措辞；共享规则、quickstart、可选模板、治理包和可热更新的 MCP 服务器是仓库侧新增件）。输出编号清单：
 
 - **新增**——还不存在的文件。INDEX.md 先扫描项目并给我看你将要写入的首个完整版本。
 - **可选新增**——分别提供 MAP.md、CAPABILITIES.md、FAILURES.md、PROFILE.md，不把它们变成可用安装的必要条件。

@@ -2,7 +2,7 @@
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.5-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
@@ -12,6 +12,27 @@
 Give your project's AI a long-term memory — and give yourself a map of the project. Two paste-in prompts, five plain files, zero dependencies. Works with any AI coding tool. Chinese edition: [README.zh-CN.md](README.zh-CN.md) / [PROMPT.zh-CN.md](PROMPT.zh-CN.md).
 
 We run this system on our own business. As of October 2026 it has caught 45 logged memory failures — each dated, sourced, and turned into a rule or a scan you can see in this repo ([the failure taxonomy, with receipts](https://wallabytoken.com/blog/p/ai-memory-benchmarks-wrong-thing.html)).
+
+## Start with a passing demo
+
+```bash
+git clone https://github.com/Dawncoral/wallaby-agent-rules.git
+cd wallaby-agent-rules
+python3 extras/memory-governance/quickstart.py --target /tmp/wallaby-first-success init
+python3 extras/memory-governance/quickstart.py demo
+```
+
+The last line is **`Doctor: PASS`**. The demo recovers a decision, locates its source, and catches a stale status. It needs no model, API key, network, or git history, and never touches your real project.
+
+Then connect the memory MCP to your client:
+
+```bash
+python3 extras/memory-governance/quickstart.py --target /path/to/your-project mcp-config --print
+```
+
+See [the quickstart](docs/quickstart.md), [client setup](docs/clients.md), and [troubleshooting](docs/troubleshooting.md).
+
+**Field evidence:** our memory-reading setup reached **96.0% on LongMemEval-S with Kimi K3.1 Pro**, and used **84% less reader cost than full context in our 162-question control**. [Read the method and limits](https://wallabytoken.com/blog/p/longmemeval-s-kimi-k31-pro). The offline demo above is a smoke test, not a claim that the benchmark reproduces out of the box.
 
 ## The 30-second version
 
@@ -71,7 +92,7 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
 
-**New in 1.4.5**: rules that several agents share live in one source block, and `rules sync` copies them into each agent's entry file, so `AGENTS.md`, `CLAUDE.md` and the rest cannot drift apart. `doctor` reports any copy that has. `memory_read` ends with a short status block, so an agent starts work with one call.
+**New in 1.4.5**: an offline first-success package installs and checks a complete example without a model or API key. Rules that several agents share live in one source block, and `rules sync` copies them into each agent's entry file, so `AGENTS.md`, `CLAUDE.md` and the rest cannot drift apart. `doctor` reports any copy that has. `memory_read` ends with a short status block, so an agent starts work with one call. The Memory and Skill Forge MCP servers reload updated code on macOS and Linux; older processes need one reconnect before that feature is available.
 
 **New in 1.4.4**: fewer entry points and the latest state in one lookup. `doctor` runs every check, including the weekly scripts. `memory_locate` returns a topic's newest lines from NOW.md, MEMORY.md, and LOG.md, so an agent checks before it calls anything done. An optional PROFILE.md keeps how to work with the user, filled only with the user's own words and their yes. Goals get IDs that work can point to. See the [changelog](CHANGELOG.md).
 

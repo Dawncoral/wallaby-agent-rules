@@ -18,7 +18,7 @@ We run this system on our own business. As of October 2026 it has caught 45 logg
 ```bash
 git clone https://github.com/Dawncoral/wallaby-agent-rules.git
 cd wallaby-agent-rules
-python3 extras/memory-governance/quickstart.py --target /tmp/wallaby-first-success init
+python3 extras/memory-governance/quickstart.py --target .wallaby-first-success init
 python3 extras/memory-governance/quickstart.py demo
 ```
 

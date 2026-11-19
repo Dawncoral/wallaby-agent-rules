@@ -39,6 +39,9 @@ jobs:
       - name: Quickstart tests
         run: python -m unittest discover -s extras/memory-governance/tests -p "test_quickstart.py" -v
 
+      - name: Full governance and quickstart tests
+        run: python -m unittest discover -s extras/memory-governance/tests -v
+
       - name: Demo
         run: python extras/memory-governance/quickstart.py demo
 

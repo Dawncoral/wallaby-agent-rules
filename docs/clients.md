@@ -71,8 +71,10 @@ not scan, discover, or edit any client file, and has no `--write` mode.
 - `--tools memory_locate` limits the tool list, for a workbench that should
   only look things up.
 - The server's version and the installed memory files' version are reported
-  separately by `memory_status`. Update the server by replacing
-  `wallaby_memory_mcp.py`; the tool names do not change.
+  separately by `memory_status`. On macOS and Linux, the server reloads an updated
+  `wallaby_memory_mcp.py` on the next request, with no reconnect after the first
+  upgrade. On Windows, or with hot reload disabled, restart the client after
+  replacing the file; the tool names do not change.
 - Never put a credential in `MEMORY.md`, `NOW.md`, `LOG.md`, or a client
   configuration. `.credentials/` is skipped by quickstart and by the weekly
   checks; that is a convention, not a place to store a token in a client file.

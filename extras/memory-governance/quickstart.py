@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# wallaby-agent-rules 1.4.5
 """quickstart.py — the offline first success for wallaby-agent-rules.
 
 One standard-library file, three commands:

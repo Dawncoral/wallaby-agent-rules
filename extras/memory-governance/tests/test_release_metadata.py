@@ -24,7 +24,7 @@ class ReleaseMetadataTests(unittest.TestCase):
     def test_readme_badges(self):
         for rel in ("README.md", "README.zh-CN.md"):
             with self.subTest(path=rel):
-                self.assertIn("version-1.4.5-blue.svg", (ROOT / rel).read_text(encoding="utf-8"))
+                self.assertIn("version-1.4.6-blue.svg", (ROOT / rel).read_text(encoding="utf-8"))
 
     def test_changelog_has_one_145_section(self):
         top = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("## 1.4.4", 1)[0]
@@ -35,7 +35,7 @@ class ReleaseMetadataTests(unittest.TestCase):
     def test_prompt_markers(self):
         for rel in ("PROMPT.md", "PROMPT.zh-CN.md"):
             with self.subTest(path=rel):
-                self.assertTrue((ROOT / rel).read_text(encoding="utf-8").startswith("<!-- wallaby-agent-rules 1.4.5 -->"))
+                self.assertTrue((ROOT / rel).read_text(encoding="utf-8").startswith("<!-- wallaby-agent-rules 1.4.6 -->"))
 
     def test_upgrade_prompt_offers_current_health_check(self):
         self.assertIn("health_check.py exists with a marker older than 1.4.5",

@@ -1,4 +1,4 @@
-<!-- wallaby-agent-rules 1.4.4 -->
+<!-- wallaby-agent-rules 1.4.6 -->
 # AGENTS.md — token-budget starter template
 # Source: Wallaby Token engineering practice — https://www.wallabytoken.com/blog/p/agents-md-token-budget
 # License: MIT — adapt freely, attribution appreciated.
@@ -26,6 +26,18 @@ State lives in `MEMORY.md` beside this file, in three tiers:
 - **Standby** — one-line pointers to anything touched in the last 30 days.
   Follow a pointer only when the current task needs it.
 - **Dormant** — aged-out entries. Append-only history; never rewrite.
+
+Session reads:
+
+- For an open-ended, multi-part, cross-domain, or unclear task, read the Active
+  section and NOW.md before work.
+- For one explicit read-only fact or record — a current value, status, or a
+  numbered decision/failure — locate it through INDEX.md or `memory_locate` and
+  read only its owning section. At most two reads; no extra model-based routing
+  or summary. If lookup fails, evidence conflicts, the question broadens, or
+  work will change anything, leave this fast path and read what that work needs.
+- High-risk work adds the relevant permissions, red lines, SOP, evidence, and
+  human approval. Risk alone never forces a full memory read.
 
 Maintenance rules:
 

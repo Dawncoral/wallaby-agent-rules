@@ -1,7 +1,7 @@
 ---
 name: agent-memory-rules
 description: Build and maintain a file-based long-term memory system in any project — entry file (AGENTS.md or per-tool variant), tiered MEMORY.md with aging, session closeout ritual, weekly health-check scripts. Use when project context gets re-explained every session, files are hard to locate, or the user says "remember this".
-version: 1.2.0
+version: 1.2.1
 author: Wallaby Token
 license: MIT
 metadata:
@@ -47,7 +47,7 @@ Six pieces, all inside the project:
 
 ## Standing Rules (what goes into the entry file)
 
-- At the start of every session, read `MEMORY.md` and `NOW.md` before taking work. Before searching for any file, check `INDEX.md` first.
+- For open-ended, multi-part, cross-domain, or unclear work, read `MEMORY.md` and `NOW.md` before taking it. For one explicit read-only fact or record, you may instead locate it through `INDEX.md` or `memory_locate` and read only its owning section — at most two reads, with no extra model-based routing or summary. Leave this fast path when lookup fails, evidence conflicts, the question broadens, or work will change anything. High-risk work adds only the relevant permissions, red lines, SOP, evidence, and human approval; risk alone never forces a full memory read. Before searching for any file, check `INDEX.md` first.
 - If `CAPABILITIES.md` exists, search it before you build a script, skill, template, or scheduled job, and reuse what it lists.
 - If you change a component listed in `MAP.md`, run `python3 scripts/memory_governance.py route "<the change>" --paths <files>` or `impact` before you call the work done. Without the governance pack, read that component's row and check every file it links to.
 - Conflict order: what the memory files say > what you remember > what you infer. On conflict, follow the file and flag it to the user.

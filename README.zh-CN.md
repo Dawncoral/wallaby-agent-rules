@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.4.5 -->
+<!-- wallaby-agent-rules 1.4.6 -->
 # wallaby-agent-rules（中文版）
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.5-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.6-blue.svg)](CHANGELOG.md)
 
 **AI 记得住，你找得到。**
 
@@ -102,6 +102,8 @@ python3 scripts/memory_governance.py doctor
 
 安装完成的那一刻，你会看着 AI 扫完你的项目并交出第一份 `INDEX.md`——「你找得到」当场兑现。
 
+**1.4.6 新增**：明确、单点、只读的事实、状态或编号记录可走快车道——定位后只读所属一节，最多两次读取。开放工作仍保留 MEMORY.md + NOW.md 稳定前缀；高风险工作只叠加相关权限、红线、SOP、实证与人工批准，不因风险本身全量读取。现有记忆文件无需迁移。详见[更新日志](CHANGELOG.md)。
+
 **1.4.5 新增**：离线首次成功包不需要模型或 API key，就能安装并验证完整示例。几个 agent 共用的规则只在一个源块里写一份，`rules sync` 把它复制进各家的入口文件，`AGENTS.md`、`CLAUDE.md` 等不会再各写各的；哪份副本走样了，`doctor` 会报出来。`memory_read` 末尾带一小段状态，agent 开工调一次就够。Memory 与 Skill Forge 两个 MCP 在 macOS／Linux 上会在代码更新后的下一次请求换用新版；已有进程第一次仍需先重连一次。
 
 **1.4.4 新增**：入口更少，一次查询就能看到最新状态。`doctor` 一条命令跑完所有检查，包括每周脚本。`memory_locate` 会带回一个主题在 NOW.md、MEMORY.md、LOG.md 里最新的几行，agent 说做完了之前先查一下。可选的 PROFILE.md 记录怎么和用户合作，只收用户自己说的话，并且要用户点头。目标可以编号，工作记录可以指向它。详见[更新日志](CHANGELOG.md)。
@@ -141,7 +143,7 @@ python3 scripts/memory_governance.py doctor
 
 ## 工作原理（四句话）
 
-1. 入口文件让 AI 每次开工先读 `MEMORY.md` + `NOW.md`——记忆是习惯，不是功能。
+1. 开放工作由入口文件让 AI 先读 `MEMORY.md` + `NOW.md`；明确、单点、只读的事实或记录可改为定位后只读所属一节，最多两次读取。无命中、冲突、问题扩大或要动手时退出快车道；高风险工作叠加相关权限与红线，不自动全量读取。
 2. `INDEX.md` 把「帮我找 X」从搜索变成查找，新文件在创建那一刻就被登记。
 3. 每周健康检查在混乱累积前抓到漂移——杂物、残余、未登记的文档。
 4. 每周对账抓另一种漂移：日志声称的与状态文件显示的之间的差距。
@@ -150,7 +152,7 @@ python3 scripts/memory_governance.py doctor
 
 ## 跑这套系统要花多少钱
 
-记忆系统 = 一段固定前缀：`MEMORY.md` 和 `NOW.md` 跟着每次调用走。这笔成本不大；有提示词缓存时，大头按缓存命中价计。
+开放工作时，`MEMORY.md` 和 `NOW.md` 组成稳定前缀，可吃提示词缓存；只需要一条明确事实时，单点快车道不加载这段固定前缀。下面的成本算例仍按开放工作的固定前缀计算。
 
 按 Kimi K3 算笔账。健康的 `MEMORY.md` 在健康检查强制执行的约 8k 估算 token 软上限以内，整个前缀按 10k token 计；每天 100 次调用，一个月过表的前缀量是 30M token：
 

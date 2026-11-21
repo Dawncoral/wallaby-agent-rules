@@ -1,8 +1,8 @@
-<!-- wallaby-agent-rules 1.4.5 -->
+<!-- wallaby-agent-rules 1.4.6 -->
 # wallaby-agent-rules
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.5-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.6-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
 ![wallaby-agent-rules — long-term memory and a project map for any AI coding tool](assets/social-preview.png)
@@ -110,6 +110,8 @@ Can't fetch URLs? Open [PROMPT.md](PROMPT.md) and paste the section directly —
 
 The moment installation finishes, you watch the AI scan your project and hand you the first `INDEX.md` — "you find" delivered on the spot.
 
+**New in 1.4.6**: a targeted read-only fast path lets an agent answer one explicit fact, status, or numbered record by locating it and reading only its owning section, capped at two reads. Open-ended work keeps the stable MEMORY.md + NOW.md prefix. High-risk work adds the relevant permissions, red lines, SOP, evidence, and human approval; risk alone does not force a full memory read. Existing memory files need no migration. See the [changelog](CHANGELOG.md).
+
 **New in 1.4.5**: an offline first-success package installs and checks a complete example without a model or API key. Rules that several agents share live in one source block, and `rules sync` copies them into each agent's entry file, so `AGENTS.md`, `CLAUDE.md` and the rest cannot drift apart. `doctor` reports any copy that has. `memory_read` ends with a short status block, so an agent starts work with one call. The Memory and Skill Forge MCP servers reload updated code on macOS and Linux; older processes need one reconnect before that feature is available.
 
 **New in 1.4.4**: fewer entry points and the latest state in one lookup. `doctor` runs every check, including the weekly scripts. `memory_locate` returns a topic's newest lines from NOW.md, MEMORY.md, and LOG.md, so an agent checks before it calls anything done. An optional PROFILE.md keeps how to work with the user, filled only with the user's own words and their yes. Goals get IDs that work can point to. See the [changelog](CHANGELOG.md).
@@ -153,7 +155,7 @@ Per-tool gotchas and a 30-second self-check for each: [templates/integrations/](
 
 ## How it works (four sentences)
 
-1. The entry file makes the AI read `MEMORY.md` + `NOW.md` before every session — memory is a habit, not a feature.
+1. The entry file makes the AI read `MEMORY.md` + `NOW.md` for open-ended work. One explicit read-only fact or record can instead be located and read in its owning section — at most two reads. Missing evidence, conflict, a broader question, or action work exits this fast path; high-risk work adds the relevant permissions and red lines, not an automatic full read.
 2. `INDEX.md` turns "find me X" from a search into a lookup, and every new file is registered the moment it's created.
 3. A weekly health check catches drift — stray files, artifacts, unregistered docs — before the mess compounds.
 4. A weekly reconcile audit catches the other kind of drift: the gap between what the log claims and what the state file shows.
@@ -162,7 +164,7 @@ Everything is plain Markdown you can read, `git diff`, and edit. No vector store
 
 ## What this costs to run
 
-A memory system is a fixed prefix: `MEMORY.md` and `NOW.md` ride along on every call. The cost is small, and with prompt caching most of it bills at cache-hit rates.
+For open-ended work, `MEMORY.md` and `NOW.md` form a stable prefix that benefits from prompt caching. The single-record fast path avoids loading that prefix when only one explicit fact is needed; it does not change the worked cost model below.
 
 The worked example, on Kimi K3. A healthy `MEMORY.md` sits under the ~8k-est-token soft wall the health check enforces, so call the whole prefix 10k tokens. 100 calls a day puts 30M prefix tokens through the meter each month:
 

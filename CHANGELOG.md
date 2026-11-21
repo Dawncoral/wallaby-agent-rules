@@ -1,7 +1,18 @@
-<!-- wallaby-agent-rules 1.4.5 -->
+<!-- wallaby-agent-rules 1.4.6 -->
 # Changelog
 
 All notable changes to wallaby-agent-rules. This project versions by marker comment: every user-facing file carries a first-line `<!-- wallaby-agent-rules vX -->`.
+
+## 1.4.6 — 2026-11-21
+
+- **A targeted read-only fast path**: one explicit fact, status, or numbered record can be located and read in its owning section instead of loading the full session-start context. The path is capped at two reads and adds no model-based routing, summary, write, or scheduled work. Missing evidence, conflict, a broader question, or action work exits it.
+- **Risk is independent of read breadth**: open-ended or cross-domain work still gets the context it needs; high-risk work adds only the relevant permissions, red lines, SOP, evidence, and human approval. Risk alone does not require a full memory read.
+- The default session-start read remains in place for open-ended work. Existing memory files need no migration.
+- The entry template, bilingual install prompts and README, and the installable skill are synchronized. The CLI, MCP tools, and memory-file formats are unchanged.
+
+### Migrating from 1.4.5
+
+No memory-file migration is required. To adopt the new read path, add the single-record exception and its exit conditions to your entry file, or use the L2 upgrade prompt to review that change. The governance CLI and MCP server stay as they are.
 
 ## 1.4.5 — 2026-11-20
 
